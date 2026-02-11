@@ -1,5 +1,10 @@
 'use client'
 
+import { format } from 'date-fns'
+import { ru } from 'date-fns/locale'
+import { CalendarIcon, RotateCcw } from 'lucide-react'
+
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Calendar } from '@/components/ui/calendar'
 import {
@@ -14,118 +19,184 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Badge } from '@/components/ui/badge'
-import { CalendarIcon, X } from 'lucide-react'
-import { format } from 'date-fns'
-import { ru } from 'date-fns/locale'
+import {
+  CHANNELS,
+  PRODUCT_GROUPS,
+  PROCESSES,
+  SECTORS,
+  SUB_PRODUCTS_BY_GROUP,
+  type ProductGroup,
+  type Sector,
+} from '@/lib/metrics-data'
 
 export interface MetricsFilters {
   dateRange: {
     from: Date | undefined
     to: Date | undefined
   }
-  metrics: string[]
+  sectors: Sector[]
   channels: string[]
-  tags: string[]
+  processes: string[]
+  productGroup: ProductGroup | 'all'
+  subProduct: string | 'all'
 }
 
 interface MetricsFiltersProps {
   filters: MetricsFilters
   onFiltersChange: (filters: MetricsFilters) => void
+  onReset?: () => void
 }
 
-const AVAILABLE_CHANNELS = [
-  'онлайн-банк',
-  'мобильное приложение',
-  'колл-центр',
-  'отделение',
-]
+export const DEFAULT_FILTERS: MetricsFilters = {
+  dateRange: { from: undefined, to: undefined },
+  sectors: ['БММБ'],
+  channels: [],
+  processes: [],
+  productGroup: 'all',
+  subProduct: 'all',
+}
 
-const AVAILABLE_TAGS = [
-  'кредиты',
-  'вклады',
-  'переводы',
-  'карты',
-  'консультации',
-]
+function toggleValue(values: string[], value: string) {
+  return values.includes(value)
+    ? values.filter((item) => item !== value)
+    : [...values, value]
+}
+
+function getSubProducts(group: ProductGroup | 'all') {
+  if (group === 'all') {
+    return PRODUCT_GROUPS.flatMap((item) => SUB_PRODUCTS_BY_GROUP[item])
+  }
+
+  return [...SUB_PRODUCTS_BY_GROUP[group]]
+}
 
 export function MetricsFiltersComponent({
   filters,
   onFiltersChange,
+  onReset,
 }: MetricsFiltersProps) {
-  const handleDateSelect = (date: Date | undefined, type: 'from' | 'to') => {
-    onFiltersChange({
-      ...filters,
-      dateRange: {
-        ...filters.dateRange,
-        [type]: date,
-      },
-    })
-  }
+  const hasActiveFilters =
+    Boolean(filters.dateRange.from) ||
+    Boolean(filters.dateRange.to) ||
+    filters.channels.length > 0 ||
+    filters.processes.length > 0 ||
+    filters.sectors[0] !== DEFAULT_FILTERS.sectors[0] ||
+    filters.productGroup !== 'all' ||
+    filters.subProduct !== 'all'
 
-  const handleChannelToggle = (channel: string) => {
-    const newChannels = filters.channels.includes(channel)
-      ? filters.channels.filter((c) => c !== channel)
-      : [...filters.channels, channel]
-    onFiltersChange({ ...filters, channels: newChannels })
-  }
-
-  const handleTagToggle = (tag: string) => {
-    const newTags = filters.tags.includes(tag)
-      ? filters.tags.filter((t) => t !== tag)
-      : [...filters.tags, tag]
-    onFiltersChange({ ...filters, tags: newTags })
-  }
+  const subProducts = getSubProducts(filters.productGroup)
 
   const handleReset = () => {
-    onFiltersChange({
-      dateRange: { from: undefined, to: undefined },
-      metrics: [],
-      channels: [],
-      tags: [],
-    })
+    if (onReset) {
+      onReset()
+      return
+    }
+
+    onFiltersChange(DEFAULT_FILTERS)
   }
 
-  const hasActiveFilters =
-    filters.dateRange.from ||
-    filters.dateRange.to ||
-    filters.channels.length > 0 ||
-    filters.tags.length > 0
-
   return (
-    <div className="space-y-4 rounded-lg border border-border bg-card p-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-medium text-foreground">Фильтры</h3>
-        {hasActiveFilters && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleReset}
-            className="h-8 px-2 text-xs"
-          >
-            <X className="mr-1 h-3 w-3" />
-            Сбросить
-          </Button>
-        )}
+    <div className="rounded-xl border border-border bg-card/70 p-4 backdrop-blur">
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="text-sm font-semibold text-foreground">Фильтры</h2>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-8 px-2 text-xs"
+          onClick={handleReset}
+          disabled={!hasActiveFilters}
+        >
+          <RotateCcw className="mr-1 h-3 w-3" />
+          Reset
+        </Button>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {/* Дата от */}
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <div className="space-y-2">
-          <label className="text-xs font-medium text-muted-foreground">
-            Дата от
-          </label>
+          <label className="text-xs text-muted-foreground">Сектор</label>
+          <Select
+            value={filters.sectors[0]}
+            onValueChange={(value) =>
+              onFiltersChange({ ...filters, sectors: [value as Sector] })
+            }
+          >
+            <SelectTrigger className="h-9">
+              <SelectValue placeholder="Сектор" />
+            </SelectTrigger>
+            <SelectContent>
+              {SECTORS.map((sector) => (
+                <SelectItem key={sector} value={sector}>
+                  {sector}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-xs text-muted-foreground">Product Group</label>
+          <Select
+            value={filters.productGroup}
+            onValueChange={(value) =>
+              onFiltersChange({
+                ...filters,
+                productGroup: value as ProductGroup | 'all',
+                subProduct: 'all',
+              })
+            }
+          >
+            <SelectTrigger className="h-9">
+              <SelectValue placeholder="Product Group" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Все группы</SelectItem>
+              {PRODUCT_GROUPS.map((group) => (
+                <SelectItem key={group} value={group}>
+                  {group}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-xs text-muted-foreground">Sub Product</label>
+          <Select
+            value={filters.subProduct}
+            onValueChange={(value) =>
+              onFiltersChange({
+                ...filters,
+                subProduct: value,
+              })
+            }
+          >
+            <SelectTrigger className="h-9">
+              <SelectValue placeholder="Sub Product" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Все подпродукты</SelectItem>
+              {subProducts.map((subProduct) => (
+                <SelectItem key={subProduct} value={subProduct}>
+                  {subProduct}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-xs text-muted-foreground">Период: от</label>
           <Popover>
             <PopoverTrigger asChild>
               <Button
                 variant="outline"
-                className="w-full justify-start text-left font-normal bg-transparent"
+                className="h-9 w-full justify-start bg-transparent text-left font-normal"
               >
                 <CalendarIcon className="mr-2 h-4 w-4" />
                 {filters.dateRange.from ? (
                   format(filters.dateRange.from, 'dd MMM yyyy', { locale: ru })
                 ) : (
-                  <span className="text-muted-foreground">Выберите дату</span>
+                  <span className="text-muted-foreground">Не задан</span>
                 )}
               </Button>
             </PopoverTrigger>
@@ -133,29 +204,30 @@ export function MetricsFiltersComponent({
               <Calendar
                 mode="single"
                 selected={filters.dateRange.from}
-                onSelect={(date) => handleDateSelect(date, 'from')}
-                initialFocus
+                onSelect={(date) =>
+                  onFiltersChange({
+                    ...filters,
+                    dateRange: { ...filters.dateRange, from: date },
+                  })
+                }
               />
             </PopoverContent>
           </Popover>
         </div>
 
-        {/* Дата до */}
         <div className="space-y-2">
-          <label className="text-xs font-medium text-muted-foreground">
-            Дата до
-          </label>
+          <label className="text-xs text-muted-foreground">Период: до</label>
           <Popover>
             <PopoverTrigger asChild>
               <Button
                 variant="outline"
-                className="w-full justify-start text-left font-normal bg-transparent"
+                className="h-9 w-full justify-start bg-transparent text-left font-normal"
               >
                 <CalendarIcon className="mr-2 h-4 w-4" />
                 {filters.dateRange.to ? (
                   format(filters.dateRange.to, 'dd MMM yyyy', { locale: ru })
                 ) : (
-                  <span className="text-muted-foreground">Выберите дату</span>
+                  <span className="text-muted-foreground">Не задан</span>
                 )}
               </Button>
             </PopoverTrigger>
@@ -163,27 +235,31 @@ export function MetricsFiltersComponent({
               <Calendar
                 mode="single"
                 selected={filters.dateRange.to}
-                onSelect={(date) => handleDateSelect(date, 'to')}
-                initialFocus
+                onSelect={(date) =>
+                  onFiltersChange({
+                    ...filters,
+                    dateRange: { ...filters.dateRange, to: date },
+                  })
+                }
               />
             </PopoverContent>
           </Popover>
         </div>
 
-        {/* Каналы */}
         <div className="space-y-2">
-          <label className="text-xs font-medium text-muted-foreground">
-            Каналы обращения
-          </label>
-          <div className="flex flex-wrap gap-1.5">
-            {AVAILABLE_CHANNELS.map((channel) => (
+          <label className="text-xs text-muted-foreground">Каналы</label>
+          <div className="flex min-h-9 flex-wrap gap-1.5 rounded-md border border-border p-1.5">
+            {CHANNELS.map((channel) => (
               <Badge
                 key={channel}
-                variant={
-                  filters.channels.includes(channel) ? 'default' : 'outline'
-                }
+                variant={filters.channels.includes(channel) ? 'default' : 'outline'}
                 className="cursor-pointer"
-                onClick={() => handleChannelToggle(channel)}
+                onClick={() =>
+                  onFiltersChange({
+                    ...filters,
+                    channels: toggleValue(filters.channels, channel),
+                  })
+                }
               >
                 {channel}
               </Badge>
@@ -191,20 +267,22 @@ export function MetricsFiltersComponent({
           </div>
         </div>
 
-        {/* Теги */}
-        <div className="space-y-2">
-          <label className="text-xs font-medium text-muted-foreground">
-            Теги
-          </label>
-          <div className="flex flex-wrap gap-1.5">
-            {AVAILABLE_TAGS.map((tag) => (
+        <div className="space-y-2 md:col-span-2 xl:col-span-2">
+          <label className="text-xs text-muted-foreground">Процессы</label>
+          <div className="flex flex-wrap gap-1.5 rounded-md border border-border p-1.5">
+            {PROCESSES.map((process) => (
               <Badge
-                key={tag}
-                variant={filters.tags.includes(tag) ? 'default' : 'outline'}
+                key={process}
+                variant={filters.processes.includes(process) ? 'default' : 'outline'}
                 className="cursor-pointer"
-                onClick={() => handleTagToggle(tag)}
+                onClick={() =>
+                  onFiltersChange({
+                    ...filters,
+                    processes: toggleValue(filters.processes, process),
+                  })
+                }
               >
-                {tag}
+                {process}
               </Badge>
             ))}
           </div>

@@ -1,55 +1,56 @@
 'use client'
 
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
-import { Line, LineChart, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Legend, ReferenceLine } from 'recharts'
-import type { MetricDataPoint, MetricInfo } from '@/lib/metrics-data'
+import { CartesianGrid, Legend, Line, LineChart, XAxis, YAxis } from 'recharts'
+
 import { Badge } from '@/components/ui/badge'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
+import type { MetricDataPoint, MetricInfo } from '@/lib/metrics-data'
 
 interface MetricsCombinedChartProps {
   data: Record<string, MetricDataPoint[]>
   metrics: MetricInfo[]
   title?: string
-  description?: string
-  showThresholds?: boolean
 }
 
-export function MetricsCombinedChart({ 
-  data, 
-  metrics, 
-  title = 'Комбинированный анализ',
-  description = 'Сравнение всех метрик на одном графике',
-  showThresholds = false
-}: MetricsCombinedChartProps) {
-  // Преобразуем данные для графика
-  const combinedData = data[metrics[0].id].map((_, index) => {
-    const point: any = { date: data[metrics[0].id][index].date }
-    metrics.forEach((metric) => {
-      point[metric.id] = data[metric.id][index].value
-    })
-    return point
+export function MetricsCombinedChart({ data, metrics, title = 'Сравнение метрик' }: MetricsCombinedChartProps) {
+  if (!metrics.length) {
+    return null
+  }
+
+  const baseMetric = metrics[0]
+  const baseSeries = data[baseMetric.id] ?? []
+
+  const combinedData = baseSeries.map((point, index) => {
+    const row: Record<string, number | string> = { date: point.date }
+
+    for (const metric of metrics) {
+      row[metric.id] = data[metric.id]?.[index]?.value ?? 0
+    }
+
+    return row
   })
 
-  const chartConfig = metrics.reduce((acc, metric) => {
-    acc[metric.id] = {
-      label: metric.name,
-      color: metric.color,
-    }
-    return acc
-  }, {} as Record<string, { label: string; color: string }>)
+  const chartConfig = metrics.reduce(
+    (acc, metric) => {
+      acc[metric.id] = {
+        label: metric.name,
+        color: metric.color,
+      }
+      return acc
+    },
+    {} as Record<string, { label: string; color: string }>
+  )
 
   return (
     <Card>
-      <CardHeader>
-        <div className="flex items-start justify-between">
-          <div>
-            <CardTitle>{title}</CardTitle>
-            <CardDescription>{description}</CardDescription>
-          </div>
-          <div className="flex flex-wrap gap-2">
+      <CardHeader className="pb-3">
+        <div className="flex items-start justify-between gap-2">
+          <CardTitle className="text-base">{title}</CardTitle>
+          <div className="flex flex-wrap gap-1">
             {metrics.map((metric) => (
               <Badge key={metric.id} variant="outline" style={{ borderColor: metric.color }}>
-                <span className="mr-1.5 h-2 w-2 rounded-full" style={{ backgroundColor: metric.color }} />
+                <span className="mr-1 inline-flex h-2 w-2 rounded-full" style={{ backgroundColor: metric.color }} />
                 {metric.name}
               </Badge>
             ))}
@@ -57,55 +58,38 @@ export function MetricsCombinedChart({
         </div>
       </CardHeader>
       <CardContent>
-        <ChartContainer config={chartConfig} className="h-[400px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={combinedData} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
+        <ChartContainer config={chartConfig} className="h-[320px] w-full">
+                      <LineChart data={combinedData} margin={{ top: 6, right: 16, left: 4, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
               <XAxis
                 dataKey="date"
+                tickLine={false}
+                fontSize={11}
+                stroke="hsl(var(--muted-foreground))"
                 tickFormatter={(value) => {
                   const date = new Date(value)
                   return `${date.getDate()}/${date.getMonth() + 1}`
                 }}
-                stroke="hsl(var(--muted-foreground))"
-                fontSize={11}
-                tickLine={false}
               />
               <YAxis
-                stroke="hsl(var(--muted-foreground))"
-                fontSize={11}
                 tickLine={false}
                 axisLine={false}
-                tickFormatter={(value) => `${value}%`}
+                fontSize={11}
+                stroke="hsl(var(--muted-foreground))"
               />
               <ChartTooltip
                 content={
                   <ChartTooltipContent
-                    labelFormatter={(label) => {
-                      const date = new Date(label)
-                      return date.toLocaleDateString('ru-RU', {
-                        day: 'numeric',
-                        month: 'long',
-                      })
-                    }}
+                    labelFormatter={(label) => new Date(String(label)).toLocaleDateString('ru-RU')}
                   />
                 }
               />
-              <Legend 
-                wrapperStyle={{ fontSize: '12px' }}
-                formatter={(value) => chartConfig[value]?.label || value}
-              />
-              {showThresholds && (
-                <>
-                  <ReferenceLine y={10} stroke="hsl(var(--chart-2))" strokeDasharray="3 3" label={{ value: 'Низкий порог', position: 'right', fontSize: 10 }} />
-                  <ReferenceLine y={30} stroke="hsl(var(--chart-3))" strokeDasharray="3 3" label={{ value: 'Средний порог', position: 'right', fontSize: 10 }} />
-                </>
-              )}
+              <Legend wrapperStyle={{ fontSize: '12px' }} />
               {metrics.map((metric) => (
                 <Line
                   key={metric.id}
-                  type="monotone"
                   dataKey={metric.id}
+                  type="monotone"
                   stroke={metric.color}
                   strokeWidth={2}
                   dot={false}
@@ -113,7 +97,6 @@ export function MetricsCombinedChart({
                 />
               ))}
             </LineChart>
-          </ResponsiveContainer>
         </ChartContainer>
       </CardContent>
     </Card>

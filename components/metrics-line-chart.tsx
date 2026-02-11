@@ -1,17 +1,44 @@
 'use client'
 
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { TrendingDown, TrendingUp } from 'lucide-react'
+import { CartesianGrid, Line, LineChart, XAxis, YAxis } from 'recharts'
+
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
-import { Line, LineChart, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 'recharts'
 import type { MetricDataPoint, MetricInfo } from '@/lib/metrics-data'
 
 interface MetricsLineChartProps {
   data: MetricDataPoint[]
   metric: MetricInfo
-  showGrid?: boolean
 }
 
-export function MetricsLineChart({ data, metric, showGrid = true }: MetricsLineChartProps) {
+function formatValue(value: number, unit: string) {
+  return `${value}${unit}`
+}
+
+export function MetricsLineChart({ data, metric }: MetricsLineChartProps) {
+  if (!data.length) {
+    return null
+  }
+
+  let min = Number.POSITIVE_INFINITY
+  let max = Number.NEGATIVE_INFINITY
+  let sum = 0
+
+  for (const point of data) {
+    min = Math.min(min, point.value)
+    max = Math.max(max, point.value)
+    sum += point.value
+  }
+
+  const current = data[data.length - 1]?.value ?? 0
+  const previous = data[data.length - 2]?.value ?? current
+  const avg = sum / data.length
+  const delta = current - previous
+
+  const isPositiveTrend = delta >= 0
+  const TrendIcon = isPositiveTrend ? TrendingUp : TrendingDown
+
   const chartConfig = {
     value: {
       label: metric.name,
@@ -19,77 +46,51 @@ export function MetricsLineChart({ data, metric, showGrid = true }: MetricsLineC
     },
   }
 
-  // Вычисляем статистику
-  const average = data.reduce((sum, d) => sum + d.value, 0) / data.length
-  const max = Math.max(...data.map((d) => d.value))
-  const min = Math.min(...data.map((d) => d.value))
-
-  // Определяем текущий уровень
-  const currentValue = data[data.length - 1]?.value || 0
-  const getStatus = () => {
-    if (currentValue <= metric.thresholds.low) return 'Низкий'
-    if (currentValue <= metric.thresholds.medium) return 'Средний'
-    return 'Высокий'
-  }
-
-  const getStatusColor = () => {
-    if (currentValue <= metric.thresholds.low) return 'text-chart-2'
-    if (currentValue <= metric.thresholds.medium) return 'text-chart-3'
-    return 'text-chart-5'
-  }
-
   return (
     <Card>
-      <CardHeader>
-        <div className="flex items-start justify-between">
+      <CardHeader className="pb-3">
+        <div className="flex items-start justify-between gap-3">
           <div>
-            <CardTitle className="text-base">{metric.name}</CardTitle>
-            <CardDescription className="text-xs">{metric.description}</CardDescription>
+            <CardTitle className="text-sm">{metric.name}</CardTitle>
+            <p className="text-xs text-muted-foreground">{metric.description}</p>
           </div>
           <div className="text-right">
-            <div className="text-2xl font-bold text-foreground">
-              {currentValue.toFixed(1)}{metric.unit}
-            </div>
-            <div className={`text-xs font-medium ${getStatusColor()}`}>
-              {getStatus()} уровень
-            </div>
+            <p className="text-xl font-semibold leading-none">{formatValue(current, metric.unit)}</p>
+            <p className="mt-1 inline-flex items-center text-xs text-muted-foreground">
+              <TrendIcon className="mr-1 h-3 w-3" />
+              {delta > 0 ? '+' : ''}
+              {delta.toFixed(1)}
+              {metric.unit}
+            </p>
           </div>
         </div>
       </CardHeader>
       <CardContent>
-        <ChartContainer config={chartConfig} className="h-[200px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={data} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
-              {showGrid && <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />}
+        <ChartContainer config={chartConfig} className="h-[210px] w-full">
+                      <LineChart data={data} margin={{ top: 6, right: 8, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
               <XAxis
                 dataKey="date"
+                stroke="hsl(var(--muted-foreground))"
+                tickLine={false}
+                fontSize={11}
                 tickFormatter={(value) => {
                   const date = new Date(value)
                   return `${date.getDate()}/${date.getMonth() + 1}`
                 }}
-                stroke="hsl(var(--muted-foreground))"
-                fontSize={11}
-                tickLine={false}
               />
               <YAxis
                 stroke="hsl(var(--muted-foreground))"
-                fontSize={11}
                 tickLine={false}
                 axisLine={false}
+                fontSize={11}
                 tickFormatter={(value) => `${value}${metric.unit}`}
               />
               <ChartTooltip
                 content={
                   <ChartTooltipContent
-                    formatter={(value) => `${value}${metric.unit}`}
-                    labelFormatter={(label) => {
-                      const date = new Date(label)
-                      return date.toLocaleDateString('ru-RU', {
-                        day: 'numeric',
-                        month: 'long',
-                        year: 'numeric',
-                      })
-                    }}
+                    formatter={(value) => formatValue(Number(value), metric.unit)}
+                    labelFormatter={(label) => new Date(String(label)).toLocaleDateString('ru-RU')}
                   />
                 }
               />
@@ -99,31 +100,23 @@ export function MetricsLineChart({ data, metric, showGrid = true }: MetricsLineC
                 stroke={metric.color}
                 strokeWidth={2}
                 dot={false}
-                activeDot={{ r: 4, strokeWidth: 2 }}
+                activeDot={{ r: 4 }}
               />
             </LineChart>
-          </ResponsiveContainer>
         </ChartContainer>
 
-        {/* Статистика */}
-        <div className="mt-4 grid grid-cols-3 gap-4 border-t border-border pt-4">
+        <div className="mt-3 grid grid-cols-3 gap-2 border-t border-border pt-3 text-xs">
           <div>
-            <div className="text-xs text-muted-foreground">Среднее</div>
-            <div className="text-sm font-semibold text-foreground">
-              {average.toFixed(1)}{metric.unit}
-            </div>
+            <p className="text-muted-foreground">Avg</p>
+            <p className="font-semibold">{avg.toFixed(1)}{metric.unit}</p>
           </div>
           <div>
-            <div className="text-xs text-muted-foreground">Минимум</div>
-            <div className="text-sm font-semibold text-chart-2">
-              {min.toFixed(1)}{metric.unit}
-            </div>
+            <p className="text-muted-foreground">Min</p>
+            <p className="font-semibold">{min.toFixed(1)}{metric.unit}</p>
           </div>
           <div>
-            <div className="text-xs text-muted-foreground">Максимум</div>
-            <div className="text-sm font-semibold text-chart-5">
-              {max.toFixed(1)}{metric.unit}
-            </div>
+            <p className="text-muted-foreground">Max</p>
+            <p className="font-semibold">{max.toFixed(1)}{metric.unit}</p>
           </div>
         </div>
       </CardContent>

@@ -1,22 +1,23 @@
-import React from "react"
 import type { Metadata } from 'next'
-import { Inter, JetBrains_Mono } from 'next/font/google'
+import { Roboto, Roboto_Condensed } from 'next/font/google'
+
+import { ThemeProvider } from '@/components/theme-provider'
 
 import './globals.css'
 
-const inter = Inter({ 
+const roboto = Roboto({
   subsets: ['latin', 'cyrillic'],
-  variable: '--font-inter'
+  variable: '--font-roboto',
 })
-const jetbrainsMono = JetBrains_Mono({ 
+
+const robotoCondensed = Roboto_Condensed({
   subsets: ['latin', 'cyrillic'],
-  variable: '--font-jetbrains-mono'
+  variable: '--font-roboto-condensed',
 })
 
 export const metadata: Metadata = {
-  title: 'Аналитическая Панель Банка',
-  description: 'Интерактивные визуализации метрик и индикаторов работы банка',
-  generator: 'v0.app',
+  title: 'Bereke BI Sandbox',
+  description: 'Sandbox графиков и BI-компонентов для колл-центра и продуктовых блоков',
 }
 
 export default function RootLayout({
@@ -25,9 +26,11 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="ru" className="dark">
-      <body className={`${inter.variable} ${jetbrainsMono.variable} font-sans antialiased`}>
-        {children}
+    <html lang="ru" suppressHydrationWarning>
+      <body className={`${roboto.variable} ${robotoCondensed.variable} font-sans antialiased`}>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+          {children}
+        </ThemeProvider>
       </body>
     </html>
   )
