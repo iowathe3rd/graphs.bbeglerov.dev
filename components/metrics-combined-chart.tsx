@@ -2,9 +2,10 @@
 
 import { CartesianGrid, Legend, Line, LineChart, XAxis, YAxis } from 'recharts'
 
+import { BerekeChartTooltip } from '@/components/charts/bereke-chart-tooltip'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
+import { ChartContainer, ChartTooltip } from '@/components/ui/chart'
 import type { MetricDataPoint, MetricInfo } from '@/lib/metrics-data'
 
 interface MetricsCombinedChartProps {
@@ -78,11 +79,31 @@ export function MetricsCombinedChart({ data, metrics, title = 'Сравнени�
                 stroke="hsl(var(--muted-foreground))"
               />
               <ChartTooltip
-                content={
-                  <ChartTooltipContent
-                    labelFormatter={(label) => new Date(String(label)).toLocaleDateString('ru-RU')}
-                  />
-                }
+                content={({ active, payload, label }) => {
+                  if (!active || !payload || payload.length === 0) {
+                    return null
+                  }
+
+                  const rows = payload
+                    .filter((item) => item.value !== undefined)
+                    .sort((a, b) => Number(b.value ?? 0) - Number(a.value ?? 0))
+                    .map((item) => ({
+                      id: String(item.dataKey ?? item.name),
+                      label: String(item.name ?? item.dataKey ?? 'series'),
+                      value: Number(item.value ?? 0).toFixed(1),
+                      color:
+                        typeof item.color === 'string'
+                          ? item.color
+                          : 'hsl(var(--chart-1))',
+                    }))
+
+                  return (
+                    <BerekeChartTooltip
+                      title={new Date(String(label)).toLocaleDateString('ru-RU')}
+                      rows={rows}
+                    />
+                  )
+                }}
               />
               <Legend wrapperStyle={{ fontSize: '12px' }} />
               {metrics.map((metric) => (

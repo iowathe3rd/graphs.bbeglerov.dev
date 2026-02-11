@@ -5,27 +5,27 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 const PAGES = [
   {
     href: '/showcase/line',
-    title: 'Line Charts',
+    title: 'Линейные графики',
     description: '4 KPI линии на разношерстных данных',
   },
   {
     href: '/showcase/overlap',
-    title: 'Overlap Zones',
+    title: 'Наслаивания',
     description: 'зоны наслаиваний + динамика',
   },
   {
     href: '/showcase/sankey',
-    title: 'Sankey',
+    title: 'Потоки (Sankey)',
     description: 'потоки Channel → Process → Status',
   },
   {
     href: '/showcase/funnel',
-    title: 'Funnel',
+    title: 'Воронка',
     description: 'Intake → Routing → Work → Resolve',
   },
   {
     href: '/showcase/heatmap',
-    title: 'Heatmap',
+    title: 'Теплокарта',
     description: 'матрица Hour × Channel',
   },
 ]
@@ -33,7 +33,7 @@ const PAGES = [
 export default function ShowcasePage() {
   return (
     <div className="space-y-4">
-      <h1 className="font-display text-2xl tracking-tight">Component Showcase</h1>
+      <h1 className="font-display text-2xl tracking-tight">Витрина компонентов</h1>
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
         {PAGES.map((item) => (
           <Link key={item.href} href={item.href}>

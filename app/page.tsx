@@ -21,7 +21,7 @@ import {
   generateMetricsDataFromEvents,
   generateOverlapAnalytics,
   type EventRecord,
-  type OverlapDimension,
+  type OverlapGranularity,
 } from '@/lib/metrics-data'
 
 const DASHBOARD_METRIC_IDS = ['sla', 'aht', 'queueLoad', 'abandonment'] as const
@@ -44,12 +44,11 @@ export default function Page() {
   const [filters, setFilters] = useState<DashboardFilters>(
     () => DEFAULT_DASHBOARD_FILTERS
   )
-  const [overlapDimension, setOverlapDimension] = useState<OverlapDimension>(
-    () => 'domain'
+  const overlapDimension = 'indicator' as const
+  const [overlapGranularity, setOverlapGranularity] = useState<OverlapGranularity>(
+    () => 'week'
   )
-  const [overlapSelection, setOverlapSelection] = useState<string | undefined>(
-    () => undefined
-  )
+  const [overlapSelection, setOverlapSelection] = useState<string[]>(() => [])
 
   const events = useMemo(
     () => generateEventStream(42000, 180, 42, filters.sector),
@@ -62,7 +61,6 @@ export default function Page() {
     const selectedGroup = filters.productGroup
     const selectedSubProduct = filters.subProduct
     const { from, to } = filters.dateRange
-    const selectedOverlap = overlapSelection
     const result: EventRecord[] = []
 
     for (const event of events) {
@@ -86,16 +84,6 @@ export default function Page() {
         continue
       }
 
-      if (selectedOverlap) {
-        if (overlapDimension === 'domain' && event.productGroup !== selectedOverlap) {
-          continue
-        }
-
-        if (overlapDimension === 'indicator' && event.process !== selectedOverlap) {
-          continue
-        }
-      }
-
       result.push(event)
     }
 
@@ -107,8 +95,6 @@ export default function Page() {
     filters.process,
     filters.productGroup,
     filters.subProduct,
-    overlapDimension,
-    overlapSelection,
   ])
 
   const metricsData = useMemo(
@@ -129,10 +115,10 @@ export default function Page() {
     () =>
       generateOverlapAnalytics(filteredEvents, {
         dimension: overlapDimension,
-        granularity: 'week',
-        topN: 8,
+        granularity: overlapGranularity,
+        topN: 0,
       }),
-    [filteredEvents, overlapDimension]
+    [filteredEvents, overlapDimension, overlapGranularity]
   )
 
   const summary = useMemo(() => {
@@ -164,51 +150,57 @@ export default function Page() {
 
   const handleReset = () => {
     setFilters(DEFAULT_DASHBOARD_FILTERS)
-    setOverlapDimension('domain')
-    setOverlapSelection(undefined)
-  }
-
-  const handleDimensionChange = (dimension: OverlapDimension) => {
-    setOverlapDimension(dimension)
-    setOverlapSelection(undefined)
+    setOverlapGranularity('week')
+    setOverlapSelection([])
   }
 
   return (
     <div className="h-[100dvh] overflow-hidden bg-background">
       <header className="border-b border-border/70 bg-card/75 backdrop-blur">
-        <div className="mx-auto flex h-14 w-full max-w-[1600px] items-center justify-between px-3 md:px-4">
-          <div className="flex items-center gap-2">
+        <div className="mx-auto flex h-16 w-full max-w-[1600px] items-center justify-between gap-3 px-4 md:px-6">
+          <div className="flex min-w-0 items-center gap-3">
             <Image src="/logo.png" alt="Logo" width={40} height={40} />
-            <h1 className="font-display text-xl tracking-tight">Bereke BI</h1>
+            <h1 className="font-display text-[20px] font-semibold tracking-tight">
+              Bereke BI
+            </h1>
             <Badge variant="secondary" className="text-[11px]">
               {filters.sector}
             </Badge>
+            <nav className="hidden items-center gap-1 rounded-lg border border-border/70 bg-background/60 p-1 md:inline-flex">
+              <span className="rounded-md bg-primary px-2.5 py-1.5 text-xs font-medium text-primary-foreground">
+                Дашборд
+              </span>
+              <Link
+                href="/showcase"
+                className="rounded-md px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-background/80 hover:text-foreground"
+              >
+                Витрина
+              </Link>
+            </nav>
           </div>
 
-          <div className="flex items-center gap-1.5">
+          <div className="flex shrink-0 items-center gap-1.5">
             <Badge variant="outline" className="hidden text-[11px] md:inline-flex">
               <Layers3 className="mr-1 h-3 w-3" />
-              {summary.total}
+              События {summary.total}
             </Badge>
             <Badge variant="outline" className="hidden text-[11px] md:inline-flex">
               <ShieldAlert className="mr-1 h-3 w-3 text-destructive" />
-              {summary.escalated}
+              Эскалации {summary.escalated}
             </Badge>
             <Badge variant="outline" className="hidden text-[11px] lg:inline-flex">
               <AlertTriangle className="mr-1 h-3 w-3 text-chart-5" />
-              {summary.breaches}
+              SLA риск {summary.breaches}
             </Badge>
-            <Link href="/showcase">
-              <Button variant="outline" size="sm" className="h-8 px-2 text-xs">
-                Showcase
-              </Button>
-            </Link>
+            <Button asChild variant="outline" size="sm" className="h-8 px-2 text-xs md:hidden">
+              <Link href="/showcase">Витрина</Link>
+            </Button>
             <ThemeToggle />
           </div>
         </div>
       </header>
 
-      <main className="mx-auto flex h-[calc(100dvh-56px)] w-full max-w-[1600px] min-h-0 flex-col gap-3 px-3 py-3 md:px-4">
+      <main className="mx-auto flex h-[calc(100dvh-64px)] w-full max-w-[1600px] min-h-0 flex-col gap-3 px-4 py-4 md:px-6">
         <DashboardToolbar
           filters={filters}
           onFiltersChange={setFilters}
@@ -224,11 +216,11 @@ export default function Page() {
 
           <DashboardOverlapCard
             data={overlapData}
-            dimension={overlapDimension}
-            activeLabel={overlapSelection}
-            onDimensionChange={handleDimensionChange}
-            onSelect={setOverlapSelection}
-            onClearSelection={() => setOverlapSelection(undefined)}
+            granularity={overlapGranularity}
+            selectedSeries={overlapSelection}
+            onGranularityChange={setOverlapGranularity}
+            onSelectedSeriesChange={setOverlapSelection}
+            zones={{ greenMax: 20, yellowMax: 40, max: 100 }}
           />
         </section>
       </main>

@@ -14,6 +14,7 @@ import {
   ZAxis,
 } from 'recharts'
 
+import { BerekeChartTooltip } from '@/components/charts/bereke-chart-tooltip'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -91,6 +92,12 @@ function formatDateLabel(dateKey: string, granularity: OverlapGranularity) {
     return dateKey
   }
 
+  if (granularity === 'month') {
+    return `${String(date.getUTCMonth() + 1).padStart(2, '0')}.${String(
+      date.getUTCFullYear()
+    ).slice(-2)}`
+  }
+
   const base = `${String(date.getUTCDate()).padStart(2, '0')}.${String(
     date.getUTCMonth() + 1
   ).padStart(2, '0')}`
@@ -98,6 +105,10 @@ function formatDateLabel(dateKey: string, granularity: OverlapGranularity) {
 }
 
 function bucketLabel(granularity: OverlapGranularity) {
+  if (granularity === 'month') {
+    return 'Месяцы'
+  }
+
   return granularity === 'week' ? 'Недели' : 'Дни'
 }
 
@@ -218,6 +229,14 @@ export function MetricsOverlapZonesChart({
               >
                 Недели
               </Button>
+              <Button
+                size="sm"
+                variant={granularity === 'month' ? 'default' : 'outline'}
+                className="h-8"
+                onClick={() => onGranularityChange('month')}
+              >
+                Месяцы
+              </Button>
             </div>
           </div>
         </div>
@@ -272,18 +291,27 @@ export function MetricsOverlapZonesChart({
                   }
 
                   return (
-                    <div className="rounded-md border border-border/70 bg-background px-2.5 py-2 text-xs shadow-sm">
-                      <p className="font-semibold">{point.label}</p>
-                      <p className="text-muted-foreground">
-                        Доля пересечений: {formatPercent(point.overlapRate)}
-                      </p>
-                      <p className="text-muted-foreground">
-                        Наслаиваний: {point.intersections}
-                      </p>
-                      <p className="text-muted-foreground">
-                        Обращений: {point.totalCases}
-                      </p>
-                    </div>
+                    <BerekeChartTooltip
+                      title={point.label}
+                      rows={[
+                        {
+                          id: `${point.label}-rate`,
+                          label: 'Доля пересечений',
+                          value: formatPercent(point.overlapRate),
+                          strong: true,
+                        },
+                        {
+                          id: `${point.label}-intersections`,
+                          label: 'Наслаиваний',
+                          value: `${point.intersections}`,
+                        },
+                        {
+                          id: `${point.label}-total`,
+                          label: 'Обращений',
+                          value: `${point.totalCases}`,
+                        },
+                      ]}
+                    />
                   )
                 }}
               />
@@ -353,49 +381,33 @@ export function MetricsOverlapZonesChart({
                     return null
                   }
 
-                  return (
-                    <div className="rounded-md border border-border/70 bg-background px-2.5 py-2 text-xs shadow-sm">
-                      <p className="mb-1 font-semibold">
-                        {formatDateLabel(String(label), granularity)}
-                      </p>
-                      <div className="space-y-1">
-                        {payload
-                          .filter((item) => Number(item.value) > 0)
-                          .sort((a, b) => Number(b.value) - Number(a.value))
-                          .map((item) => {
-                            const seriesId = String(item.dataKey)
-                            const row = item.payload as Record<string, string | number>
-                            const intersections = Number(
-                              row[`${seriesId}__intersections`] ?? 0
-                            )
-                            const zone = String(row[`${seriesId}__zone`] ?? 'green')
+                  const rows = payload
+                    .filter((item) => Number(item.value) > 0)
+                    .sort((a, b) => Number(b.value) - Number(a.value))
+                    .map((item) => {
+                      const seriesId = String(item.dataKey)
+                      const row = item.payload as Record<string, string | number>
+                      const intersections = Number(
+                        row[`${seriesId}__intersections`] ?? 0
+                      )
+                      const zone = String(row[`${seriesId}__zone`] ?? 'green')
 
-                            return (
-                              <div
-                                key={seriesId}
-                                className="flex items-center justify-between gap-3"
-                              >
-                                <span className="inline-flex items-center gap-1.5">
-                                  <span
-                                    className="h-2 w-2 rounded-full"
-                                    style={{
-                                      backgroundColor:
-                                        typeof item.color === 'string'
-                                          ? item.color
-                                          : 'hsl(var(--chart-1))',
-                                    }}
-                                  />
-                                  <span>{item.name}</span>
-                                </span>
-                                <span className="font-medium">
-                                  {formatPercent(Number(item.value))} · {intersections} ·{' '}
-                                  {zoneLabel(zone as OverlapZone)}
-                                </span>
-                              </div>
-                            )
-                          })}
-                      </div>
-                    </div>
+                      return {
+                        id: seriesId,
+                        label: `${item.name} · ${zoneLabel(zone as OverlapZone)} · ${intersections}`,
+                        value: formatPercent(Number(item.value)),
+                        color:
+                          typeof item.color === 'string'
+                            ? item.color
+                            : 'hsl(var(--chart-1))',
+                      }
+                    })
+
+                  return (
+                    <BerekeChartTooltip
+                      title={formatDateLabel(String(label), granularity)}
+                      rows={rows}
+                    />
                   )
                 }}
               />
@@ -435,9 +447,11 @@ export function MetricsOverlapZonesChart({
                         (maxTimelineIntersections > 0
                           ? (intersections / maxTimelineIntersections) * 6
                           : 0)
+                      const dotKey = `${seriesId}-${String(row.date ?? 'unknown')}`
 
                       return (
                         <g
+                          key={dotKey}
                           onClick={() =>
                             onEntitySelect({
                               dimension,

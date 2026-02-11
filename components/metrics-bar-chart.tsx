@@ -2,8 +2,9 @@
 
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts'
 
+import { BerekeChartTooltip } from '@/components/charts/bereke-chart-tooltip'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
+import { ChartContainer, ChartTooltip } from '@/components/ui/chart'
 
 interface MetricsBarChartProps {
   data: Array<{ name: string; value: number }>
@@ -43,7 +44,28 @@ export function MetricsBarChart({ data, title = 'Среднее по проце�
                 axisLine={false}
                 fontSize={11}
               />
-              <ChartTooltip content={<ChartTooltipContent formatter={(value) => Number(value).toFixed(1)} />} />
+              <ChartTooltip
+                content={({ active, payload, label }) => {
+                  if (!active || !payload || payload.length === 0) {
+                    return null
+                  }
+
+                  return (
+                    <BerekeChartTooltip
+                      title={String(label)}
+                      rows={[
+                        {
+                          id: String(label),
+                          label: 'Среднее значение',
+                          value: Number(payload[0]?.value ?? 0).toFixed(1),
+                          color: 'hsl(var(--chart-1))',
+                          strong: true,
+                        },
+                      ]}
+                    />
+                  )
+                }}
+              />
               <Bar dataKey="value" fill="hsl(var(--chart-1))" radius={[8, 8, 0, 0]} />
             </BarChart>
         </ChartContainer>

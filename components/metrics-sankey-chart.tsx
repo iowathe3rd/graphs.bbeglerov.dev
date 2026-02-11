@@ -2,6 +2,7 @@
 
 import { Sankey, Tooltip as RechartsTooltip } from 'recharts'
 
+import { BerekeChartTooltip } from '@/components/charts/bereke-chart-tooltip'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ChartContainer } from '@/components/ui/chart'
 import type { SankeyData, SankeyNodeType } from '@/lib/metrics-data'
@@ -110,13 +111,64 @@ export function MetricsSankeyChart({
             link={{ stroke: 'hsl(var(--chart-1))', strokeOpacity: 0.35 }}
           >
             <RechartsTooltip
-              formatter={(value: number) => `${value} событий`}
-              labelFormatter={(entry: any) => {
-                if (entry?.payload?.name && entry?.payload?.nodeType) {
-                  return `${readableNodeType(entry.payload.nodeType)}: ${entry.payload.name}`
+              content={({ active, payload }) => {
+                if (!active || !payload || payload.length === 0) {
+                  return null
                 }
 
-                return 'Flow'
+                const item = payload[0] as any
+                const raw = item?.payload ?? {}
+
+                if (raw?.name && raw?.nodeType) {
+                  return (
+                    <BerekeChartTooltip
+                      title={`${readableNodeType(raw.nodeType)}: ${raw.name}`}
+                      rows={[
+                        {
+                          id: `${raw.nodeType}-${raw.name}`,
+                          label: 'События',
+                          value: `${Number(item?.value ?? raw.value ?? 0).toLocaleString('ru-RU')}`,
+                          color: 'hsl(var(--chart-1))',
+                          strong: true,
+                        },
+                      ]}
+                    />
+                  )
+                }
+
+                const source = raw?.source?.name
+                const target = raw?.target?.name
+                if (source && target) {
+                  return (
+                    <BerekeChartTooltip
+                      title={`${source} → ${target}`}
+                      rows={[
+                        {
+                          id: `${source}-${target}`,
+                          label: 'Поток',
+                          value: `${Number(item?.value ?? raw.value ?? 0).toLocaleString('ru-RU')}`,
+                          color: 'hsl(var(--chart-1))',
+                          strong: true,
+                        },
+                      ]}
+                    />
+                  )
+                }
+
+                return (
+                  <BerekeChartTooltip
+                    title="Flow"
+                    rows={[
+                      {
+                        id: 'flow-default',
+                        label: 'События',
+                        value: `${Number(item?.value ?? 0).toLocaleString('ru-RU')}`,
+                        color: 'hsl(var(--chart-1))',
+                        strong: true,
+                      },
+                    ]}
+                  />
+                )
               }}
             />
           </Sankey>

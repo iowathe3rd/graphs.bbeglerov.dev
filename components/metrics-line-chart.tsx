@@ -3,8 +3,9 @@
 import { TrendingDown, TrendingUp } from 'lucide-react'
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from 'recharts'
 
+import { BerekeChartTooltip } from '@/components/charts/bereke-chart-tooltip'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
+import { ChartContainer, ChartTooltip } from '@/components/ui/chart'
 import type { MetricDataPoint, MetricInfo } from '@/lib/metrics-data'
 
 interface MetricsLineChartProps {
@@ -87,12 +88,26 @@ export function MetricsLineChart({ data, metric }: MetricsLineChartProps) {
                 tickFormatter={(value) => `${value}${metric.unit}`}
               />
               <ChartTooltip
-                content={
-                  <ChartTooltipContent
-                    formatter={(value) => formatValue(Number(value), metric.unit)}
-                    labelFormatter={(label) => new Date(String(label)).toLocaleDateString('ru-RU')}
-                  />
-                }
+                content={({ active, payload, label }) => {
+                  if (!active || !payload || payload.length === 0) {
+                    return null
+                  }
+
+                  return (
+                    <BerekeChartTooltip
+                      title={new Date(String(label)).toLocaleDateString('ru-RU')}
+                      rows={[
+                        {
+                          id: metric.id,
+                          label: metric.name,
+                          value: formatValue(Number(payload[0]?.value ?? 0), metric.unit),
+                          color: metric.color,
+                          strong: true,
+                        },
+                      ]}
+                    />
+                  )
+                }}
               />
               <Line
                 type="linear"

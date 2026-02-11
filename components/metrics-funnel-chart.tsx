@@ -2,6 +2,7 @@
 
 import { Funnel, FunnelChart, LabelList, Tooltip as RechartsTooltip } from 'recharts'
 
+import { BerekeChartTooltip } from '@/components/charts/bereke-chart-tooltip'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -47,7 +48,43 @@ export function MetricsFunnelChart({
       <CardContent className="space-y-4">
         <ChartContainer config={chartConfig} className="h-[360px] w-full">
           <FunnelChart>
-            <RechartsTooltip formatter={(value: number) => `${value} кейсов`} />
+            <RechartsTooltip
+              content={({ active, payload }) => {
+                if (!active || !payload || payload.length === 0) {
+                  return null
+                }
+
+                const point = payload[0]?.payload as FunnelStageData | undefined
+                if (!point) {
+                  return null
+                }
+
+                return (
+                  <BerekeChartTooltip
+                    title={point.stage}
+                    rows={[
+                      {
+                        id: `${point.stage}-count`,
+                        label: 'Кейсы',
+                        value: `${point.count}`,
+                        color: 'hsl(var(--chart-2))',
+                        strong: true,
+                      },
+                      {
+                        id: `${point.stage}-conv`,
+                        label: 'Conversion',
+                        value: `${point.conversion}%`,
+                      },
+                      {
+                        id: `${point.stage}-drop`,
+                        label: 'Drop-off',
+                        value: `${point.dropOff}%`,
+                      },
+                    ]}
+                  />
+                )
+              }}
+            />
             <Funnel
               data={data}
               dataKey="count"

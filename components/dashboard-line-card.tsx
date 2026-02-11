@@ -2,6 +2,7 @@
 
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 
+import { BerekeChartTooltip } from '@/components/charts/bereke-chart-tooltip'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import type { MetricDataPoint, MetricInfo } from '@/lib/metrics-data'
 
@@ -60,10 +61,26 @@ export function DashboardLineCard({ metric, data }: DashboardLineCardProps) {
             />
             <YAxis hide domain={['dataMin - 5', 'dataMax + 5']} />
             <Tooltip
-              formatter={(value: number) => metricValue(Number(value), metric.unit)}
-              labelFormatter={(label) =>
-                new Date(String(label)).toLocaleDateString('ru-RU')
-              }
+              content={({ active, payload, label }) => {
+                if (!active || !payload || payload.length === 0) {
+                  return null
+                }
+
+                return (
+                  <BerekeChartTooltip
+                    title={new Date(String(label)).toLocaleDateString('ru-RU')}
+                    rows={[
+                      {
+                        id: metric.id,
+                        label: metric.name,
+                        value: metricValue(Number(payload[0]?.value ?? 0), metric.unit),
+                        color: metric.color,
+                        strong: true,
+                      },
+                    ]}
+                  />
+                )
+              }}
             />
             <Line
               type="linear"

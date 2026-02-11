@@ -14,9 +14,9 @@ import {
 } from '@/components/ui/select'
 
 const THEME_ITEMS = [
-  { value: 'system', label: 'System', icon: Monitor },
-  { value: 'light', label: 'Light', icon: Sun },
-  { value: 'dark', label: 'Dark', icon: Moon },
+  { value: 'system', label: 'Система', icon: Monitor },
+  { value: 'light', label: 'Светлая', icon: Sun },
+  { value: 'dark', label: 'Тёмная', icon: Moon },
 ] as const
 
 export function ThemeToggle() {
@@ -31,7 +31,7 @@ export function ThemeToggle() {
     return (
       <Button variant="outline" size="sm" className="w-[124px] justify-start" disabled>
         <Monitor className="mr-2 h-4 w-4" />
-        Theme
+        Тема
       </Button>
     )
   }
@@ -43,7 +43,7 @@ export function ThemeToggle() {
     <Select value={theme} onValueChange={setTheme}>
       <SelectTrigger className="h-9 w-[124px]">
         <div className="flex items-center gap-2">
-          <SelectValue placeholder="Theme" />
+          <SelectValue placeholder="Тема" />
         </div>
       </SelectTrigger>
       <SelectContent align="end">

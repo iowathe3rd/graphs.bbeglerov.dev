@@ -13,8 +13,10 @@ export type EventStage = 'Intake' | 'Routing' | 'Work' | 'Resolve'
 export type EventStatus = 'resolved' | 'pending' | 'escalated'
 export type SankeyNodeType = 'channel' | 'process' | 'status'
 export type OverlapDimension = 'domain' | 'indicator'
-export type OverlapGranularity = 'day' | 'week'
+export type OverlapGranularity = 'day' | 'week' | 'month'
 export type OverlapZone = 'green' | 'yellow' | 'red'
+export type OverlapZoneFilter = 'all' | OverlapZone
+export type OverlapSeriesSelectionMode = 'single' | 'multiple'
 type EventScenario =
   | 'steady'
   | 'seasonal-peak'
@@ -130,6 +132,45 @@ export interface OverlapAnalytics {
   granularity: OverlapGranularity
   snapshot: OverlapSnapshotPoint[]
   timeline: OverlapTimelineSeries[]
+}
+
+export interface OverlapBucketSummary {
+  date: string
+  zoneCounts: {
+    green: number
+    yellow: number
+    red: number
+  }
+  seriesValues: Record<string, number>
+  sortedSeries: Array<{
+    label: string
+    value: number
+    zone: OverlapZone
+  }>
+}
+
+export interface OverlapZoneConfig {
+  greenMax: number
+  yellowMax: number
+  max?: number
+}
+
+export interface OverlapValueTransformContext {
+  label: string
+  date: string
+  avgOverlapRate: number
+  loadShare: number
+  totalCases: number
+  bucketTotalCases: number
+  zones: Required<OverlapZoneConfig>
+}
+
+export interface OverlapBucketsOptions {
+  granularity: OverlapGranularity
+  visibleSeriesLimit: number
+  selectedSeries?: string[]
+  zones?: OverlapZoneConfig
+  valueTransform?: (ctx: OverlapValueTransformContext) => number
 }
 
 export interface DetailedRecord {
@@ -832,6 +873,38 @@ function startOfWeekKey(dateKey: string) {
   return date.toISOString().slice(0, 10)
 }
 
+function startOfMonthKey(dateKey: string) {
+  const date = new Date(`${dateKey}T00:00:00.000Z`)
+
+  date.setUTCDate(1)
+
+  return date.toISOString().slice(0, 10)
+}
+
+function normalizeOverlapZones(zones?: OverlapZoneConfig): Required<OverlapZoneConfig> {
+  const max = zones?.max ?? 100
+  const greenMax = clamp(zones?.greenMax ?? 20, 0, max)
+  const yellowMax = clamp(zones?.yellowMax ?? 40, greenMax, max)
+
+  return {
+    greenMax,
+    yellowMax,
+    max,
+  }
+}
+
+function toOverlapBucketDate(dateKey: string, granularity: OverlapGranularity) {
+  if (granularity === 'week') {
+    return startOfWeekKey(dateKey)
+  }
+
+  if (granularity === 'month') {
+    return startOfMonthKey(dateKey)
+  }
+
+  return dateKey
+}
+
 function overlapLabel(event: EventRecord, dimension: OverlapDimension) {
   if (dimension === 'domain') {
     return event.productGroup
@@ -870,6 +943,21 @@ function overlapZone(overlapRate: number): OverlapZone {
   }
 
   if (overlapRate > 10) {
+    return 'yellow'
+  }
+
+  return 'green'
+}
+
+function overlapZoneByValue(value: number, zones: Required<OverlapZoneConfig>) {
+  const greenMax = zones.greenMax
+  const yellowMax = zones.yellowMax
+
+  if (value > yellowMax) {
+    return 'red'
+  }
+
+  if (value > greenMax) {
     return 'yellow'
   }
 
@@ -1336,7 +1424,7 @@ export function generateOverlapAnalytics(
 
   for (const event of events) {
     const label = overlapLabel(event, dimension)
-    const bucket = granularity === 'day' ? event.date : startOfWeekKey(event.date)
+    const bucket = toOverlapBucketDate(event.date, granularity)
     const score = overlapScore(event)
 
     const currentLabel = totalsByLabel.get(label)
@@ -1444,6 +1532,173 @@ export function generateOverlapAnalytics(
     snapshot,
     timeline,
   }
+}
+
+export function buildOverlapBuckets(
+  analytics: OverlapAnalytics,
+  options: OverlapBucketsOptions
+): OverlapBucketSummary[] {
+  const {
+    granularity,
+    visibleSeriesLimit,
+    selectedSeries = [],
+    zones: zonesInput,
+    valueTransform,
+  } = options
+  const zones = normalizeOverlapZones(zonesInput)
+
+  if (analytics.timeline.length === 0) {
+    return []
+  }
+
+  const seriesByLabel = new Map<
+    string,
+    {
+      label: string
+      score: number
+      points: OverlapTimelinePoint[]
+    }
+  >()
+
+  for (const series of analytics.timeline) {
+    let total = 0
+    let count = 0
+
+    for (const point of series.points) {
+      total += point.overlapRate
+      count += 1
+    }
+
+    const score = count > 0 ? total / count : series.overlapRate
+
+    seriesByLabel.set(series.label, {
+      label: series.label,
+      score,
+      points: series.points,
+    })
+  }
+
+  const orderedLabels = Array.from(seriesByLabel.values())
+    .sort((a, b) => {
+      if (a.score !== b.score) {
+        return b.score - a.score
+      }
+      return a.label.localeCompare(b.label, 'ru')
+    })
+    .map((item) => item.label)
+
+  const selectedSet = new Set(
+    selectedSeries.filter((label) => seriesByLabel.has(label))
+  )
+  let visibleLabels =
+    visibleSeriesLimit > 0
+      ? orderedLabels.slice(0, visibleSeriesLimit)
+      : [...orderedLabels]
+
+  for (const label of selectedSet) {
+    if (!visibleLabels.includes(label)) {
+      if (visibleSeriesLimit <= 0 || visibleLabels.length < visibleSeriesLimit) {
+        visibleLabels.push(label)
+      } else {
+        for (let index = visibleLabels.length - 1; index >= 0; index -= 1) {
+          if (!selectedSet.has(visibleLabels[index])) {
+            visibleLabels[index] = label
+            break
+          }
+        }
+      }
+    }
+  }
+
+  const visibleLabelSet = new Set(visibleLabels)
+  const aggregateByDateAndLabel = new Map<
+    string,
+    { overlapRateSum: number; count: number; totalCases: number }
+  >()
+  const bucketTotalCasesByDate = new Map<string, number>()
+  const bucketDates = new Set<string>()
+
+  for (const series of analytics.timeline) {
+    for (const point of series.points) {
+      const bucketDate = toOverlapBucketDate(point.date, granularity)
+      const totalCasesByDate = bucketTotalCasesByDate.get(bucketDate)
+
+      if (totalCasesByDate === undefined) {
+        bucketTotalCasesByDate.set(bucketDate, point.totalCases)
+      } else {
+        bucketTotalCasesByDate.set(bucketDate, totalCasesByDate + point.totalCases)
+      }
+
+      if (visibleLabelSet.has(series.label)) {
+        const bucketKey = `${bucketDate}|${series.label}`
+        const current = aggregateByDateAndLabel.get(bucketKey)
+
+        if (current) {
+          current.overlapRateSum += point.overlapRate
+          current.count += 1
+          current.totalCases += point.totalCases
+        } else {
+          aggregateByDateAndLabel.set(bucketKey, {
+            overlapRateSum: point.overlapRate,
+            count: 1,
+            totalCases: point.totalCases,
+          })
+        }
+      }
+
+      bucketDates.add(bucketDate)
+    }
+  }
+
+  const orderedDates = Array.from(bucketDates).sort((a, b) => a.localeCompare(b))
+  const result: OverlapBucketSummary[] = []
+
+  for (const date of orderedDates) {
+    const seriesValues: Record<string, number> = {}
+    const zoneCounts = { green: 0, yellow: 0, red: 0 }
+    const bucketTotalCases = bucketTotalCasesByDate.get(date) ?? 0
+    const sortedSeries: OverlapBucketSummary['sortedSeries'] = []
+
+    for (const label of visibleLabels) {
+      const bucket = aggregateByDateAndLabel.get(`${date}|${label}`)
+      const avgOverlapRate =
+        bucket && bucket.count > 0 ? bucket.overlapRateSum / bucket.count : 0
+      const loadShare = bucket && bucketTotalCases > 0 ? bucket.totalCases / bucketTotalCases : 0
+      const baseValue = clamp(avgOverlapRate * (0.42 + loadShare * 2.2), 0, zones.max)
+      const transformedValue = valueTransform
+        ? valueTransform({
+            label,
+            date,
+            avgOverlapRate,
+            loadShare,
+            totalCases: bucket?.totalCases ?? 0,
+            bucketTotalCases,
+            zones,
+          })
+        : baseValue
+      const value = Math.round(clamp(transformedValue, 0, zones.max) * 10) / 10
+      const zone = overlapZoneByValue(value, zones)
+
+      seriesValues[label] = value
+      zoneCounts[zone] += 1
+      sortedSeries.push({
+        label,
+        value,
+        zone,
+      })
+    }
+
+    sortedSeries.sort((a, b) => b.value - a.value)
+
+    result.push({
+      date,
+      zoneCounts,
+      seriesValues,
+      sortedSeries,
+    })
+  }
+
+  return result
 }
 
 export function generateDetailedRecords(
