@@ -12,6 +12,9 @@ export type SubProduct = string
 export type EventStage = 'Intake' | 'Routing' | 'Work' | 'Resolve'
 export type EventStatus = 'resolved' | 'pending' | 'escalated'
 export type SankeyNodeType = 'channel' | 'process' | 'status'
+export type OverlapDimension = 'domain' | 'indicator'
+export type OverlapGranularity = 'day' | 'week'
+export type OverlapZone = 'green' | 'yellow' | 'red'
 
 export interface MetricDataPoint {
   date: string
@@ -82,6 +85,44 @@ export interface FunnelStageData {
   count: number
   conversion: number
   dropOff: number
+}
+
+export interface OverlapSnapshotPoint {
+  id: string
+  label: string
+  dimension: OverlapDimension
+  totalCases: number
+  intersections: number
+  overlapRate: number
+  zone: OverlapZone
+}
+
+export interface OverlapTimelinePoint {
+  date: string
+  label: string
+  dimension: OverlapDimension
+  totalCases: number
+  intersections: number
+  overlapRate: number
+  zone: OverlapZone
+}
+
+export interface OverlapTimelineSeries {
+  id: string
+  label: string
+  dimension: OverlapDimension
+  totalCases: number
+  intersections: number
+  overlapRate: number
+  zone: OverlapZone
+  points: OverlapTimelinePoint[]
+}
+
+export interface OverlapAnalytics {
+  dimension: OverlapDimension
+  granularity: OverlapGranularity
+  snapshot: OverlapSnapshotPoint[]
+  timeline: OverlapTimelineSeries[]
 }
 
 export interface DetailedRecord {
@@ -168,6 +209,7 @@ const PROCESS_BY_PRODUCT_GROUP: Record<ProductGroup, readonly string[]> = {
 }
 
 const STAGE_BY_INDEX: readonly EventStage[] = ['Intake', 'Routing', 'Work', 'Resolve']
+const MAX_INTERSECTION_SCORE = 6
 
 export const METRICS: Record<string, MetricInfo> = {
   sla: {
@@ -383,6 +425,68 @@ function buildDayKeys(days: number) {
   }
 
   return keys
+}
+
+function startOfWeekKey(dateKey: string) {
+  const date = new Date(`${dateKey}T00:00:00.000Z`)
+  const day = (date.getUTCDay() + 6) % 7
+
+  date.setUTCDate(date.getUTCDate() - day)
+
+  return date.toISOString().slice(0, 10)
+}
+
+function overlapLabel(event: EventRecord, dimension: OverlapDimension) {
+  if (dimension === 'domain') {
+    return event.productGroup
+  }
+
+  return event.process
+}
+
+function overlapScore(event: EventRecord) {
+  let score = 0
+
+  if (event.status === 'escalated') {
+    score += 2
+  } else if (event.status === 'pending') {
+    score += 1
+  }
+
+  if (event.slaBreach) {
+    score += 1
+  }
+
+  if (event.anomaly) {
+    score += 2
+  }
+
+  if (event.stage !== 'Resolve') {
+    score += 1
+  }
+
+  return clamp(score, 0, MAX_INTERSECTION_SCORE)
+}
+
+function overlapZone(overlapRate: number): OverlapZone {
+  if (overlapRate > 30) {
+    return 'red'
+  }
+
+  if (overlapRate > 10) {
+    return 'yellow'
+  }
+
+  return 'green'
+}
+
+function overlapRate(intersections: number, totalCases: number) {
+  if (totalCases === 0) {
+    return 0
+  }
+
+  const value = (intersections / (totalCases * MAX_INTERSECTION_SCORE)) * 100
+  return Math.round(value * 10) / 10
 }
 
 function getAllSubProducts() {
@@ -693,6 +797,137 @@ export function generateFunnelData(
       dropOff: index === 0 || previous === 0 ? 0 : Number((((previous - count) / previous) * 100).toFixed(1)),
     }
   })
+}
+
+export function generateOverlapAnalytics(
+  events: EventRecord[],
+  options: {
+    dimension?: OverlapDimension
+    granularity?: OverlapGranularity
+    topN?: number
+  } = {}
+): OverlapAnalytics {
+  const dimension = options.dimension ?? 'domain'
+  const granularity = options.granularity ?? 'week'
+  const topN = options.topN ?? 6
+
+  const totalsByLabel = new Map<string, { totalCases: number; intersections: number }>()
+  const timelineByBucketAndLabel = new Map<
+    string,
+    { totalCases: number; intersections: number }
+  >()
+  const bucketKeys = new Set<string>()
+
+  for (const event of events) {
+    const label = overlapLabel(event, dimension)
+    const bucket = granularity === 'day' ? event.date : startOfWeekKey(event.date)
+    const score = overlapScore(event)
+
+    const currentLabel = totalsByLabel.get(label)
+    if (currentLabel) {
+      currentLabel.totalCases += 1
+      currentLabel.intersections += score
+    } else {
+      totalsByLabel.set(label, {
+        totalCases: 1,
+        intersections: score,
+      })
+    }
+
+    const timelineKey = `${bucket}|${label}`
+    const currentTimeline = timelineByBucketAndLabel.get(timelineKey)
+    if (currentTimeline) {
+      currentTimeline.totalCases += 1
+      currentTimeline.intersections += score
+    } else {
+      timelineByBucketAndLabel.set(timelineKey, {
+        totalCases: 1,
+        intersections: score,
+      })
+    }
+
+    bucketKeys.add(bucket)
+  }
+
+  const snapshot: OverlapSnapshotPoint[] = []
+
+  for (const [label, stats] of totalsByLabel.entries()) {
+    const rate = overlapRate(stats.intersections, stats.totalCases)
+    snapshot.push({
+      id: `${dimension}:${label}`,
+      label,
+      dimension,
+      totalCases: stats.totalCases,
+      intersections: stats.intersections,
+      overlapRate: rate,
+      zone: overlapZone(rate),
+    })
+  }
+
+  snapshot.sort((a, b) => {
+    if (a.overlapRate !== b.overlapRate) {
+      return b.overlapRate - a.overlapRate
+    }
+
+    if (a.intersections !== b.intersections) {
+      return b.intersections - a.intersections
+    }
+
+    return a.label.localeCompare(b.label, 'ru')
+  })
+
+  const selectedLabels = (topN > 0 ? snapshot.slice(0, topN) : snapshot).map(
+    (item) => item.label
+  )
+  const orderedBuckets = Array.from(bucketKeys).sort((a, b) => a.localeCompare(b))
+
+  const timeline: OverlapTimelineSeries[] = []
+
+  for (const label of selectedLabels) {
+    const points: OverlapTimelinePoint[] = []
+    let totalCases = 0
+    let intersections = 0
+
+    for (const date of orderedBuckets) {
+      const cell = timelineByBucketAndLabel.get(`${date}|${label}`)
+      const pointTotal = cell?.totalCases ?? 0
+      const pointIntersections = cell?.intersections ?? 0
+      const pointRate = overlapRate(pointIntersections, pointTotal)
+
+      points.push({
+        date,
+        label,
+        dimension,
+        totalCases: pointTotal,
+        intersections: pointIntersections,
+        overlapRate: pointRate,
+        zone: overlapZone(pointRate),
+      })
+
+      totalCases += pointTotal
+      intersections += pointIntersections
+    }
+
+    const totalRate = overlapRate(intersections, totalCases)
+
+    timeline.push({
+      id: `${dimension}:${label}`,
+      label,
+      dimension,
+      totalCases,
+      intersections,
+      overlapRate: totalRate,
+      zone: overlapZone(totalRate),
+      points,
+    })
+  }
+
+  return {
+    dimension,
+    granularity,
+    snapshot,
+    timeline,
+  }
 }
 
 export function generateDetailedRecords(

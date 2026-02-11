@@ -29,8 +29,11 @@ import {
   generateFunnelData,
   generateHeatmapData,
   generateMetricsDataFromEvents,
+  generateOverlapAnalytics,
   generateSankeyData,
   type EventRecord,
+  type OverlapDimension,
+  type OverlapGranularity,
   type EventStage,
 } from '@/lib/metrics-data'
 
@@ -82,6 +85,22 @@ const MetricsHeatmapChart = dynamic(
   }
 )
 
+const MetricsOverlapZonesChart = dynamic(
+  () =>
+    import('@/components/metrics-overlap-zones-chart').then(
+      (module) => module.MetricsOverlapZonesChart
+    ),
+  {
+    loading: () => (
+      <Card>
+        <CardContent className="py-10 text-sm text-muted-foreground">
+          Загрузка пересечений...
+        </CardContent>
+      </Card>
+    ),
+  }
+)
+
 const METRIC_IDS = [
   'sla',
   'aht',
@@ -92,7 +111,7 @@ const METRIC_IDS = [
 ] as const
 
 type ActiveSelection = {
-  sourceChart?: 'sankey' | 'funnel' | 'heatmap'
+  sourceChart?: 'sankey' | 'funnel' | 'heatmap' | 'overlap'
   channel?: string
   process?: string
   status?: string
@@ -165,6 +184,11 @@ function selectionChips(selection: ActiveSelection) {
 export default function Page() {
   const [filters, setFilters] = useState<MetricsFilters>(() => DEFAULT_FILTERS)
   const [activeSelection, setActiveSelection] = useState<ActiveSelection>(() => ({}))
+  const [overlapDimension, setOverlapDimension] = useState<OverlapDimension>(
+    () => 'domain'
+  )
+  const [overlapGranularity, setOverlapGranularity] =
+    useState<OverlapGranularity>(() => 'week')
 
   const selectedSector = filters.sectors[0] ?? DEFAULT_FILTERS.sectors[0]
 
@@ -294,8 +318,22 @@ export default function Page() {
     [linkedEvents]
   )
 
+  const overlapData = useMemo(
+    () =>
+      generateOverlapAnalytics(linkedEvents, {
+        dimension: overlapDimension,
+        granularity: overlapGranularity,
+        topN: 7,
+      }),
+    [linkedEvents, overlapDimension, overlapGranularity]
+  )
+
   const currentSelectionChips = selectionChips(activeSelection)
   const hasSelection = currentSelectionChips.length > 0
+  const activeOverlapLabel =
+    overlapDimension === 'domain'
+      ? activeSelection.productGroup
+      : activeSelection.process
 
   const handleResetAll = () => {
     setFilters(DEFAULT_FILTERS)
@@ -328,6 +366,24 @@ export default function Page() {
       sourceChart: 'heatmap',
       channel: selection.channel,
       hour: selection.hour,
+    })
+  }
+
+  const handleOverlapSelect = (selection: {
+    dimension: OverlapDimension
+    value: string
+  }) => {
+    if (selection.dimension === 'domain') {
+      setActiveSelection({
+        sourceChart: 'overlap',
+        productGroup: selection.value,
+      })
+      return
+    }
+
+    setActiveSelection({
+      sourceChart: 'overlap',
+      process: selection.value,
     })
   }
 
@@ -406,7 +462,7 @@ export default function Page() {
         </div>
 
         <Tabs defaultValue="overview" className="space-y-4">
-          <TabsList className="grid h-auto w-full grid-cols-3 gap-1 lg:grid-cols-9">
+          <TabsList className="grid h-auto w-full grid-cols-3 gap-1 lg:grid-cols-10">
             <TabsTrigger value="overview">Обзор</TabsTrigger>
             <TabsTrigger value="trends">Тренды</TabsTrigger>
             <TabsTrigger value="comparison">Сравнение</TabsTrigger>
@@ -414,6 +470,7 @@ export default function Page() {
             <TabsTrigger value="sankey">Sankey</TabsTrigger>
             <TabsTrigger value="funnel">Funnel</TabsTrigger>
             <TabsTrigger value="heatmap">Heatmap</TabsTrigger>
+            <TabsTrigger value="overlap">Пересечения</TabsTrigger>
             <TabsTrigger value="registry">Реестр</TabsTrigger>
             <TabsTrigger value="components">Компоненты</TabsTrigger>
           </TabsList>
@@ -502,6 +559,18 @@ export default function Page() {
                 hour: activeSelection.hour,
               }}
               onCellSelect={handleHeatmapSelect}
+            />
+          </TabsContent>
+
+          <TabsContent value="overlap" className="space-y-4">
+            <MetricsOverlapZonesChart
+              data={overlapData}
+              dimension={overlapDimension}
+              granularity={overlapGranularity}
+              activeLabel={activeOverlapLabel}
+              onDimensionChange={setOverlapDimension}
+              onGranularityChange={setOverlapGranularity}
+              onEntitySelect={handleOverlapSelect}
             />
           </TabsContent>
 

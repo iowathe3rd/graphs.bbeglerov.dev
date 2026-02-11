@@ -17,7 +17,7 @@ import {
 import { METRICS, type DetailedRecord } from '@/lib/metrics-data'
 
 interface ActiveSelection {
-  sourceChart?: 'sankey' | 'funnel' | 'heatmap'
+  sourceChart?: 'sankey' | 'funnel' | 'heatmap' | 'overlap'
   channel?: string
   process?: string
   status?: string
