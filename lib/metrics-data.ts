@@ -15,6 +15,13 @@ export type SankeyNodeType = 'channel' | 'process' | 'status'
 export type OverlapDimension = 'domain' | 'indicator'
 export type OverlapGranularity = 'day' | 'week'
 export type OverlapZone = 'green' | 'yellow' | 'red'
+type EventScenario =
+  | 'steady'
+  | 'seasonal-peak'
+  | 'backlog'
+  | 'incident'
+  | 'fraud-watch'
+  | 'recovery'
 
 export interface MetricDataPoint {
   date: string
@@ -210,6 +217,46 @@ const PROCESS_BY_PRODUCT_GROUP: Record<ProductGroup, readonly string[]> = {
 
 const STAGE_BY_INDEX: readonly EventStage[] = ['Intake', 'Routing', 'Work', 'Resolve']
 const MAX_INTERSECTION_SCORE = 6
+const EVENT_SCENARIOS: readonly EventScenario[] = [
+  'steady',
+  'seasonal-peak',
+  'backlog',
+  'incident',
+  'fraud-watch',
+  'recovery',
+]
+const PROCESS_STRESS: Record<string, number> = {
+  Идентификация: 0.08,
+  Платежи: 0.18,
+  Карты: 0.13,
+  Кредиты: 0.17,
+  Депозиты: 0.09,
+  'Сервисы ДБО': 0.21,
+  'Счета ФЛ/ЮЛ': 0.11,
+  Эскалации: 0.33,
+}
+const CHANNEL_STRESS: Record<string, number> = {
+  'Колл-центр': 0.14,
+  'Мобильный банк': 0.17,
+  Отделение: 0.08,
+  'Онлайн-банк': 0.22,
+}
+const SCENARIO_STRESS: Record<EventScenario, number> = {
+  steady: 0.02,
+  'seasonal-peak': 0.16,
+  backlog: 0.24,
+  incident: 0.31,
+  'fraud-watch': 0.38,
+  recovery: -0.08,
+}
+const SCENARIO_VOLATILITY: Record<EventScenario, number> = {
+  steady: 0.22,
+  'seasonal-peak': 0.36,
+  backlog: 0.43,
+  incident: 0.5,
+  'fraud-watch': 0.62,
+  recovery: 0.27,
+}
 
 export const METRICS: Record<string, MetricInfo> = {
   sla: {
@@ -314,22 +361,196 @@ function pick<T>(values: readonly T[], random: () => number): T {
   return values[Math.floor(random() * values.length)]
 }
 
-function weightedStage(random: () => number): EventStage {
+function pickWeighted<T>(
+  entries: ReadonlyArray<{ value: T; weight: number }>,
+  random: () => number
+): T {
+  let sum = 0
+
+  for (const entry of entries) {
+    sum += Math.max(0, entry.weight)
+  }
+
+  if (sum <= 0) {
+    return entries[0]?.value as T
+  }
+
+  const threshold = random() * sum
+  let cursor = 0
+
+  for (const entry of entries) {
+    cursor += Math.max(0, entry.weight)
+
+    if (threshold <= cursor) {
+      return entry.value
+    }
+  }
+
+  return entries[entries.length - 1]?.value as T
+}
+
+function pickScenario(random: () => number): EventScenario {
   const value = random()
 
-  if (value < 0.28) {
-    return 'Intake'
+  if (value < 0.32) {
+    return 'steady'
   }
 
-  if (value < 0.54) {
-    return 'Routing'
+  if (value < 0.52) {
+    return 'seasonal-peak'
   }
 
-  if (value < 0.78) {
-    return 'Work'
+  if (value < 0.72) {
+    return 'backlog'
   }
 
-  return 'Resolve'
+  if (value < 0.86) {
+    return 'incident'
+  }
+
+  if (value < 0.94) {
+    return 'fraud-watch'
+  }
+
+  return EVENT_SCENARIOS[EVENT_SCENARIOS.length - 1]
+}
+
+function pickHourByScenario(random: () => number, scenario: EventScenario) {
+  const rnd = random()
+
+  if (scenario === 'fraud-watch') {
+    if (rnd < 0.42) {
+      return Math.floor(random() * 6)
+    }
+
+    if (rnd < 0.78) {
+      return 21 + Math.floor(random() * 3)
+    }
+
+    return Math.floor(random() * 24)
+  }
+
+  if (scenario === 'incident' || scenario === 'backlog') {
+    if (rnd < 0.36) {
+      return 8 + Math.floor(random() * 4)
+    }
+
+    if (rnd < 0.74) {
+      return 12 + Math.floor(random() * 7)
+    }
+
+    return Math.floor(random() * 24)
+  }
+
+  if (rnd < 0.31) {
+    return 9 + Math.floor(random() * 4)
+  }
+
+  if (rnd < 0.63) {
+    return 13 + Math.floor(random() * 5)
+  }
+
+  if (rnd < 0.82) {
+    return 18 + Math.floor(random() * 3)
+  }
+
+  return Math.floor(random() * 24)
+}
+
+function pickDayOffset(random: () => number, days: number, scenario: EventScenario) {
+  const horizon = Math.max(days, 1)
+  const rnd = random()
+
+  if (scenario === 'incident' || scenario === 'backlog') {
+    if (rnd < 0.67) {
+      return Math.floor(Math.pow(random(), 2.1) * horizon)
+    }
+
+    if (rnd < 0.87) {
+      return Math.floor(random() * Math.min(horizon, 42))
+    }
+
+    return Math.floor(random() * horizon)
+  }
+
+  if (scenario === 'recovery') {
+    if (rnd < 0.45) {
+      return Math.floor((0.2 + random() * 0.8) * horizon)
+    }
+
+    return Math.floor(random() * horizon)
+  }
+
+  if (rnd < 0.56) {
+    return Math.floor(Math.pow(random(), 1.35) * horizon)
+  }
+
+  return Math.floor(random() * horizon)
+}
+
+function weightedStage(random: () => number, scenario: EventScenario): EventStage {
+  switch (scenario) {
+    case 'backlog':
+      return pickWeighted(
+        [
+          { value: 'Intake', weight: 0.38 },
+          { value: 'Routing', weight: 0.3 },
+          { value: 'Work', weight: 0.24 },
+          { value: 'Resolve', weight: 0.08 },
+        ],
+        random
+      )
+    case 'incident':
+      return pickWeighted(
+        [
+          { value: 'Intake', weight: 0.3 },
+          { value: 'Routing', weight: 0.28 },
+          { value: 'Work', weight: 0.3 },
+          { value: 'Resolve', weight: 0.12 },
+        ],
+        random
+      )
+    case 'recovery':
+      return pickWeighted(
+        [
+          { value: 'Intake', weight: 0.18 },
+          { value: 'Routing', weight: 0.22 },
+          { value: 'Work', weight: 0.24 },
+          { value: 'Resolve', weight: 0.36 },
+        ],
+        random
+      )
+    case 'fraud-watch':
+      return pickWeighted(
+        [
+          { value: 'Intake', weight: 0.25 },
+          { value: 'Routing', weight: 0.33 },
+          { value: 'Work', weight: 0.28 },
+          { value: 'Resolve', weight: 0.14 },
+        ],
+        random
+      )
+    case 'seasonal-peak':
+      return pickWeighted(
+        [
+          { value: 'Intake', weight: 0.29 },
+          { value: 'Routing', weight: 0.31 },
+          { value: 'Work', weight: 0.25 },
+          { value: 'Resolve', weight: 0.15 },
+        ],
+        random
+      )
+    default:
+      return pickWeighted(
+        [
+          { value: 'Intake', weight: 0.24 },
+          { value: 'Routing', weight: 0.28 },
+          { value: 'Work', weight: 0.26 },
+          { value: 'Resolve', weight: 0.22 },
+        ],
+        random
+      )
+  }
 }
 
 function stageIndex(stage: EventStage) {
@@ -363,44 +584,219 @@ function formatMetricValue(metric: MetricInfo, raw: number) {
   return Math.round(raw * 10) / 10
 }
 
-function randomDateAndHour(random: () => number, days: number) {
+function randomDateAndHour(random: () => number, days: number, scenario: EventScenario) {
   const date = new Date(MOCK_ANCHOR_DATE)
-  const dayOffset = Math.floor(random() * days)
-  const hour = Math.floor(random() * 24)
+  const dayOffset = pickDayOffset(random, days, scenario)
+  const hour = pickHourByScenario(random, scenario)
   const minute = Math.floor(random() * 60)
 
   date.setUTCDate(date.getUTCDate() - dayOffset)
   date.setUTCHours(hour, minute, 0, 0)
 
-  return { date, hour }
+  return { date, hour, dayOffset }
 }
 
-function buildMetricValue(metricInfo: MetricInfo, random: () => number, sector: Sector, stage: EventStage) {
+function buildDailyMetricShock(
+  seed: number,
+  context: {
+    dateKey: string
+    dayOffset: number
+    sector: Sector
+    metricId: string
+  }
+) {
+  const { dateKey, dayOffset, sector, metricId } = context
+  const shockSeedKey = `${dateKey}:${sector}:${metricId}`
+  const regimeBucket = Math.floor(dayOffset / 5)
+  const regimeRandom = seeded(seed, `regime:${sector}:${metricId}:${regimeBucket}`)()
+  const dayRandom = seeded(seed, `day:${shockSeedKey}`)()
+  const burstGate = seeded(seed, `burst:${shockSeedKey}`)()
+
+  let shock =
+    (regimeRandom - 0.5) * 1.75 +
+    (dayRandom - 0.5) * 1.18 +
+    Math.sin((dayOffset + 1) / 2.3) * 0.36 +
+    Math.sin((dayOffset + 4) / 6.7) * 0.44
+
+  if (burstGate > 0.84) {
+    const burstDirection = seeded(seed, `burst-dir:${shockSeedKey}`)() < 0.5 ? -1 : 1
+    const burstMagnitude = 0.64 + seeded(seed, `burst-mag:${shockSeedKey}`)() * 1.16
+    shock += burstDirection * burstMagnitude
+  }
+
+  return clamp(shock, -2.4, 2.4)
+}
+
+function buildMetricValue(
+  metricInfo: MetricInfo,
+  random: () => number,
+  context: {
+    sector: Sector
+    stage: EventStage
+    status: EventStatus
+    scenario: EventScenario
+    hour: number
+    dayOffset: number
+    days: number
+    process: string
+    channel: string
+    dayShock: number
+  }
+) {
+  const {
+    sector,
+    stage,
+    status,
+    scenario,
+    hour,
+    dayOffset,
+    days,
+    process,
+    channel,
+    dayShock,
+  } = context
   const base = metricBaseline(metricInfo) * sectorFactor(sector)
-  const range = metricInfo.format === 'seconds' ? 180 : 24
-  const stagePenalty = stage === 'Resolve' ? -0.06 : stage === 'Work' ? 0 : 0.08
-  const noise = (random() - 0.5) * (range * 0.4)
-  const raw = base + noise + base * stagePenalty
+  const range = metricInfo.format === 'seconds' ? 240 : 34
+
+  const stageStress = stage === 'Resolve' ? -0.06 : stage === 'Work' ? 0.08 : 0.17
+  const statusStress =
+    status === 'resolved' ? -0.12 : status === 'pending' ? 0.1 : 0.29
+  const processStress = PROCESS_STRESS[process] ?? 0.08
+  const channelStress = CHANNEL_STRESS[channel] ?? 0.1
+  const scenarioStress = SCENARIO_STRESS[scenario]
+  const volatility = SCENARIO_VOLATILITY[scenario]
+  const hourStress =
+    hour < 6 || hour >= 22
+      ? 0.23
+      : hour < 9
+        ? 0.12
+        : hour <= 17
+          ? 0.06
+          : 0.15
+  const recencyStress = (1 - dayOffset / Math.max(days, 1)) * 0.13
+  const totalStress =
+    stageStress +
+    statusStress +
+    processStress +
+    channelStress +
+    scenarioStress +
+    hourStress +
+    recencyStress
+  const stressFactor = metricInfo.direction === 'higher-better' ? -0.31 : 0.37
+  const directionalSwing =
+    dayShock *
+    (metricInfo.direction === 'higher-better' ? -1 : 1) *
+    (metricInfo.format === 'seconds' ? 118 : 18.5)
+  const noiseAmplitude = range * (0.36 + volatility * 0.74)
+  const noise = (random() - 0.5) * noiseAmplitude
+
+  let raw = base + directionalSwing + noise + base * totalStress * stressFactor
+
+  const extremeChance =
+    0.004 +
+    volatility * 0.03 +
+    (status === 'escalated' ? 0.017 : 0) +
+    (scenario === 'incident' ? 0.012 : 0)
+
+  if (random() < extremeChance) {
+    const extremeMagnitude = range * (0.32 + random() * 0.76)
+
+    if (metricInfo.direction === 'higher-better') {
+      raw -= extremeMagnitude
+    } else {
+      raw += extremeMagnitude
+    }
+  }
 
   if (metricInfo.format === 'seconds') {
-    return formatMetricValue(metricInfo, clamp(raw, 90, 560))
+    return formatMetricValue(metricInfo, clamp(raw, 70, 740))
   }
 
-  return formatMetricValue(metricInfo, clamp(raw, 1, 99))
+  return formatMetricValue(metricInfo, clamp(raw, 0.2, 99.8))
 }
 
-function buildStatus(stage: EventStage, random: () => number): EventStatus {
+function buildStatus(
+  stage: EventStage,
+  random: () => number,
+  scenario: EventScenario
+): EventStatus {
   if (stage === 'Resolve') {
-    const value = random()
-
-    if (value < 0.86) {
-      return 'resolved'
+    switch (scenario) {
+      case 'recovery':
+        return pickWeighted(
+          [
+            { value: 'resolved', weight: 0.94 },
+            { value: 'pending', weight: 0.05 },
+            { value: 'escalated', weight: 0.01 },
+          ],
+          random
+        )
+      case 'steady':
+        return pickWeighted(
+          [
+            { value: 'resolved', weight: 0.9 },
+            { value: 'pending', weight: 0.08 },
+            { value: 'escalated', weight: 0.02 },
+          ],
+          random
+        )
+      case 'seasonal-peak':
+        return pickWeighted(
+          [
+            { value: 'resolved', weight: 0.82 },
+            { value: 'pending', weight: 0.13 },
+            { value: 'escalated', weight: 0.05 },
+          ],
+          random
+        )
+      case 'backlog':
+        return pickWeighted(
+          [
+            { value: 'resolved', weight: 0.72 },
+            { value: 'pending', weight: 0.2 },
+            { value: 'escalated', weight: 0.08 },
+          ],
+          random
+        )
+      case 'incident':
+        return pickWeighted(
+          [
+            { value: 'resolved', weight: 0.68 },
+            { value: 'pending', weight: 0.22 },
+            { value: 'escalated', weight: 0.1 },
+          ],
+          random
+        )
+      case 'fraud-watch':
+        return pickWeighted(
+          [
+            { value: 'resolved', weight: 0.64 },
+            { value: 'pending', weight: 0.2 },
+            { value: 'escalated', weight: 0.16 },
+          ],
+          random
+        )
+      default:
+        return 'pending'
     }
-
-    return value < 0.95 ? 'pending' : 'escalated'
   }
 
-  return random() < 0.78 ? 'pending' : 'escalated'
+  switch (scenario) {
+    case 'recovery':
+      return random() < 0.86 ? 'pending' : 'escalated'
+    case 'steady':
+      return random() < 0.8 ? 'pending' : 'escalated'
+    case 'seasonal-peak':
+      return random() < 0.74 ? 'pending' : 'escalated'
+    case 'backlog':
+      return random() < 0.66 ? 'pending' : 'escalated'
+    case 'incident':
+      return random() < 0.58 ? 'pending' : 'escalated'
+    case 'fraud-watch':
+      return random() < 0.52 ? 'pending' : 'escalated'
+    default:
+      return random() < 0.78 ? 'pending' : 'escalated'
+  }
 }
 
 function buildDescription(event: Pick<EventRecord, 'process' | 'status' | 'stage'>) {
@@ -504,7 +900,7 @@ function getAllSubProducts() {
 const ALL_SUB_PRODUCTS = getAllSubProducts()
 
 export function generateEventStream(
-  count = 20000,
+  count = 30000,
   days = 180,
   seed = 42,
   sector?: Sector
@@ -512,10 +908,13 @@ export function generateEventStream(
   const random = seeded(seed, `events:${sector ?? 'all'}:${count}:${days}`)
   const availableSectors = sector ? [sector] : [...SECTORS]
   const metricIds = Object.keys(METRICS)
-  const casePool = Math.max(Math.floor(count * 0.38), 1800)
+  const casePool = Math.max(Math.floor(count * 0.72), 4200)
+  const hotCasePool = Math.max(Math.floor(casePool * 0.11), 420)
   const stream: EventRecord[] = []
+  const dayShockByKey = new Map<string, number>()
 
   for (let index = 0; index < count; index += 1) {
+    const scenario = pickScenario(random)
     const currentSector = pick(availableSectors, random)
     const productGroup = pick(PRODUCT_GROUPS, random)
     const subProduct = pick(SUB_PRODUCTS_BY_GROUP[productGroup], random)
@@ -528,35 +927,152 @@ export function generateEventStream(
 
     const process =
       candidateProcesses.length > 0
-        ? pick(candidateProcesses, random)
+        ? candidateProcesses.length > 1 && random() < 0.38
+          ? pickWeighted(
+              candidateProcesses.map((item) => ({
+                value: item,
+                weight:
+                  (PROCESS_STRESS[item] ?? 0.1) +
+                  (scenario === 'incident' && item === 'Эскалации' ? 0.32 : 0) +
+                  (scenario === 'fraud-watch' && item === 'Идентификация' ? 0.24 : 0) +
+                  (scenario === 'recovery' && item === 'Эскалации' ? -0.18 : 0) +
+                  0.05,
+              })),
+              random
+            )
+          : pick(candidateProcesses, random)
         : pick(sectorProcesses, random)
 
-    const metricId = pick(metricIds, random)
+    const metricId = pickWeighted(
+      metricIds.map((metricId) => {
+        let weight = 1
+
+        if (scenario === 'incident') {
+          if (metricId === 'queueLoad' || metricId === 'abandonment') weight = 2.9
+          if (metricId === 'aht' || metricId === 'sla') weight = 2.2
+        } else if (scenario === 'backlog') {
+          if (metricId === 'aht' || metricId === 'queueLoad') weight = 2.45
+          if (metricId === 'sla') weight = 2
+        } else if (scenario === 'fraud-watch') {
+          if (metricId === 'abandonment') weight = 2.5
+          if (metricId === 'sla') weight = 1.95
+        } else if (scenario === 'recovery') {
+          if (metricId === 'fcr' || metricId === 'csat') weight = 2.1
+          if (metricId === 'abandonment') weight = 0.6
+        } else if (scenario === 'seasonal-peak') {
+          if (metricId === 'queueLoad' || metricId === 'aht') weight = 1.9
+        }
+
+        return { value: metricId, weight }
+      }),
+      random
+    )
     const metricInfo = METRICS[metricId]
-    const stage = weightedStage(random)
-    const status = buildStatus(stage, random)
-    const { date: eventDate, hour } = randomDateAndHour(random, days)
-    const value = buildMetricValue(metricInfo, random, currentSector, stage)
+    const stage = weightedStage(random, scenario)
+    const status = buildStatus(stage, random, scenario)
+    const channel = pickWeighted(
+      CHANNELS.map((item) => {
+        let weight = 1
+
+        if (scenario === 'incident') {
+          if (item === 'Колл-центр') weight = 2.3
+          if (item === 'Онлайн-банк') weight = 1.8
+        } else if (scenario === 'backlog') {
+          if (item === 'Колл-центр' || item === 'Отделение') weight = 2.15
+        } else if (scenario === 'fraud-watch') {
+          if (item === 'Онлайн-банк' || item === 'Мобильный банк') weight = 2.35
+        } else if (scenario === 'recovery') {
+          if (item === 'Мобильный банк') weight = 1.75
+        } else if (scenario === 'seasonal-peak') {
+          if (item === 'Колл-центр' || item === 'Мобильный банк') weight = 1.82
+        }
+
+        return { value: item, weight }
+      }),
+      random
+    )
+    const { date: eventDate, hour, dayOffset } = randomDateAndHour(random, days, scenario)
+    const dateKey = eventDate.toISOString().slice(0, 10)
+    const dayShockKey = `${dateKey}|${currentSector}|${metricId}`
+    const dayShockCached = dayShockByKey.get(dayShockKey)
+    const dayShock =
+      dayShockCached ??
+      buildDailyMetricShock(seed, {
+        dateKey,
+        dayOffset,
+        sector: currentSector,
+        metricId,
+      })
+
+    if (dayShockCached === undefined) {
+      dayShockByKey.set(dayShockKey, dayShock)
+    }
+
+    const value = buildMetricValue(metricInfo, random, {
+      sector: currentSector,
+      stage,
+      status,
+      scenario,
+      hour,
+      dayOffset,
+      days,
+      process,
+      channel,
+      dayShock,
+    })
 
     const slaBreach =
-      status !== 'resolved' ||
       (metricId === 'sla' && value < metricInfo.thresholds.medium) ||
       (metricId === 'aht' && value > metricInfo.thresholds.medium) ||
-      (metricId === 'abandonment' && value > metricInfo.thresholds.medium)
+      (metricId === 'abandonment' && value > metricInfo.thresholds.medium) ||
+      random() <
+        clamp(
+          (scenario === 'incident'
+            ? 0.58
+            : scenario === 'backlog'
+              ? 0.47
+              : scenario === 'seasonal-peak'
+                ? 0.39
+                : scenario === 'fraud-watch'
+                  ? 0.51
+                  : scenario === 'recovery'
+                    ? 0.16
+                    : 0.28) +
+            (status === 'escalated' ? 0.21 : status === 'pending' ? 0.09 : -0.11) +
+            (stage === 'Resolve' ? -0.13 : 0.04) +
+            (channel === 'Онлайн-банк' ? 0.05 : 0) +
+            (hour < 6 || hour >= 22 ? 0.07 : 0) +
+            (process === 'Эскалации' ? 0.09 : 0),
+          0.02,
+          0.97
+        )
 
     const anomaly =
-      random() > 0.986 ||
-      (status === 'escalated' && random() > 0.52) ||
-      (slaBreach && random() > 0.88)
+      random() <
+      clamp(
+        0.004 +
+          (status === 'escalated' ? 0.043 : status === 'pending' ? 0.013 : 0) +
+          (slaBreach ? 0.028 : 0) +
+          SCENARIO_VOLATILITY[scenario] * 0.041 +
+          (process === 'Эскалации' ? 0.018 : 0) +
+          (channel === 'Онлайн-банк' ? 0.01 : 0),
+        0.002,
+        0.88
+      )
+
+    const caseIdNumber =
+      random() < 0.14
+        ? 1 + Math.floor(random() * hotCasePool)
+        : hotCasePool + 1 + Math.floor(random() * Math.max(casePool - hotCasePool, 1))
 
     stream.push({
       id: `EVT-${String(index + 1).padStart(7, '0')}`,
-      caseId: `CASE-${String(1 + Math.floor(random() * casePool)).padStart(6, '0')}`,
+      caseId: `CASE-${String(caseIdNumber).padStart(6, '0')}`,
       timestamp: eventDate.toISOString(),
       date: eventDate.toISOString().slice(0, 10),
       hour,
       sector: currentSector,
-      channel: pick(CHANNELS, random),
+      channel,
       process,
       productGroup,
       subProduct,
@@ -621,7 +1137,7 @@ export function generateMetricsDataFromEvents(events: EventRecord[], days = 180)
 }
 
 export function generateAllMetricsData(days = 30, seed = 42, sector?: Sector) {
-  const events = generateEventStream(Math.max(days * 90, 4000), days, seed, sector)
+  const events = generateEventStream(Math.max(days * 140, 7000), days, seed, sector)
   return generateMetricsDataFromEvents(events, days)
 }
 

@@ -78,7 +78,7 @@ export function MetricsStackedChart({ data, metrics, title = 'Стек по ме
               {metrics.map((metric) => (
                 <Area
                   key={metric.id}
-                  type="monotone"
+                  type="linear"
                   dataKey={metric.id}
                   stroke={metric.color}
                   fill={`url(#gradient-${metric.id})`}

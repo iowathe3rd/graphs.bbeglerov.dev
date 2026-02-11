@@ -407,7 +407,7 @@ export function MetricsOverlapZonesChart({
                 return (
                   <Line
                     key={seriesId}
-                    type="monotone"
+                    type="linear"
                     name={series.label}
                     dataKey={seriesId}
                     stroke={color}

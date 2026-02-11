@@ -89,7 +89,7 @@ export function MetricsCombinedChart({ data, metrics, title = 'Сравнени�
                 <Line
                   key={metric.id}
                   dataKey={metric.id}
-                  type="monotone"
+                  type="linear"
                   stroke={metric.color}
                   strokeWidth={2}
                   dot={false}

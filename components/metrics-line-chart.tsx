@@ -95,7 +95,7 @@ export function MetricsLineChart({ data, metric }: MetricsLineChartProps) {
                 }
               />
               <Line
-                type="monotone"
+                type="linear"
                 dataKey="value"
                 stroke={metric.color}
                 strokeWidth={2}
