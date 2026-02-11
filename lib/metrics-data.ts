@@ -2,13 +2,11 @@ export type Sector = 'БММБ' | 'РБ' | 'КРС' | 'КСБ'
 export type MetricCategory = 'service' | 'operations' | 'risk'
 export type MetricDirection = 'higher-better' | 'lower-better'
 export type MetricFormat = 'percent' | 'seconds' | 'count'
-export type ProductGroup =
-  | 'Платежи'
-  | 'Кредитование'
-  | 'Сбережения'
-  | 'Карты'
-  | 'Цифровые сервисы'
+export type ProductGroup = string
 export type SubProduct = string
+export type Language = 'kk' | 'ru'
+export type ContactDirection = 'Внутренний' | 'Входящий'
+export type DialogueType = 'Консультация' | 'Претензия'
 export type EventStage = 'Intake' | 'Routing' | 'Work' | 'Resolve'
 export type EventStatus = 'resolved' | 'pending' | 'escalated'
 export type SankeyNodeType = 'channel' | 'process' | 'status'
@@ -56,7 +54,13 @@ export interface EventRecord {
   channel: string
   process: string
   productGroup: ProductGroup
+  category: string
   subProduct: SubProduct
+  language: Language
+  operator: string
+  direction: ContactDirection
+  dialogueType: DialogueType
+  tag: string
   metric: string
   value: number
   stage: EventStage
@@ -183,7 +187,13 @@ export interface DetailedRecord {
   process: string
   product: string
   productGroup: ProductGroup
+  category: string
   subProduct: SubProduct
+  language: Language
+  operator: string
+  direction: ContactDirection
+  dialogueType: DialogueType
+  tag: string
   stage: EventStage
   hour: number
   channel: string
@@ -201,32 +211,199 @@ export const CHANNELS = [
   'Онлайн-банк',
 ] as const
 
-export const PROCESSES = [
-  'Идентификация',
-  'Платежи',
-  'Карты',
-  'Кредиты',
-  'Депозиты',
-  'Сервисы ДБО',
-  'Счета ФЛ/ЮЛ',
-  'Эскалации',
+export const PRODUCT_GROUPS = [
+  'B-Business',
+  'Business-карты',
+  'Антифрод',
+  'Банковские гарантии',
+  'ВЭД',
+  'Вклады',
+  'Кредиты и посткредитное обслуживание',
+  'Налоговый кабинет',
+  'Переводы и платежи в тенге',
+  'Прочие консультации',
+  'Расчетный счет',
+  'Тарифные планы',
+  'Факторинг',
+  'Эквайринг',
 ] as const
 
-export const PRODUCT_GROUPS: ProductGroup[] = [
-  'Платежи',
-  'Кредитование',
-  'Сбережения',
-  'Карты',
-  'Цифровые сервисы',
-]
+export const CATEGORIES_BY_PRODUCT: Record<ProductGroup, readonly string[]> = {
+  'B-Business': [
+    'CryptoSocket и Tumar CSP',
+    'Onboarding',
+    'Вход в B-Business',
+    'ОТP-токен и e-Token',
+    'Продление сертификата',
+    'Прочие консультации в B-Business',
+    'Технические ошибки при входе в Bereke Business',
+  ],
+  'Business-карты': [
+    'Открытие Business-карты',
+    'Закрытие Business-карты',
+    'Информации по действующим Business-картам',
+  ],
+  Антифрод: ['Антифрод', 'Проблемы с биометрией', 'Диспут ЮЛ'],
+  'Банковские гарантии': [
+    'Выпуск банковской гарантии',
+    'Закрытие банковской гарантии',
+  ],
+  ВЭД: [
+    'FX-платформа',
+    'Акты и справки',
+    'Внесение изменений в валютный договор',
+    'Закрытие валютного договора',
+    'Исполнение обязательств',
+    'Исходящий перевод в валюте',
+    'Конвертация (обмен валют)',
+    'Консультация по валютному контролю',
+    'Ошибки в работе с "Кабинет ВЭД"',
+    'Регистрация валютного договора (открытие)',
+    'Уведомление о поступлении валютной выручки',
+  ],
+  Вклады: [
+    'Информация по действующим вкладам',
+    'Открытие вклада',
+    'Закрытие вклада',
+  ],
+  'Кредиты и посткредитное обслуживание': [
+    'Классическое кредитование',
+    'Онлайн Кредиты ИП (скоринг)',
+    'Посткредитное обслуживание (классическое кредитование)',
+    'Посткредитное обслуживание (скоринг)',
+  ],
+  'Налоговый кабинет': ['Налоговый кабинет', 'Блокировка счета от налоговой'],
+  'Переводы и платежи в тенге': [
+    'Входящие переводы в тенге: ожидание возврата от БВУ',
+    'Ошибки при подписании платежного поручения',
+    'Безналичные курсы',
+    'Экспорт платежей в тенге',
+  ],
+  'Прочие консультации': ['Прочие консультации'],
+  'Расчетный счет': [
+    'Информация по действующим текущим счетам',
+    'Закрытие текущего счета',
+    'Заявление на закрытие текущего счета',
+    'Справка об оборотах',
+    'Акт сверки с печатью Банка',
+  ],
+  'Тарифные планы': [
+    'Информация по действующему тарифному плану',
+    'Тарифные планы',
+  ],
+  Факторинг: ['Факторинг'],
+  Эквайринг: [
+    'Информация по действующему POS-терминалу',
+    'Информация по действующему Интернет-Эквайрингу',
+    'Отключение Торгового Эквайринга',
+    'Подключение Торгового Эквайринга (POS-терминал)',
+  ],
+}
 
 export const SUB_PRODUCTS_BY_GROUP: Record<ProductGroup, readonly SubProduct[]> = {
-  Платежи: ['P2P переводы', 'Межбанк', 'Коммунальные', 'SWIFT'],
-  Кредитование: ['Потребкредит', 'Кредитная линия', 'Ипотека'],
-  Сбережения: ['Депозит стандарт', 'Накопительный счет', 'Вклад премиум'],
-  Карты: ['Debit Classic', 'Premium Card', 'Virtual Card', 'Business Card'],
-  'Цифровые сервисы': ['Mobile App', 'Web Banking', 'API Кабинет', 'Bot Support'],
+  'B-Business': [
+    '1C:Direct Bank',
+    'Замена устройства ОТР-токен',
+    'Разблокировка ОТP-токен',
+    'Продление сертификатов в СПФ',
+    'Консультация по входу (сопровождение)',
+    'Технические ошибки при входе в Bereke Business',
+  ],
+  'Business-карты': [
+    'Выписка по корпоративной карте',
+    'Заявление на выпуск карты - пластиковая',
+    'Пополнение корпоративной карты',
+    'Закрытие Business-карты',
+  ],
+  Антифрод: [
+    'Проблемы с биометрией',
+    'Диспут ЮЛ',
+    'Запрос на эскалацию',
+    'Угроза отказа клиента от продуктов или банка',
+  ],
+  'Банковские гарантии': [
+    'Выпуск банковской гарантии',
+    'Закрытие банковской гарантии',
+    'Акты и справки',
+  ],
+  ВЭД: [
+    'FX-платформа',
+    'Безналичные курсы',
+    'Внесение изменений в валютный договор',
+    'Закрытие валютного договора',
+  ],
+  Вклады: [
+    'Информация по действующим вкладам',
+    'Закрытие вклада',
+    'Справка об оборотах',
+  ],
+  'Кредиты и посткредитное обслуживание': [
+    'График платежей: перенос даты платежа',
+    'Классическое кредитование',
+    'Онлайн Кредиты ИП (скоринг)',
+    'Посткредитное обслуживание (скоринг)',
+  ],
+  'Налоговый кабинет': [
+    'Блокировка счета от налоговой',
+    'Внесение изменений в справочники компании',
+  ],
+  'Переводы и платежи в тенге': [
+    'Входящие переводы в тенге: ожидание возврата от БВУ',
+    'Ошибки при подписании платежного поручения',
+    'Статус "Отклонено (Не удалось совершить перевод)"',
+    'Экспорт платежей в тенге',
+  ],
+  'Прочие консультации': [
+    'Что нравится клиентам',
+    'Что не нравится клиентам',
+    'Сравнение продуктов с конкурентами',
+  ],
+  'Расчетный счет': [
+    'Акт сверки с печатью Банка',
+    'Заявление на закрытие текущего счета',
+    'Справка об оборотах',
+  ],
+  'Тарифные планы': [
+    'Информация по действующему тарифному плану',
+    'Тарифные планы',
+  ],
+  Факторинг: ['Факторинг'],
+  Эквайринг: [
+    'Информация по действующему POS-терминалу',
+    'Информация по действующему Интернет-Эквайрингу',
+    'Подключение Торгового Эквайринга (POS-терминал)',
+  ],
 }
+
+export const PROCESSES = Array.from(
+  new Set(PRODUCT_GROUPS.flatMap((group) => CATEGORIES_BY_PRODUCT[group]))
+) as string[]
+
+export const LANGUAGES: readonly Language[] = ['kk', 'ru']
+
+export const OPERATORS = [
+  'Аббас Ануар Талғатұлы',
+  'Абдугапбар Аружан Асқарқызы',
+  'Ярмухамедова Санам Туйгунжановна',
+] as const
+
+export const DIRECTIONS: readonly ContactDirection[] = ['Внутренний', 'Входящий']
+
+export const DIALOGUE_TYPES: readonly DialogueType[] = [
+  'Консультация',
+  'Претензия',
+]
+
+export const CONTACT_TAGS = [
+  'Жалоба на персонального менеджера',
+  'Запрос на эскалацию',
+  'Запрос не решен',
+  'Проблемы с биометрией',
+  'Сравнение продуктов с конкурентами',
+  'Угроза отказа клиента от продуктов или банка',
+  'Что не нравится клиентам',
+  'Что нравится клиентам',
+] as const
 
 export const FUNNEL_STAGES: readonly EventStage[] = [
   'Intake',
@@ -242,18 +419,26 @@ export const EVENT_STATUSES: readonly EventStatus[] = [
 ]
 
 const PROCESS_BY_SECTOR: Record<Sector, readonly string[]> = {
-  БММБ: ['Карты', 'Платежи', 'Депозиты'],
-  РБ: ['Идентификация', 'Сервисы ДБО', 'Эскалации'],
-  КРС: ['Кредиты', 'Платежи', 'Эскалации'],
-  КСБ: ['Счета ФЛ/ЮЛ', 'Платежи', 'Эскалации'],
-}
-
-const PROCESS_BY_PRODUCT_GROUP: Record<ProductGroup, readonly string[]> = {
-  Платежи: ['Платежи', 'Эскалации'],
-  Кредитование: ['Кредиты', 'Идентификация', 'Эскалации'],
-  Сбережения: ['Депозиты', 'Счета ФЛ/ЮЛ'],
-  Карты: ['Карты', 'Платежи', 'Эскалации'],
-  'Цифровые сервисы': ['Сервисы ДБО', 'Идентификация', 'Эскалации'],
+  БММБ: [
+    'Вход в B-Business',
+    'Открытие Business-карты',
+    'Информация по действующим текущим счетам',
+  ],
+  РБ: [
+    'Onboarding',
+    'Информация по действующему тарифному плану',
+    'Информация по действующим вкладам',
+  ],
+  КРС: [
+    'Классическое кредитование',
+    'Посткредитное обслуживание (скоринг)',
+    'Антифрод',
+  ],
+  КСБ: [
+    'Информация по действующему POS-терминалу',
+    'Выпуск банковской гарантии',
+    'FX-платформа',
+  ],
 }
 
 const STAGE_BY_INDEX: readonly EventStage[] = ['Intake', 'Routing', 'Work', 'Resolve']
@@ -267,14 +452,16 @@ const EVENT_SCENARIOS: readonly EventScenario[] = [
   'recovery',
 ]
 const PROCESS_STRESS: Record<string, number> = {
-  Идентификация: 0.08,
-  Платежи: 0.18,
-  Карты: 0.13,
-  Кредиты: 0.17,
-  Депозиты: 0.09,
-  'Сервисы ДБО': 0.21,
-  'Счета ФЛ/ЮЛ': 0.11,
-  Эскалации: 0.33,
+  Антифрод: 0.33,
+  'Технические ошибки при входе в Bereke Business': 0.31,
+  'Ошибки при подписании платежного поручения': 0.28,
+  'Проблемы с биометрией': 0.3,
+  'Классическое кредитование': 0.22,
+  'Посткредитное обслуживание (скоринг)': 0.2,
+  'Входящие переводы в тенге: ожидание возврата от БВУ': 0.24,
+  'Информация по действующему POS-терминалу': 0.17,
+  'Выпуск банковской гарантии': 0.15,
+  'FX-платформа': 0.18,
 }
 const CHANNEL_STRESS: Record<string, number> = {
   'Колл-центр': 0.14,
@@ -1005,10 +1192,11 @@ export function generateEventStream(
     const scenario = pickScenario(random)
     const currentSector = pick(availableSectors, random)
     const productGroup = pick(PRODUCT_GROUPS, random)
+    const categories = CATEGORIES_BY_PRODUCT[productGroup]
     const subProduct = pick(SUB_PRODUCTS_BY_GROUP[productGroup], random)
 
     const sectorProcesses = PROCESS_BY_SECTOR[currentSector]
-    const productProcesses = PROCESS_BY_PRODUCT_GROUP[productGroup]
+    const productProcesses = categories
     const candidateProcesses = sectorProcesses.filter((process) =>
       productProcesses.includes(process)
     )
@@ -1021,15 +1209,15 @@ export function generateEventStream(
                 value: item,
                 weight:
                   (PROCESS_STRESS[item] ?? 0.1) +
-                  (scenario === 'incident' && item === 'Эскалации' ? 0.32 : 0) +
-                  (scenario === 'fraud-watch' && item === 'Идентификация' ? 0.24 : 0) +
-                  (scenario === 'recovery' && item === 'Эскалации' ? -0.18 : 0) +
+                  (scenario === 'incident' && item.includes('Ошиб') ? 0.24 : 0) +
+                  (scenario === 'fraud-watch' && item.includes('Антифрод') ? 0.28 : 0) +
+                  (scenario === 'recovery' && item.includes('Прочие консультации') ? -0.16 : 0) +
                   0.05,
               })),
               random
             )
           : pick(candidateProcesses, random)
-        : pick(sectorProcesses, random)
+        : pick(productProcesses, random)
 
     const metricId = pickWeighted(
       metricIds.map((metricId) => {
@@ -1079,6 +1267,29 @@ export function generateEventStream(
       }),
       random
     )
+    const language = pickWeighted(
+      LANGUAGES.map((item) => ({
+        value: item,
+        weight: item === 'ru' ? 0.74 : 0.26,
+      })),
+      random
+    )
+    const operator = pick(OPERATORS, random)
+    const direction = pickWeighted(
+      DIRECTIONS.map((item) => ({
+        value: item,
+        weight: item === 'Входящий' ? 0.86 : 0.14,
+      })),
+      random
+    )
+    const dialogueType = pickWeighted(
+      DIALOGUE_TYPES.map((item) => ({
+        value: item,
+        weight: item === 'Консультация' ? 0.79 : 0.21,
+      })),
+      random
+    )
+    const tag = pick(CONTACT_TAGS, random)
     const { date: eventDate, hour, dayOffset } = randomDateAndHour(random, days, scenario)
     const dateKey = eventDate.toISOString().slice(0, 10)
     const dayShockKey = `${dateKey}|${currentSector}|${metricId}`
@@ -1130,7 +1341,7 @@ export function generateEventStream(
             (stage === 'Resolve' ? -0.13 : 0.04) +
             (channel === 'Онлайн-банк' ? 0.05 : 0) +
             (hour < 6 || hour >= 22 ? 0.07 : 0) +
-            (process === 'Эскалации' ? 0.09 : 0),
+            (process.includes('Ошиб') || process.includes('Антифрод') ? 0.09 : 0),
           0.02,
           0.97
         )
@@ -1163,7 +1374,13 @@ export function generateEventStream(
       channel,
       process,
       productGroup,
+      category: process,
       subProduct,
+      language,
+      operator,
+      direction,
+      dialogueType,
+      tag,
       metric: metricId,
       value,
       stage,
@@ -1719,13 +1936,19 @@ export function generateDetailedRecords(
     value: event.value,
     sector: event.sector,
     process: event.process,
-    product: event.subProduct,
+    product: event.productGroup,
     productGroup: event.productGroup,
+    category: event.category,
     subProduct: event.subProduct,
+    language: event.language,
+    operator: event.operator,
+    direction: event.direction,
+    dialogueType: event.dialogueType,
+    tag: event.tag,
     stage: event.stage,
     hour: event.hour,
     channel: event.channel,
-    tags: [event.sector, event.process, event.productGroup],
+    tags: [event.tag, event.direction, event.dialogueType],
     status: event.status,
     description: buildDescription(event),
   }))

@@ -153,10 +153,11 @@ export function MetricsDataTable({
                   </Button>
                 </TableHead>
                 <TableHead>Сектор</TableHead>
-                <TableHead>Product Group</TableHead>
-                <TableHead>Sub Product</TableHead>
-                <TableHead>Процесс</TableHead>
+                <TableHead>Продукт</TableHead>
+                <TableHead>Категория</TableHead>
+                <TableHead>Подкатегория</TableHead>
                 <TableHead>Канал</TableHead>
+                <TableHead>Тег</TableHead>
                 <TableHead>Stage</TableHead>
                 <TableHead>
                   <Button
@@ -203,9 +204,10 @@ export function MetricsDataTable({
                   </TableCell>
                   <TableCell>{record.sector}</TableCell>
                   <TableCell>{record.productGroup}</TableCell>
+                  <TableCell>{record.category}</TableCell>
                   <TableCell>{record.subProduct}</TableCell>
-                  <TableCell>{record.process}</TableCell>
                   <TableCell>{record.channel}</TableCell>
+                  <TableCell>{record.tag}</TableCell>
                   <TableCell>{record.stage}</TableCell>
                   <TableCell>{String(record.hour).padStart(2, '0')}:00</TableCell>
                   <TableCell>{METRICS[record.metric]?.name ?? record.metric}</TableCell>

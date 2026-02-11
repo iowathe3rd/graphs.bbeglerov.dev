@@ -63,11 +63,24 @@ function toggleValue(values: string[], value: string) {
 }
 
 function getSubProducts(group: ProductGroup | 'all') {
-  if (group === 'all') {
-    return PRODUCT_GROUPS.flatMap((item) => SUB_PRODUCTS_BY_GROUP[item])
+  const uniqueOrdered = (items: readonly string[]) => {
+    const result: string[] = []
+    const seen = new Set<string>()
+
+    for (const item of items) {
+      if (seen.has(item)) continue
+      seen.add(item)
+      result.push(item)
+    }
+
+    return result
   }
 
-  return [...SUB_PRODUCTS_BY_GROUP[group]]
+  if (group === 'all') {
+    return uniqueOrdered(PRODUCT_GROUPS.flatMap((item) => SUB_PRODUCTS_BY_GROUP[item]))
+  }
+
+  return uniqueOrdered(SUB_PRODUCTS_BY_GROUP[group])
 }
 
 export function MetricsFiltersComponent({

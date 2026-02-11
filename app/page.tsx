@@ -57,9 +57,10 @@ export default function Page() {
 
   const filteredEvents = useMemo(() => {
     const selectedChannel = filters.channel
-    const selectedProcess = filters.process
     const selectedGroup = filters.productGroup
+    const selectedCategory = filters.category
     const selectedSubProduct = filters.subProduct
+    const selectedTag = filters.tag
     const { from, to } = filters.dateRange
     const result: EventRecord[] = []
 
@@ -72,15 +73,19 @@ export default function Page() {
         continue
       }
 
-      if (selectedProcess !== 'all' && event.process !== selectedProcess) {
-        continue
-      }
-
       if (selectedGroup !== 'all' && event.productGroup !== selectedGroup) {
         continue
       }
 
+      if (selectedCategory !== 'all' && event.category !== selectedCategory) {
+        continue
+      }
+
       if (selectedSubProduct !== 'all' && event.subProduct !== selectedSubProduct) {
+        continue
+      }
+
+      if (selectedTag !== 'all' && event.tag !== selectedTag) {
         continue
       }
 
@@ -92,9 +97,10 @@ export default function Page() {
     events,
     filters.channel,
     filters.dateRange,
-    filters.process,
+    filters.category,
     filters.productGroup,
     filters.subProduct,
+    filters.tag,
   ])
 
   const metricsData = useMemo(

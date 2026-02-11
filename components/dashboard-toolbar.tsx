@@ -12,9 +12,10 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import {
+  CATEGORIES_BY_PRODUCT,
   CHANNELS,
+  CONTACT_TAGS,
   PRODUCT_GROUPS,
-  PROCESSES,
   SECTORS,
   SUB_PRODUCTS_BY_GROUP,
   type ProductGroup,
@@ -24,9 +25,10 @@ import {
 export interface DashboardFilters {
   sector: Sector
   channel: string | 'all'
-  process: string | 'all'
   productGroup: ProductGroup | 'all'
+  category: string | 'all'
   subProduct: string | 'all'
+  tag: string | 'all'
   dateRange: {
     from: Date | undefined
     to: Date | undefined
@@ -42,9 +44,10 @@ interface DashboardToolbarProps {
 export const DEFAULT_DASHBOARD_FILTERS: DashboardFilters = {
   sector: 'БММБ',
   channel: 'all',
-  process: 'all',
   productGroup: 'all',
+  category: 'all',
   subProduct: 'all',
+  tag: 'all',
   dateRange: {
     from: undefined,
     to: undefined,
@@ -52,11 +55,32 @@ export const DEFAULT_DASHBOARD_FILTERS: DashboardFilters = {
 }
 
 function getSubProducts(group: ProductGroup | 'all') {
-  if (group === 'all') {
-    return PRODUCT_GROUPS.flatMap((item) => SUB_PRODUCTS_BY_GROUP[item])
+  const uniqueOrdered = (items: readonly string[]) => {
+    const result: string[] = []
+    const seen = new Set<string>()
+
+    for (const item of items) {
+      if (seen.has(item)) continue
+      seen.add(item)
+      result.push(item)
+    }
+
+    return result
   }
 
-  return [...SUB_PRODUCTS_BY_GROUP[group]]
+  if (group === 'all') {
+    return uniqueOrdered(PRODUCT_GROUPS.flatMap((item) => SUB_PRODUCTS_BY_GROUP[item]))
+  }
+
+  return uniqueOrdered(SUB_PRODUCTS_BY_GROUP[group])
+}
+
+function getCategories(group: ProductGroup | 'all') {
+  if (group === 'all') {
+    return Array.from(new Set(PRODUCT_GROUPS.flatMap((item) => CATEGORIES_BY_PRODUCT[item])))
+  }
+
+  return [...CATEGORIES_BY_PRODUCT[group]]
 }
 
 export function DashboardToolbar({
@@ -65,10 +89,11 @@ export function DashboardToolbar({
   onReset,
 }: DashboardToolbarProps) {
   const subProducts = getSubProducts(filters.productGroup)
+  const categories = getCategories(filters.productGroup)
 
   return (
     <div className="rounded-xl border border-border/80 bg-card/85 p-3 backdrop-blur">
-      <div className="grid gap-2 md:grid-cols-3 xl:grid-cols-7">
+      <div className="grid gap-2 md:grid-cols-3 xl:grid-cols-8">
         <div className="space-y-1">
           <p className="text-[11px] text-muted-foreground">Сектор</p>
           <Select
@@ -91,13 +116,14 @@ export function DashboardToolbar({
         </div>
 
         <div className="space-y-1">
-          <p className="text-[11px] text-muted-foreground">Группа</p>
+          <p className="text-[11px] text-muted-foreground">Продукт</p>
           <Select
             value={filters.productGroup}
             onValueChange={(value) =>
               onFiltersChange({
                 ...filters,
                 productGroup: value as ProductGroup | 'all',
+                category: 'all',
                 subProduct: 'all',
               })
             }
@@ -117,7 +143,32 @@ export function DashboardToolbar({
         </div>
 
         <div className="space-y-1">
-          <p className="text-[11px] text-muted-foreground">Подпродукт</p>
+          <p className="text-[11px] text-muted-foreground">Категория</p>
+          <Select
+            value={filters.category}
+            onValueChange={(value) =>
+              onFiltersChange({
+                ...filters,
+                category: value,
+              })
+            }
+          >
+            <SelectTrigger className="h-8 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Все</SelectItem>
+              {categories.map((category) => (
+                <SelectItem key={category} value={category}>
+                  {category}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-1">
+          <p className="text-[11px] text-muted-foreground">Подкатегория</p>
           <Select
             value={filters.subProduct}
             onValueChange={(value) =>
@@ -167,13 +218,13 @@ export function DashboardToolbar({
         </div>
 
         <div className="space-y-1">
-          <p className="text-[11px] text-muted-foreground">Процесс</p>
+          <p className="text-[11px] text-muted-foreground">Тег</p>
           <Select
-            value={filters.process}
+            value={filters.tag}
             onValueChange={(value) =>
               onFiltersChange({
                 ...filters,
-                process: value,
+                tag: value,
               })
             }
           >
@@ -182,9 +233,9 @@ export function DashboardToolbar({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Все</SelectItem>
-              {PROCESSES.map((process) => (
-                <SelectItem key={process} value={process}>
-                  {process}
+              {CONTACT_TAGS.map((tag) => (
+                <SelectItem key={tag} value={tag}>
+                  {tag}
                 </SelectItem>
               ))}
             </SelectContent>
