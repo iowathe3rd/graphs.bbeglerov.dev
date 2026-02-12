@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo } from 'react'
+import type { SVGProps } from 'react'
 import { format } from 'date-fns'
 import { ru } from 'date-fns/locale'
 import { RotateCcw } from 'lucide-react'
@@ -143,6 +144,29 @@ function buildYTicks(step: number, max: number) {
   return ticks
 }
 
+function buildZoneTicks(step: number, zoneConfig: Required<OverlapZoneConfig>) {
+  const yTicks = buildYTicks(step, zoneConfig.max)
+  const zoneTicks = [0, zoneConfig.greenMax, zoneConfig.yellowMax, zoneConfig.max]
+
+  return Array.from(new Set([...yTicks, ...zoneTicks])).sort((a, b) => a - b)
+}
+
+function zoneTickColor(value: number, zoneConfig: Required<OverlapZoneConfig>) {
+  if (value <= zoneConfig.greenMax) {
+    return '#2F8F7A'
+  }
+
+  if (value <= zoneConfig.yellowMax) {
+    return '#B5793D'
+  }
+
+  return '#D77272'
+}
+
+function formatAxisPercent(value: number) {
+  return `${Math.round(value)}%`
+}
+
 function removeSeries(selectedSeries: string[], label: string) {
   return selectedSeries.filter((item) => item !== label)
 }
@@ -222,10 +246,7 @@ export function OverlapMultiLineChart({
     return map
   }, [buckets])
 
-  const yTicks = useMemo(
-    () => buildYTicks(yTickStep, zoneConfig.max),
-    [yTickStep, zoneConfig.max]
-  )
+  const yTicks = useMemo(() => buildZoneTicks(yTickStep, zoneConfig), [yTickStep, zoneConfig])
 
   const hasData = chartRows.length > 0 && seriesLabels.length > 0
 
@@ -292,7 +313,7 @@ export function OverlapMultiLineChart({
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart
                 data={chartRows}
-                margin={{ left: -30, right: 2, top: 8, bottom: 10 }}
+                margin={{ left: 8, right: 2, top: 8, bottom: 10 }}
               >
                 <ReferenceArea
                   y1={0}
@@ -330,11 +351,25 @@ export function OverlapMultiLineChart({
                   domain={[0, zoneConfig.max]}
                   tickLine={false}
                   axisLine={false}
-                  width={30}
+                  width={52}
                   tickMargin={4}
                   ticks={yTicks}
-                  tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
-                  tickFormatter={(value) => valueFormatter(Number(value))}
+                  tick={(props: SVGProps<SVGTextElement> & { payload?: { value: number } }) => {
+                    const value = Number(props.payload?.value ?? 0)
+
+                    return (
+                      <text
+                        x={props.x}
+                        y={props.y}
+                        dy={props.dy}
+                        textAnchor="end"
+                        fill={zoneTickColor(value, zoneConfig)}
+                        fontSize={11}
+                      >
+                        {formatAxisPercent(value)}
+                      </text>
+                    )
+                  }}
                 />
 
                 <Tooltip
