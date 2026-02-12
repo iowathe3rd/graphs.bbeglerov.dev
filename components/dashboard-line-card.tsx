@@ -140,7 +140,7 @@ export function DashboardLineCard({ metric, data }: DashboardLineCardProps) {
               stroke={metric.color}
               strokeWidth={2}
               dot={false}
-              activeDot={{ r: 4 }}
+              activeDot={{ r: 4, stroke: '#fff', strokeWidth: 2, fill: metric.color }}
             />
           </LineChart>
         </ResponsiveContainer>

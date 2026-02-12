@@ -437,7 +437,7 @@ export const METRICS: Record<string, MetricInfo> = {
     direction: 'lower-better',
     format: 'percent',
     thresholds: { low: 24, medium: 14, high: 8 },
-    color: '#4f46e5',
+    color: '#f97316',
   },
   fcr: {
     id: 'fcr',

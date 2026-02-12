@@ -4,14 +4,14 @@ import { useMemo } from 'react'
 import type { SVGProps } from 'react'
 import { format } from 'date-fns'
 import { ru } from 'date-fns/locale'
-import { RotateCcw } from 'lucide-react'
+import { CircleHelp, RotateCcw } from 'lucide-react'
 import {
   CartesianGrid,
   ComposedChart,
   Line,
   ReferenceArea,
   ResponsiveContainer,
-  Tooltip,
+  Tooltip as RechartsTooltip,
   XAxis,
   YAxis,
 } from 'recharts'
@@ -27,6 +27,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import {
   buildOverlapBuckets,
   type OverlapAnalytics,
@@ -183,7 +189,7 @@ function toggleSeries(selectedSeries: string[], label: string) {
 
 export function OverlapMultiLineChart({
   analytics,
-  title = 'Наслаивания индикаторов',
+  title = 'Температурная карта',
   granularity,
   onGranularityChange,
   selectedSeries,
@@ -262,7 +268,29 @@ export function OverlapMultiLineChart({
       <div className="space-y-2 pb-2">
         <div className="flex items-center justify-between gap-2">
           <h3 className="text-[15px] font-semibold tracking-tight text-foreground/95">
-            {title}
+            <span className="inline-flex items-center gap-1.5">
+              {title}
+              <TooltipProvider delayDuration={150}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      className="inline-flex h-4 w-4 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
+                      aria-label="Расшифровка зон температурной карты"
+                    >
+                      <CircleHelp className="h-3.5 w-3.5" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-[280px] text-xs leading-relaxed">
+                    <p>
+                      З — зелёная зона, Ж — жёлтая зона, К — красная зона.
+                      Цифры показывают, сколько индикаторов попало в каждую
+                      зону на выбранной дате.
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </span>
           </h3>
           <Select
             value={granularity}
@@ -379,7 +407,7 @@ export function OverlapMultiLineChart({
                   }}
                 />
 
-                <Tooltip
+                <RechartsTooltip
                   cursor={{
                     stroke: 'hsl(var(--primary))',
                     strokeWidth: 1,
@@ -397,7 +425,7 @@ export function OverlapMultiLineChart({
                     return (
                       <BerekeChartTooltip
                         title={xLabelFormatter(String(label), granularity)}
-                        subtitle={`Зоны: З ${bucket.zoneCounts.green} / Ж ${bucket.zoneCounts.yellow} / К ${bucket.zoneCounts.red}`}
+                        subtitle={`Зелёная: ${bucket.zoneCounts.green}, Жёлтая: ${bucket.zoneCounts.yellow}, Красная: ${bucket.zoneCounts.red}`}
                         rows={rows.map((row) => ({
                           id: row.label,
                           label: shortLabel(row.label),
@@ -428,53 +456,16 @@ export function OverlapMultiLineChart({
                       strokeOpacity={strokeOpacity}
                       isAnimationActive={false}
                       connectNulls
-                      activeDot={false}
+                      dot={false}
+                      activeDot={{
+                        r: 4,
+                        fill: colorBySeries.get(label) ?? '#2E69D6',
+                        stroke: '#fff',
+                        strokeWidth: 2,
+                      }}
                       onClick={() =>
                         onSelectedSeriesChange(toggleSeries(selectedSeries, label))
                       }
-                      dot={(props: any) => {
-                        const cx = Number(props?.cx)
-                        const cy = Number(props?.cy)
-                        const dotValue = Number(props?.value ?? 0)
-
-                        if (Number.isNaN(cx) || Number.isNaN(cy)) {
-                          return <g />
-                        }
-
-                        const dotSelected = selectedSet.has(label)
-                        const dotOpacity = dotSelected ? 1 : hasSelection ? 0.46 : 0.92
-
-                        return (
-                          <g
-                            key={`${label}-${cx}-${cy}-${dotValue}`}
-                            role="button"
-                            tabIndex={0}
-                            style={{ cursor: 'pointer' }}
-                            aria-label={`Выбрать серию ${label}`}
-                            onClick={(event) => {
-                              event.stopPropagation()
-                              onSelectedSeriesChange(toggleSeries(selectedSeries, label))
-                            }}
-                            onKeyDown={(event) => {
-                              if (event.key === 'Enter' || event.key === ' ') {
-                                event.preventDefault()
-                                onSelectedSeriesChange(
-                                  toggleSeries(selectedSeries, label)
-                                )
-                              }
-                            }}
-                          >
-                            <circle cx={cx} cy={cy} r={6.5} fill="transparent" />
-                            <circle
-                              cx={cx}
-                              cy={cy}
-                              r={dotSelected ? 2.8 : 2.15}
-                              fill={colorBySeries.get(label) ?? '#2E69D6'}
-                              fillOpacity={dotOpacity}
-                            />
-                          </g>
-                        )
-                      }}
                     />
                   )
                 })}
