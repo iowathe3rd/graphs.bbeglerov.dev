@@ -496,7 +496,7 @@ export const METRICS: Record<string, MetricInfo> = {
     direction: 'higher-better',
     format: 'percent',
     thresholds: { low: 75, medium: 85, high: 95 },
-    color: 'hsl(var(--chart-1))',
+    color: '#2563eb',
   },
   aht: {
     id: 'aht',
@@ -507,7 +507,7 @@ export const METRICS: Record<string, MetricInfo> = {
     direction: 'lower-better',
     format: 'seconds',
     thresholds: { low: 380, medium: 300, high: 220 },
-    color: 'hsl(var(--chart-2))',
+    color: '#4f46e5',
   },
   fcr: {
     id: 'fcr',
@@ -540,7 +540,7 @@ export const METRICS: Record<string, MetricInfo> = {
     direction: 'lower-better',
     format: 'percent',
     thresholds: { low: 68, medium: 52, high: 35 },
-    color: 'hsl(var(--chart-5))',
+    color: '#0f766e',
   },
   abandonment: {
     id: 'abandonment',
@@ -551,7 +551,7 @@ export const METRICS: Record<string, MetricInfo> = {
     direction: 'lower-better',
     format: 'percent',
     thresholds: { low: 15, medium: 9, high: 5 },
-    color: 'hsl(var(--chart-6))',
+    color: '#64748b',
   },
 }
 
