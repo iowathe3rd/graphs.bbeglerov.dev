@@ -63,7 +63,7 @@ export default function Page() {
     () => DEFAULT_DASHBOARD_FILTERS
   )
   const [overlapGranularity, setOverlapGranularity] = useState<OverlapGranularity>(
-    () => 'week'
+    () => 'day'
   )
   const [overlapSelection, setOverlapSelection] = useState<string[]>(() => [])
 
@@ -176,7 +176,7 @@ export default function Page() {
 
   const handleReset = () => {
     setFilters(DEFAULT_DASHBOARD_FILTERS)
-    setOverlapGranularity('week')
+    setOverlapGranularity('day')
     setOverlapSelection([])
   }
 

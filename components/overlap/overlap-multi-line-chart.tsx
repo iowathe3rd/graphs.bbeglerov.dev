@@ -57,6 +57,7 @@ interface OverlapMultiLineChartProps {
     mobile: number
     desktop: number
   }
+  granularityOptions?: OverlapGranularity[]
   topTooltipRows?: number
   curveType?: 'linear' | 'monotone'
 }
@@ -117,15 +118,11 @@ function defaultBucketLabelFormatter(dateKey: string, granularity: OverlapGranul
   const date = new Date(`${dateKey}T00:00:00.000Z`)
   if (Number.isNaN(date.getTime())) return dateKey
 
-  if (granularity === 'day') {
-    return format(date, 'EEE', { locale: ru })
+  if (granularity === 'day' || granularity === 'week' || granularity === 'month') {
+    return format(date, 'dd.MM', { locale: ru })
   }
 
-  if (granularity === 'month') {
-    return format(date, 'LLL yy', { locale: ru })
-  }
-
-  return `нед ${format(date, 'dd.MM', { locale: ru })}`
+  return dateKey
 }
 
 function buildColorMap(labels: string[], seriesColorMap?: Record<string, string>) {
@@ -135,6 +132,26 @@ function buildColorMap(labels: string[], seriesColorMap?: Record<string, string>
     map.set(label, seriesColorMap?.[label] ?? SERIES_COLORS[index % SERIES_COLORS.length])
   }
   return map
+}
+
+function granularityLabel(value: OverlapGranularity) {
+  if (value === 'day') return 'День'
+  if (value === 'week') return 'Неделя'
+  return 'Месяц'
+}
+
+function tooltipDateLabel(dateKey: string, granularity: OverlapGranularity) {
+  const date = new Date(`${dateKey}T00:00:00.000Z`)
+
+  if (Number.isNaN(date.getTime())) {
+    return dateKey
+  }
+
+  if (granularity === 'day' || granularity === 'week' || granularity === 'month') {
+    return format(date, 'dd.MM.yyyy', { locale: ru })
+  }
+
+  return dateKey
 }
 
 function buildYTicks(step: number, max: number) {
@@ -200,6 +217,7 @@ export function OverlapMultiLineChart({
   valueFormatter = defaultValueFormatter,
   xLabelFormatter = defaultBucketLabelFormatter,
   maxVisibleSeries = { mobile: 6, desktop: 10 },
+  granularityOptions = ['day', 'week', 'month'],
   topTooltipRows = 6,
   curveType = 'monotone',
 }: OverlapMultiLineChartProps) {
@@ -295,14 +313,17 @@ export function OverlapMultiLineChart({
           <Select
             value={granularity}
             onValueChange={(value) => onGranularityChange(value as OverlapGranularity)}
+            disabled={granularityOptions.length === 1}
           >
             <SelectTrigger className="h-8 w-[128px] border-border/70 bg-background/85 text-[11px] font-medium">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="day">День</SelectItem>
-              <SelectItem value="week">Неделя</SelectItem>
-              <SelectItem value="month">Месяц</SelectItem>
+              {granularityOptions.map((option) => (
+                <SelectItem key={option} value={option}>
+                  {granularityLabel(option)}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
@@ -424,7 +445,7 @@ export function OverlapMultiLineChart({
 
                     return (
                       <BerekeChartTooltip
-                        title={xLabelFormatter(String(label), granularity)}
+                        title={tooltipDateLabel(String(label), granularity)}
                         subtitle={`Зелёная: ${bucket.zoneCounts.green}, Жёлтая: ${bucket.zoneCounts.yellow}, Красная: ${bucket.zoneCounts.red}`}
                         rows={rows.map((row) => ({
                           id: row.label,

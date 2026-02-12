@@ -61,6 +61,35 @@ function trendSemanticTone(metric: MetricInfo, deltaPercent: number) {
   return isPositiveImpact ? 'text-emerald-600' : 'text-rose-600'
 }
 
+function formatShortDate(dateKey: string) {
+  const date = new Date(`${dateKey}T00:00:00.000Z`)
+
+  if (Number.isNaN(date.getTime())) {
+    return dateKey
+  }
+
+  return date.toLocaleDateString('ru-RU', {
+    day: '2-digit',
+    month: '2-digit',
+    timeZone: 'UTC',
+  })
+}
+
+function formatFullDate(dateKey: string) {
+  const date = new Date(`${dateKey}T00:00:00.000Z`)
+
+  if (Number.isNaN(date.getTime())) {
+    return dateKey
+  }
+
+  return date.toLocaleDateString('ru-RU', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    timeZone: 'UTC',
+  })
+}
+
 export function DashboardLineCard({ metric, data }: DashboardLineCardProps) {
   if (!data.length) {
     return (
@@ -105,10 +134,7 @@ export function DashboardLineCard({ metric, data }: DashboardLineCardProps) {
               tickLine={false}
               axisLine={false}
               tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
-              tickFormatter={(value) => {
-                const date = new Date(value)
-                return `${date.getDate()}.${date.getMonth() + 1}`
-              }}
+              tickFormatter={(value) => formatShortDate(String(value))}
               minTickGap={26}
             />
             <YAxis hide domain={['dataMin - 5', 'dataMax + 5']} />
@@ -120,7 +146,7 @@ export function DashboardLineCard({ metric, data }: DashboardLineCardProps) {
 
                 return (
                   <BerekeChartTooltip
-                    title={new Date(String(label)).toLocaleDateString('ru-RU')}
+                    title={formatFullDate(String(label))}
                     rows={[
                       {
                         id: metric.id,
