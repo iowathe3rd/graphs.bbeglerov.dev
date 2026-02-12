@@ -59,7 +59,6 @@ export default function Page() {
     const selectedChannel = filters.channel
     const selectedGroup = filters.productGroup
     const selectedCategory = filters.category
-    const selectedSubProduct = filters.subProduct
     const selectedTag = filters.tag
     const { from, to } = filters.dateRange
     const result: EventRecord[] = []
@@ -73,15 +72,11 @@ export default function Page() {
         continue
       }
 
-      if (selectedGroup !== 'all' && event.productGroup !== selectedGroup) {
+      if (event.productGroup !== selectedGroup) {
         continue
       }
 
       if (selectedCategory !== 'all' && event.category !== selectedCategory) {
-        continue
-      }
-
-      if (selectedSubProduct !== 'all' && event.subProduct !== selectedSubProduct) {
         continue
       }
 
@@ -99,7 +94,6 @@ export default function Page() {
     filters.dateRange,
     filters.category,
     filters.productGroup,
-    filters.subProduct,
     filters.tag,
   ])
 

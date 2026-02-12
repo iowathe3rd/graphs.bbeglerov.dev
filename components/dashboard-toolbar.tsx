@@ -17,7 +17,6 @@ import {
   CONTACT_TAGS,
   PRODUCT_GROUPS,
   SECTORS,
-  SUB_PRODUCTS_BY_GROUP,
   type ProductGroup,
   type Sector,
 } from '@/lib/metrics-data'
@@ -25,9 +24,8 @@ import {
 export interface DashboardFilters {
   sector: Sector
   channel: string | 'all'
-  productGroup: ProductGroup | 'all'
+  productGroup: ProductGroup
   category: string | 'all'
-  subProduct: string | 'all'
   tag: string | 'all'
   dateRange: {
     from: Date | undefined
@@ -42,11 +40,10 @@ interface DashboardToolbarProps {
 }
 
 export const DEFAULT_DASHBOARD_FILTERS: DashboardFilters = {
-  sector: 'БММБ',
+  sector: 'РБ',
   channel: 'all',
-  productGroup: 'all',
+  productGroup: PRODUCT_GROUPS[0],
   category: 'all',
-  subProduct: 'all',
   tag: 'all',
   dateRange: {
     from: undefined,
@@ -54,32 +51,7 @@ export const DEFAULT_DASHBOARD_FILTERS: DashboardFilters = {
   },
 }
 
-function getSubProducts(group: ProductGroup | 'all') {
-  const uniqueOrdered = (items: readonly string[]) => {
-    const result: string[] = []
-    const seen = new Set<string>()
-
-    for (const item of items) {
-      if (seen.has(item)) continue
-      seen.add(item)
-      result.push(item)
-    }
-
-    return result
-  }
-
-  if (group === 'all') {
-    return uniqueOrdered(PRODUCT_GROUPS.flatMap((item) => SUB_PRODUCTS_BY_GROUP[item]))
-  }
-
-  return uniqueOrdered(SUB_PRODUCTS_BY_GROUP[group])
-}
-
-function getCategories(group: ProductGroup | 'all') {
-  if (group === 'all') {
-    return Array.from(new Set(PRODUCT_GROUPS.flatMap((item) => CATEGORIES_BY_PRODUCT[item])))
-  }
-
+function getCategories(group: ProductGroup) {
   return [...CATEGORIES_BY_PRODUCT[group]]
 }
 
@@ -88,14 +60,13 @@ export function DashboardToolbar({
   onFiltersChange,
   onReset,
 }: DashboardToolbarProps) {
-  const subProducts = getSubProducts(filters.productGroup)
   const categories = getCategories(filters.productGroup)
 
   return (
     <div className="rounded-xl border border-border/80 bg-card/85 p-3 backdrop-blur">
       <div className="grid gap-2 md:grid-cols-3 xl:grid-cols-8">
         <div className="space-y-1">
-          <p className="text-[11px] text-muted-foreground">Сектор</p>
+          <p className="text-[11px] text-muted-foreground">Поток</p>
           <Select
             value={filters.sector}
             onValueChange={(value) =>
@@ -122,9 +93,8 @@ export function DashboardToolbar({
             onValueChange={(value) =>
               onFiltersChange({
                 ...filters,
-                productGroup: value as ProductGroup | 'all',
+                productGroup: value as ProductGroup,
                 category: 'all',
-                subProduct: 'all',
               })
             }
           >
@@ -132,7 +102,6 @@ export function DashboardToolbar({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Все</SelectItem>
               {PRODUCT_GROUPS.map((group) => (
                 <SelectItem key={group} value={group}>
                   {group}
@@ -168,32 +137,7 @@ export function DashboardToolbar({
         </div>
 
         <div className="space-y-1">
-          <p className="text-[11px] text-muted-foreground">Подкатегория</p>
-          <Select
-            value={filters.subProduct}
-            onValueChange={(value) =>
-              onFiltersChange({
-                ...filters,
-                subProduct: value,
-              })
-            }
-          >
-            <SelectTrigger className="h-8 text-xs">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Все</SelectItem>
-              {subProducts.map((subProduct) => (
-                <SelectItem key={subProduct} value={subProduct}>
-                  {subProduct}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-1">
-          <p className="text-[11px] text-muted-foreground">Канал</p>
+          <p className="text-[11px] text-muted-foreground">Канал обращения</p>
           <Select
             value={filters.channel}
             onValueChange={(value) =>
