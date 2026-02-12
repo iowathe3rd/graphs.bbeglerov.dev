@@ -28,6 +28,27 @@ function metricSemanticTone(metric: MetricInfo, value: number) {
   return 'text-rose-600'
 }
 
+function trendComparisonLabel(data: MetricDataPoint[]) {
+  if (data.length < 2) {
+    return 'от предыдущего периода'
+  }
+
+  const lastDate = new Date(data[data.length - 1]?.date)
+  const prevDate = new Date(data[data.length - 2]?.date)
+
+  if (Number.isNaN(lastDate.getTime()) || Number.isNaN(prevDate.getTime())) {
+    return 'от предыдущего периода'
+  }
+
+  const dayDiff = Math.abs(lastDate.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24)
+
+  if (dayDiff >= 27) {
+    return 'от прошлого месяца'
+  }
+
+  return 'от прошлого дня'
+}
+
 function trendSemanticTone(metric: MetricInfo, deltaPercent: number) {
   if (Math.abs(deltaPercent) < 0.1) {
     return 'text-amber-500'
@@ -60,6 +81,7 @@ export function DashboardLineCard({ metric, data }: DashboardLineCardProps) {
   const TrendIcon = deltaPercent >= 0 ? TrendingUp : TrendingDown
   const currentTone = metricSemanticTone(metric, current)
   const trendTone = trendSemanticTone(metric, deltaPercent)
+  const trendComparison = trendComparisonLabel(data)
 
   return (
     <Card className="flex h-full min-h-0 flex-col">
@@ -72,7 +94,7 @@ export function DashboardLineCard({ metric, data }: DashboardLineCardProps) {
           <TrendIcon className="h-3 w-3" />
           {trendPrefix}
           {deltaPercent.toFixed(1)}%
-          <span className="text-muted-foreground">к предыдущему значению</span>
+          <span className="text-muted-foreground">{trendComparison}</span>
         </p>
       </CardHeader>
       <CardContent className="flex-1 pb-3 pt-0">
