@@ -6,12 +6,11 @@ import { useEffect, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 
 const THEME_ITEMS = [
   { value: 'system', label: 'Система', icon: Monitor },
@@ -29,9 +28,14 @@ export function ThemeToggle() {
 
   if (!mounted) {
     return (
-      <Button variant="outline" size="sm" className="w-[124px] justify-start" disabled>
-        <Monitor className="mr-2 h-4 w-4" />
-        Тема
+      <Button
+        variant="outline"
+        size="icon"
+        className="h-8 w-8 rounded-full border-border/70"
+        disabled
+        aria-label="Тема"
+      >
+        <Monitor className="h-4 w-4" />
       </Button>
     )
   }
@@ -40,26 +44,33 @@ export function ThemeToggle() {
   const Icon = current.icon
 
   return (
-    <Select value={theme} onValueChange={setTheme}>
-      <SelectTrigger className="h-9 w-[124px]">
-        <div className="flex items-center gap-2">
-          <SelectValue placeholder="Тема" />
-        </div>
-      </SelectTrigger>
-      <SelectContent align="end">
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="outline"
+          size="icon"
+          className="h-8 w-8 rounded-full border-border/70 bg-background/80"
+          aria-label="Сменить тему"
+        >
+          <Icon className="h-4 w-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-40">
         {THEME_ITEMS.map((item) => {
           const ItemIcon = item.icon
 
           return (
-            <SelectItem key={item.value} value={item.value}>
-              <span className="flex items-center gap-2">
-                <ItemIcon className="h-4 w-4" />
-                {item.label}
-              </span>
-            </SelectItem>
+            <DropdownMenuItem
+              key={item.value}
+              onClick={() => setTheme(item.value)}
+              className="flex items-center gap-2"
+            >
+              <ItemIcon className="h-4 w-4" />
+              <span>{item.label}</span>
+            </DropdownMenuItem>
           )
         })}
-      </SelectContent>
-    </Select>
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 }

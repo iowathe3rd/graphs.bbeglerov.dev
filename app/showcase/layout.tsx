@@ -16,19 +16,13 @@ export default function ShowcaseLayout({
             <Link href="/" className="flex shrink-0 items-center gap-2">
               <Image src="/logo.png" alt="Bereke" width={30} height={30} />
               <span className="font-display text-[18px] font-semibold tracking-tight">
-                Bereke BI
+                Insight Service
               </span>
             </Link>
             <ShowcaseHeaderNav />
           </div>
 
           <div className="flex items-center gap-2">
-            <Link
-              href="/"
-              className="hidden rounded-md border border-border/70 bg-background/70 px-2.5 py-1.5 text-xs font-medium text-foreground/90 transition hover:border-primary/45 md:inline-flex"
-            >
-              Дашборд
-            </Link>
             <ThemeToggle />
           </div>
         </div>

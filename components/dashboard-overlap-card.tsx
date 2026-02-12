@@ -14,6 +14,7 @@ interface DashboardOverlapCardProps {
   selectedSeries: string[]
   onGranularityChange: (granularity: OverlapGranularity) => void
   onSelectedSeriesChange: (next: string[]) => void
+  seriesColorMap?: Record<string, string>
   zones?: OverlapZoneConfig
 }
 
@@ -23,6 +24,7 @@ export function DashboardOverlapCard({
   selectedSeries,
   onGranularityChange,
   onSelectedSeriesChange,
+  seriesColorMap,
   zones,
 }: DashboardOverlapCardProps) {
   return (
@@ -30,11 +32,12 @@ export function DashboardOverlapCard({
       <CardContent className=" h-full min-h-0 p-0 w-full">
         <OverlapMultiLineChart
           analytics={data}
-          title="Overlap"
+          title="Наслаивания индикаторов"
           granularity={granularity}
           onGranularityChange={onGranularityChange}
           selectedSeries={selectedSeries}
           onSelectedSeriesChange={onSelectedSeriesChange}
+          seriesColorMap={seriesColorMap}
           zones={zones}
         />
       </CardContent>

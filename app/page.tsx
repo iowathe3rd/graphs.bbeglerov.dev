@@ -1,9 +1,7 @@
 'use client'
 
-import Link from 'next/link'
 import Image from 'next/image'
 import { useMemo, useState } from 'react'
-import { AlertTriangle, Layers3, ShieldAlert } from 'lucide-react'
 
 import { DashboardLineCard } from '@/components/dashboard-line-card'
 import {
@@ -14,12 +12,11 @@ import {
 import { DashboardOverlapCard } from '@/components/dashboard-overlap-card'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import {
   METRICS,
+  buildOverlapAnalyticsFromMetricSeries,
   generateEventStream,
   generateMetricsDataFromEvents,
-  generateOverlapAnalytics,
   type EventRecord,
   type OverlapGranularity,
 } from '@/lib/metrics-data'
@@ -44,7 +41,6 @@ export default function Page() {
   const [filters, setFilters] = useState<DashboardFilters>(
     () => DEFAULT_DASHBOARD_FILTERS
   )
-  const overlapDimension = 'indicator' as const
   const [overlapGranularity, setOverlapGranularity] = useState<OverlapGranularity>(
     () => 'week'
   )
@@ -111,42 +107,29 @@ export default function Page() {
     [metricsData]
   )
 
+  const overlapMetricIds = useMemo(() => {
+    const presentMetricIds = new Set(filteredEvents.map((event) => event.metric))
+    return DASHBOARD_METRIC_IDS.filter((metricId) => presentMetricIds.has(metricId))
+  }, [filteredEvents])
+
   const overlapData = useMemo(
     () =>
-      generateOverlapAnalytics(filteredEvents, {
-        dimension: overlapDimension,
+      buildOverlapAnalyticsFromMetricSeries({
+        metricSeries: metricsData,
+        metricIds: overlapMetricIds as string[],
+        metricsMap: METRICS,
         granularity: overlapGranularity,
-        topN: 0,
       }),
-    [filteredEvents, overlapDimension, overlapGranularity]
+    [metricsData, overlapMetricIds, overlapGranularity]
   )
 
-  const summary = useMemo(() => {
-    let escalated = 0
-    let anomalies = 0
-    let breaches = 0
-
-    for (const event of filteredEvents) {
-      if (event.status === 'escalated') {
-        escalated += 1
-      }
-
-      if (event.anomaly) {
-        anomalies += 1
-      }
-
-      if (event.slaBreach) {
-        breaches += 1
-      }
-    }
-
-    return {
-      total: filteredEvents.length,
-      escalated,
-      anomalies,
-      breaches,
-    }
-  }, [filteredEvents])
+  const overlapSeriesColorMap = useMemo(
+    () =>
+      Object.fromEntries(
+        DASHBOARD_METRIC_IDS.map((metricId) => [METRICS[metricId].name, METRICS[metricId].color])
+      ),
+    []
+  )
 
   const handleReset = () => {
     setFilters(DEFAULT_DASHBOARD_FILTERS)
@@ -161,40 +144,14 @@ export default function Page() {
           <div className="flex min-w-0 items-center gap-3">
             <Image src="/logo.png" alt="Logo" width={40} height={40} />
             <h1 className="font-display text-[20px] font-semibold tracking-tight">
-              Bereke BI
+              Insight Service
             </h1>
             <Badge variant="secondary" className="text-[11px]">
               {filters.sector}
             </Badge>
-            <nav className="hidden items-center gap-1 rounded-lg border border-border/70 bg-background/60 p-1 md:inline-flex">
-              <span className="rounded-md bg-primary px-2.5 py-1.5 text-xs font-medium text-primary-foreground">
-                Дашборд
-              </span>
-              <Link
-                href="/showcase"
-                className="rounded-md px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-background/80 hover:text-foreground"
-              >
-                Витрина
-              </Link>
-            </nav>
           </div>
 
           <div className="flex shrink-0 items-center gap-1.5">
-            <Badge variant="outline" className="hidden text-[11px] md:inline-flex">
-              <Layers3 className="mr-1 h-3 w-3" />
-              События {summary.total}
-            </Badge>
-            <Badge variant="outline" className="hidden text-[11px] md:inline-flex">
-              <ShieldAlert className="mr-1 h-3 w-3 text-destructive" />
-              Эскалации {summary.escalated}
-            </Badge>
-            <Badge variant="outline" className="hidden text-[11px] lg:inline-flex">
-              <AlertTriangle className="mr-1 h-3 w-3 text-chart-5" />
-              SLA риск {summary.breaches}
-            </Badge>
-            <Button asChild variant="outline" size="sm" className="h-8 px-2 text-xs md:hidden">
-              <Link href="/showcase">Витрина</Link>
-            </Button>
             <ThemeToggle />
           </div>
         </div>
@@ -220,6 +177,7 @@ export default function Page() {
             selectedSeries={overlapSelection}
             onGranularityChange={setOverlapGranularity}
             onSelectedSeriesChange={setOverlapSelection}
+            seriesColorMap={overlapSeriesColorMap}
             zones={{ greenMax: 20, yellowMax: 40, max: 100 }}
           />
         </section>

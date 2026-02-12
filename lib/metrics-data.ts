@@ -177,6 +177,13 @@ export interface OverlapBucketsOptions {
   valueTransform?: (ctx: OverlapValueTransformContext) => number
 }
 
+export interface OverlapFromMetricSeriesParams {
+  metricSeries: Record<string, MetricDataPoint[]>
+  metricIds: string[]
+  metricsMap: Record<string, MetricInfo>
+  granularity: OverlapGranularity
+}
+
 export interface DetailedRecord {
   id: string
   date: string
@@ -412,24 +419,24 @@ const SCENARIO_VOLATILITY: Record<EventScenario, number> = {
 export const METRICS: Record<string, MetricInfo> = {
   sla: {
     id: 'sla',
-    name: 'SLA',
-    description: 'Доля обращений в SLA',
+    name: 'Технические проблемы/сбои',
+    description: 'Доля обращений с техническими сбоями',
     unit: '%',
-    category: 'service',
-    direction: 'higher-better',
+    category: 'operations',
+    direction: 'lower-better',
     format: 'percent',
-    thresholds: { low: 75, medium: 85, high: 95 },
+    thresholds: { low: 28, medium: 18, high: 10 },
     color: '#2563eb',
   },
   aht: {
     id: 'aht',
-    name: 'AHT',
-    description: 'Среднее время обработки',
-    unit: 'с',
-    category: 'operations',
+    name: 'Запрос не решен',
+    description: 'Доля нерешенных запросов',
+    unit: '%',
+    category: 'service',
     direction: 'lower-better',
-    format: 'seconds',
-    thresholds: { low: 380, medium: 300, high: 220 },
+    format: 'percent',
+    thresholds: { low: 24, medium: 14, high: 8 },
     color: '#4f46e5',
   },
   fcr: {
@@ -456,24 +463,24 @@ export const METRICS: Record<string, MetricInfo> = {
   },
   queueLoad: {
     id: 'queueLoad',
-    name: 'Queue Load',
-    description: 'Средняя загрузка очереди',
-    unit: '%',
-    category: 'operations',
-    direction: 'lower-better',
-    format: 'percent',
-    thresholds: { low: 68, medium: 52, high: 35 },
-    color: '#0f766e',
-  },
-  abandonment: {
-    id: 'abandonment',
-    name: 'Abandonment',
-    description: 'Доля пропущенных обращений',
+    name: 'Отрицательный продуктовый фидбэк',
+    description: 'Доля негативной обратной связи по продуктам',
     unit: '%',
     category: 'risk',
     direction: 'lower-better',
     format: 'percent',
-    thresholds: { low: 15, medium: 9, high: 5 },
+    thresholds: { low: 20, medium: 12, high: 6 },
+    color: '#0f766e',
+  },
+  abandonment: {
+    id: 'abandonment',
+    name: 'Угроза ухода/отказа от продуктов банка',
+    description: 'Доля обращений с риском ухода клиента',
+    unit: '%',
+    category: 'risk',
+    direction: 'lower-better',
+    format: 'percent',
+    thresholds: { low: 16, medium: 9, high: 4 },
     color: '#64748b',
   },
 }
@@ -1541,6 +1548,124 @@ export function generateFunnelData(
       dropOff: index === 0 || previous === 0 ? 0 : Number((((previous - count) / previous) * 100).toFixed(1)),
     }
   })
+}
+
+export function buildOverlapAnalyticsFromMetricSeries({
+  metricSeries,
+  metricIds,
+  metricsMap,
+  granularity,
+}: OverlapFromMetricSeriesParams): OverlapAnalytics {
+  const dimension: OverlapDimension = 'indicator'
+  const timeline: OverlapTimelineSeries[] = []
+  const bucketKeys = new Set<string>()
+
+  for (const metricId of metricIds) {
+    const metric = metricsMap[metricId]
+    const sourcePoints = metricSeries[metricId] ?? []
+
+    if (!metric || sourcePoints.length === 0) {
+      continue
+    }
+
+    const label = metric.name
+    const byBucket = new Map<string, { sum: number; count: number }>()
+
+    for (const point of sourcePoints) {
+      const value = Number(point.value)
+      if (!Number.isFinite(value)) {
+        continue
+      }
+
+      const bucket = toOverlapBucketDate(point.date, granularity)
+      const current = byBucket.get(bucket)
+
+      if (current) {
+        current.sum += value
+        current.count += 1
+      } else {
+        byBucket.set(bucket, { sum: value, count: 1 })
+      }
+
+      bucketKeys.add(bucket)
+    }
+
+    if (byBucket.size === 0) {
+      continue
+    }
+
+    const orderedBuckets = Array.from(byBucket.keys()).sort((a, b) => a.localeCompare(b))
+    const points: OverlapTimelinePoint[] = []
+    let total = 0
+    let maxValue = 0
+
+    for (const date of orderedBuckets) {
+      const bucket = byBucket.get(date)
+      if (!bucket || bucket.count === 0) {
+        continue
+      }
+
+      const overlapValue = Math.round((bucket.sum / bucket.count) * 10) / 10
+      total += overlapValue
+      maxValue = Math.max(maxValue, overlapValue)
+
+      points.push({
+        date,
+        label,
+        dimension,
+        totalCases: 100,
+        intersections: Math.round(overlapValue),
+        overlapRate: overlapValue,
+        zone: overlapZone(overlapValue),
+      })
+    }
+
+    // Hide zero-only series for selected period.
+    if (points.length === 0 || maxValue <= 0) {
+      continue
+    }
+
+    const average = Math.round((total / points.length) * 10) / 10
+
+    timeline.push({
+      id: `${dimension}:${metricId}`,
+      label,
+      dimension,
+      totalCases: points.length * 100,
+      intersections: Math.round(total),
+      overlapRate: average,
+      zone: overlapZone(average),
+      points,
+    })
+  }
+
+  const snapshot = timeline
+    .map((series) => ({
+      id: series.id,
+      label: series.label,
+      dimension,
+      totalCases: series.totalCases,
+      intersections: series.intersections,
+      overlapRate: series.overlapRate,
+      zone: series.zone,
+    }))
+    .sort((a, b) => b.overlapRate - a.overlapRate)
+
+  const orderedBucketKeys = Array.from(bucketKeys).sort((a, b) => a.localeCompare(b))
+
+  for (const series of timeline) {
+    const byDate = new Map(series.points.map((point) => [point.date, point]))
+    series.points = orderedBucketKeys
+      .map((date) => byDate.get(date))
+      .filter((point): point is OverlapTimelinePoint => Boolean(point))
+  }
+
+  return {
+    dimension,
+    granularity,
+    snapshot,
+    timeline,
+  }
 }
 
 export function generateOverlapAnalytics(

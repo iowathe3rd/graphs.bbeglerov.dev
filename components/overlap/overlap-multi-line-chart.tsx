@@ -42,6 +42,7 @@ interface OverlapMultiLineChartProps {
   onGranularityChange: (value: OverlapGranularity) => void
   selectedSeries: string[]
   onSelectedSeriesChange: (next: string[]) => void
+  seriesColorMap?: Record<string, string>
   zones?: OverlapZoneConfig
   yTickStep?: number
   valueFormatter?: (value: number) => string
@@ -121,10 +122,11 @@ function defaultBucketLabelFormatter(dateKey: string, granularity: OverlapGranul
   return `нед ${format(date, 'dd.MM', { locale: ru })}`
 }
 
-function buildColorMap(labels: string[]) {
+function buildColorMap(labels: string[], seriesColorMap?: Record<string, string>) {
   const map = new Map<string, string>()
   for (let index = 0; index < labels.length; index += 1) {
-    map.set(labels[index], SERIES_COLORS[index % SERIES_COLORS.length])
+    const label = labels[index]
+    map.set(label, seriesColorMap?.[label] ?? SERIES_COLORS[index % SERIES_COLORS.length])
   }
   return map
 }
@@ -181,11 +183,12 @@ function toggleSeries(selectedSeries: string[], label: string) {
 
 export function OverlapMultiLineChart({
   analytics,
-  title = 'Overlap',
+  title = 'Наслаивания индикаторов',
   granularity,
   onGranularityChange,
   selectedSeries,
   onSelectedSeriesChange,
+  seriesColorMap,
   zones,
   yTickStep = 20,
   valueFormatter = defaultValueFormatter,
@@ -209,6 +212,7 @@ export function OverlapMultiLineChart({
         selectedSeries,
         visibleSeriesLimit,
         zones: zoneConfig,
+        valueTransform: ({ avgOverlapRate }) => avgOverlapRate,
       }),
     [analytics, granularity, selectedSeries, visibleSeriesLimit, zoneConfig]
   )
@@ -218,7 +222,10 @@ export function OverlapMultiLineChart({
     return Object.keys(buckets[0].seriesValues)
   }, [buckets])
 
-  const colorBySeries = useMemo(() => buildColorMap(seriesLabels), [seriesLabels])
+  const colorBySeries = useMemo(
+    () => buildColorMap(seriesLabels, seriesColorMap),
+    [seriesLabels, seriesColorMap]
+  )
 
   const chartRows = useMemo(() => {
     const rows: ChartRow[] = []
@@ -306,7 +313,7 @@ export function OverlapMultiLineChart({
       <div className="min-h-0 flex-1 pb-1 pt-0">
         {!hasData ? (
           <div className="flex h-full min-h-0 items-center justify-center text-xs text-muted-foreground/90">
-            Нет данных overlap
+            Нет данных
           </div>
         ) : (
           <div className="h-full min-h-0 overflow-hidden rounded-xl bg-background/10">
