@@ -1,5 +1,6 @@
 'use client'
 
+import { TrendingDown, TrendingUp } from 'lucide-react'
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 
 import { BerekeChartTooltip } from '@/components/charts/bereke-chart-tooltip'
@@ -13,6 +14,51 @@ interface DashboardLineCardProps {
 
 function metricValue(value: number, unit: string) {
   return `${value.toFixed(1)}${unit}`
+}
+
+function metricSemanticTone(metric: MetricInfo, value: number) {
+  if (metric.direction === 'higher-better') {
+    if (value >= metric.thresholds.high) return 'text-emerald-600'
+    if (value >= metric.thresholds.medium) return 'text-amber-500'
+    return 'text-rose-600'
+  }
+
+  if (value <= metric.thresholds.high) return 'text-emerald-600'
+  if (value <= metric.thresholds.medium) return 'text-amber-500'
+  return 'text-rose-600'
+}
+
+function trendComparisonLabel(data: MetricDataPoint[]) {
+  if (data.length < 2) {
+    return 'от предыдущего периода'
+  }
+
+  const lastDate = new Date(data[data.length - 1]?.date)
+  const prevDate = new Date(data[data.length - 2]?.date)
+
+  if (Number.isNaN(lastDate.getTime()) || Number.isNaN(prevDate.getTime())) {
+    return 'от предыдущего периода'
+  }
+
+  const dayDiff = Math.abs(lastDate.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24)
+
+  if (dayDiff >= 27) {
+    return 'от прошлого месяца'
+  }
+
+  return 'от прошлого дня'
+}
+
+function trendSemanticTone(metric: MetricInfo, deltaPercent: number) {
+  if (Math.abs(deltaPercent) < 0.1) {
+    return 'text-amber-500'
+  }
+
+  const isPositiveImpact =
+    (metric.direction === 'higher-better' && deltaPercent > 0) ||
+    (metric.direction === 'lower-better' && deltaPercent < 0)
+
+  return isPositiveImpact ? 'text-emerald-600' : 'text-rose-600'
 }
 
 export function DashboardLineCard({ metric, data }: DashboardLineCardProps) {
@@ -30,19 +76,25 @@ export function DashboardLineCard({ metric, data }: DashboardLineCardProps) {
   const current = data[data.length - 1]?.value ?? 0
   const previous = data[data.length - 2]?.value ?? current
   const delta = current - previous
-  const deltaPrefix = delta > 0 ? '+' : ''
+  const deltaPercent = previous === 0 ? 0 : (delta / Math.abs(previous)) * 100
+  const trendPrefix = deltaPercent > 0 ? '+' : ''
+  const TrendIcon = deltaPercent >= 0 ? TrendingUp : TrendingDown
+  const currentTone = metricSemanticTone(metric, current)
+  const trendTone = trendSemanticTone(metric, deltaPercent)
+  const trendComparison = trendComparisonLabel(data)
 
   return (
     <Card className="flex h-full min-h-0 flex-col">
       <CardHeader className="space-y-1 pb-2">
         <div className="flex items-center justify-between gap-2">
           <CardTitle className="text-sm">{metric.name}</CardTitle>
-          <span className="text-sm font-semibold">{metricValue(current, metric.unit)}</span>
+          <span className={`text-sm font-semibold ${currentTone}`}>{metricValue(current, metric.unit)}</span>
         </div>
-        <p className="text-[11px] text-muted-foreground">
-          {deltaPrefix}
-          {delta.toFixed(1)}
-          {metric.unit} / день
+        <p className={`inline-flex items-center gap-1 text-[11px] font-medium ${trendTone}`}>
+          <TrendIcon className="h-3 w-3" />
+          {trendPrefix}
+          {deltaPercent.toFixed(1)}%
+          <span className="text-muted-foreground">{trendComparison}</span>
         </p>
       </CardHeader>
       <CardContent className="flex-1 pb-3 pt-0">
