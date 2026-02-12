@@ -38,6 +38,26 @@ function isDateInRange(date: string, from?: Date, to?: Date) {
   return true
 }
 
+function normalizeDateRange(range: DashboardFilters['dateRange']) {
+  if (range.from && !range.to) {
+    return { from: range.from, to: range.from }
+  }
+
+  return range
+}
+
+function getRangeDays(from?: Date, to?: Date) {
+  if (!from || !to) {
+    return 180
+  }
+
+  const fromUtc = Date.UTC(from.getFullYear(), from.getMonth(), from.getDate())
+  const toUtc = Date.UTC(to.getFullYear(), to.getMonth(), to.getDate())
+  const diff = Math.max(0, Math.round((toUtc - fromUtc) / 86400000))
+
+  return diff + 1
+}
+
 export default function Page() {
   const [filters, setFilters] = useState<DashboardFilters>(
     () => DEFAULT_DASHBOARD_FILTERS
@@ -55,8 +75,8 @@ export default function Page() {
   const filteredEvents = useMemo(() => {
     const selectedChannel = filters.channel
     const selectedGroup = filters.productGroup
-    const selectedTag = filters.tag
-    const { from, to } = filters.dateRange
+    const normalizedRange = normalizeDateRange(filters.dateRange)
+    const { from, to } = normalizedRange
     const result: EventRecord[] = []
     const allowedTagNodes = filterTaxonomyByProduct(
       selectedGroup,
@@ -84,26 +104,42 @@ export default function Page() {
         continue
       }
 
-      if (selectedTag !== 'all' && event.tag !== selectedTag) {
-        continue
-      }
-
       result.push(event)
     }
 
     return result
-  }, [
-    events,
-    filters.channel,
-    filters.dateRange,
-    filters.productGroup,
-    filters.tag,
-  ])
+  }, [events, filters.channel, filters.dateRange, filters.productGroup])
 
-  const metricsData = useMemo(
-    () => generateMetricsDataFromEvents(filteredEvents, 90),
-    [filteredEvents]
+  const normalizedRange = useMemo(
+    () => normalizeDateRange(filters.dateRange),
+    [filters.dateRange]
   )
+
+  const rangeDays = useMemo(
+    () => getRangeDays(normalizedRange.from, normalizedRange.to),
+    [normalizedRange]
+  )
+
+  const rawMetricsData = useMemo(
+    () => generateMetricsDataFromEvents(filteredEvents, Math.max(180, rangeDays)),
+    [filteredEvents, rangeDays]
+  )
+
+  const metricsData = useMemo(() => {
+    if (!normalizedRange.from && !normalizedRange.to) {
+      return rawMetricsData
+    }
+
+    const result: Record<string, { date: string; value: number }[]> = {}
+
+    for (const [metricId, series] of Object.entries(rawMetricsData)) {
+      result[metricId] = series.filter((point) =>
+        isDateInRange(point.date, normalizedRange.from, normalizedRange.to)
+      )
+    }
+
+    return result
+  }, [rawMetricsData, normalizedRange])
 
   const lineCards = useMemo(
     () =>
@@ -154,7 +190,7 @@ export default function Page() {
               Insight Service
             </h1>
             <Badge variant="secondary" className="text-[11px]">
-              {filters.sector}
+              Температурная карта
             </Badge>
           </div>
 
@@ -171,22 +207,28 @@ export default function Page() {
           onReset={handleReset}
         />
 
-        <section className="grid min-h-0 flex-1 gap-3 lg:grid-cols-[1.2fr_1fr]">
-          <div className="grid min-h-0 grid-cols-1 gap-3 sm:grid-cols-2 sm:grid-rows-2">
-            {lineCards.map(({ metric, data }) => (
-              <DashboardLineCard key={metric.id} metric={metric} data={data} />
-            ))}
-          </div>
+        <section className="flex min-h-0 flex-1 flex-col gap-2">
+          <h2 className="px-1 text-[13px] font-medium text-muted-foreground">
+            Индикаторы
+          </h2>
 
-          <DashboardOverlapCard
-            data={overlapData}
-            granularity={overlapGranularity}
-            selectedSeries={overlapSelection}
-            onGranularityChange={setOverlapGranularity}
-            onSelectedSeriesChange={setOverlapSelection}
-            seriesColorMap={overlapSeriesColorMap}
-            zones={{ greenMax: 20, yellowMax: 40, max: 100 }}
-          />
+          <div className="grid min-h-0 flex-1 gap-3 lg:grid-cols-[1.2fr_1fr]">
+            <div className="grid min-h-0 grid-cols-1 gap-3 sm:grid-cols-2 sm:grid-rows-2">
+              {lineCards.map(({ metric, data }) => (
+                <DashboardLineCard key={metric.id} metric={metric} data={data} />
+              ))}
+            </div>
+
+            <DashboardOverlapCard
+              data={overlapData}
+              granularity={overlapGranularity}
+              selectedSeries={overlapSelection}
+              onGranularityChange={setOverlapGranularity}
+              onSelectedSeriesChange={setOverlapSelection}
+              seriesColorMap={overlapSeriesColorMap}
+              zones={{ greenMax: 20, yellowMax: 40, max: 100 }}
+            />
+          </div>
         </section>
       </main>
     </div>

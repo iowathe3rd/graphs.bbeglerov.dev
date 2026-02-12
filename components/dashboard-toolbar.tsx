@@ -12,20 +12,18 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import {
-  CONTACT_TAGS,
   PRODUCT_GROUPS,
   SECTORS,
   type ProductGroup,
   type Sector,
 } from '@/lib/metrics-data'
 
-export const FIXED_CHANNEL = 'Мобильный банк' as const
+export const FIXED_CHANNEL = 'Колл-центр' as const
 
 export interface DashboardFilters {
   sector: Sector
   channel: typeof FIXED_CHANNEL
   productGroup: ProductGroup
-  tag: string | 'all'
   dateRange: {
     from: Date | undefined
     to: Date | undefined
@@ -42,7 +40,6 @@ export const DEFAULT_DASHBOARD_FILTERS: DashboardFilters = {
   sector: 'РБ',
   channel: FIXED_CHANNEL,
   productGroup: PRODUCT_GROUPS[0],
-  tag: 'all',
   dateRange: {
     from: undefined,
     to: undefined,
@@ -56,7 +53,7 @@ export function DashboardToolbar({
 }: DashboardToolbarProps) {
   return (
     <div className="rounded-xl border border-border/80 bg-card/85 p-3 backdrop-blur">
-      <div className="grid gap-2 md:grid-cols-3 xl:grid-cols-6">
+      <div className="grid gap-2 md:grid-cols-3 xl:grid-cols-[repeat(4,minmax(0,1fr))_minmax(120px,1fr)_minmax(180px,220px)]">
         <div className="space-y-1">
           <p className="text-[11px] text-muted-foreground">Поток</p>
           <Select
@@ -105,33 +102,8 @@ export function DashboardToolbar({
         <div className="space-y-1">
           <p className="text-[11px] text-muted-foreground">Канал обращения</p>
           <div className="flex h-8 items-center rounded-md border border-input bg-muted/40 px-3 text-xs text-muted-foreground">
-            {filters.channel}
+            КЦ (звонки)
           </div>
-        </div>
-
-        <div className="space-y-1">
-          <p className="text-[11px] text-muted-foreground">Тег</p>
-          <Select
-            value={filters.tag}
-            onValueChange={(value) =>
-              onFiltersChange({
-                ...filters,
-                tag: value,
-              })
-            }
-          >
-            <SelectTrigger className="h-8 text-xs">
-              <SelectValue placeholder="Все" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Все</SelectItem>
-              {CONTACT_TAGS.map((tag) => (
-                <SelectItem key={tag} value={tag}>
-                  {tag}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
         </div>
 
         <div className="space-y-1 md:col-span-2 xl:col-span-1">
@@ -151,10 +123,12 @@ export function DashboardToolbar({
           />
         </div>
 
-        <div className="flex items-end">
+        <div className="hidden xl:block" aria-hidden />
+
+        <div className="flex items-end xl:justify-end">
           <Button
             variant="outline"
-            className="h-8 w-full text-xs"
+            className="h-8 w-full text-xs xl:w-[220px]"
             onClick={onReset}
           >
             <RotateCcw className="mr-1 h-3.5 w-3.5" />

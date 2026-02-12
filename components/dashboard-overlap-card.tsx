@@ -32,7 +32,7 @@ export function DashboardOverlapCard({
       <CardContent className=" h-full min-h-0 p-0 w-full">
         <OverlapMultiLineChart
           analytics={data}
-          title="Температурная карта"
+          title="Общий график"
           granularity={granularity}
           onGranularityChange={onGranularityChange}
           selectedSeries={selectedSeries}
