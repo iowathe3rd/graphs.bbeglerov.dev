@@ -12,8 +12,6 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import {
-  CATEGORIES_BY_PRODUCT,
-  CHANNELS,
   CONTACT_TAGS,
   PRODUCT_GROUPS,
   SECTORS,
@@ -21,11 +19,12 @@ import {
   type Sector,
 } from '@/lib/metrics-data'
 
+export const FIXED_CHANNEL = 'Мобильный банк' as const
+
 export interface DashboardFilters {
   sector: Sector
-  channel: string | 'all'
+  channel: typeof FIXED_CHANNEL
   productGroup: ProductGroup
-  category: string | 'all'
   tag: string | 'all'
   dateRange: {
     from: Date | undefined
@@ -41,9 +40,8 @@ interface DashboardToolbarProps {
 
 export const DEFAULT_DASHBOARD_FILTERS: DashboardFilters = {
   sector: 'РБ',
-  channel: 'all',
+  channel: FIXED_CHANNEL,
   productGroup: PRODUCT_GROUPS[0],
-  category: 'all',
   tag: 'all',
   dateRange: {
     from: undefined,
@@ -51,20 +49,14 @@ export const DEFAULT_DASHBOARD_FILTERS: DashboardFilters = {
   },
 }
 
-function getCategories(group: ProductGroup) {
-  return [...CATEGORIES_BY_PRODUCT[group]]
-}
-
 export function DashboardToolbar({
   filters,
   onFiltersChange,
   onReset,
 }: DashboardToolbarProps) {
-  const categories = getCategories(filters.productGroup)
-
   return (
     <div className="rounded-xl border border-border/80 bg-card/85 p-3 backdrop-blur">
-      <div className="grid gap-2 md:grid-cols-3 xl:grid-cols-8">
+      <div className="grid gap-2 md:grid-cols-3 xl:grid-cols-6">
         <div className="space-y-1">
           <p className="text-[11px] text-muted-foreground">Поток</p>
           <Select
@@ -94,7 +86,6 @@ export function DashboardToolbar({
               onFiltersChange({
                 ...filters,
                 productGroup: value as ProductGroup,
-                category: 'all',
               })
             }
           >
@@ -112,53 +103,10 @@ export function DashboardToolbar({
         </div>
 
         <div className="space-y-1">
-          <p className="text-[11px] text-muted-foreground">Категория</p>
-          <Select
-            value={filters.category}
-            onValueChange={(value) =>
-              onFiltersChange({
-                ...filters,
-                category: value,
-              })
-            }
-          >
-            <SelectTrigger className="h-8 text-xs">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Все</SelectItem>
-              {categories.map((category) => (
-                <SelectItem key={category} value={category}>
-                  {category}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-1">
           <p className="text-[11px] text-muted-foreground">Канал обращения</p>
-          <Select
-            value={filters.channel}
-            onValueChange={(value) =>
-              onFiltersChange({
-                ...filters,
-                channel: value,
-              })
-            }
-          >
-            <SelectTrigger className="h-8 text-xs">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Все</SelectItem>
-              {CHANNELS.map((channel) => (
-                <SelectItem key={channel} value={channel}>
-                  {channel}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex h-8 items-center rounded-md border border-input bg-muted/40 px-3 text-xs text-muted-foreground">
+            {filters.channel}
+          </div>
         </div>
 
         <div className="space-y-1">
@@ -173,7 +121,7 @@ export function DashboardToolbar({
             }
           >
             <SelectTrigger className="h-8 text-xs">
-              <SelectValue />
+              <SelectValue placeholder="Все" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Все</SelectItem>
@@ -190,6 +138,7 @@ export function DashboardToolbar({
           <p className="text-[11px] text-muted-foreground">Период</p>
           <DateRangePicker
             date={filters.dateRange}
+            placeholder="Все"
             onDateChange={(date) =>
               onFiltersChange({
                 ...filters,

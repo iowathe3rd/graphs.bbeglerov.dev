@@ -12,6 +12,7 @@ import {
 import { DashboardOverlapCard } from '@/components/dashboard-overlap-card'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { Badge } from '@/components/ui/badge'
+import { filterTaxonomyByProduct } from '@/lib/taxonomy-mapping'
 import {
   METRICS,
   buildOverlapAnalyticsFromMetricSeries,
@@ -54,17 +55,24 @@ export default function Page() {
   const filteredEvents = useMemo(() => {
     const selectedChannel = filters.channel
     const selectedGroup = filters.productGroup
-    const selectedCategory = filters.category
     const selectedTag = filters.tag
     const { from, to } = filters.dateRange
     const result: EventRecord[] = []
+    const allowedTagNodes = filterTaxonomyByProduct(
+      selectedGroup,
+      Array.from(new Set(events.map((event) => event.tag))).map((tag) => ({
+        id: tag,
+        label: tag,
+      }))
+    )
+    const allowedTags = new Set(allowedTagNodes.map((node) => node.id))
 
     for (const event of events) {
       if (!isDateInRange(event.date, from, to)) {
         continue
       }
 
-      if (selectedChannel !== 'all' && event.channel !== selectedChannel) {
+      if (event.channel !== selectedChannel) {
         continue
       }
 
@@ -72,7 +80,7 @@ export default function Page() {
         continue
       }
 
-      if (selectedCategory !== 'all' && event.category !== selectedCategory) {
+      if (allowedTags.size > 0 && !allowedTags.has(event.tag)) {
         continue
       }
 
@@ -88,7 +96,6 @@ export default function Page() {
     events,
     filters.channel,
     filters.dateRange,
-    filters.category,
     filters.productGroup,
     filters.tag,
   ])
