@@ -20,12 +20,12 @@ function metricSemanticTone(metric: MetricInfo, value: number) {
   if (metric.direction === 'higher-better') {
     if (value >= metric.thresholds.high) return 'text-emerald-600'
     if (value >= metric.thresholds.medium) return 'text-amber-500'
-    return 'text-rose-600'
+    return 'text-red-600'
   }
 
   if (value <= metric.thresholds.high) return 'text-emerald-600'
   if (value <= metric.thresholds.medium) return 'text-amber-500'
-  return 'text-rose-600'
+  return 'text-red-600'
 }
 
 function trendComparisonLabel(data: MetricDataPoint[]) {
@@ -58,7 +58,7 @@ function trendSemanticTone(metric: MetricInfo, deltaPercent: number) {
     (metric.direction === 'higher-better' && deltaPercent > 0) ||
     (metric.direction === 'lower-better' && deltaPercent < 0)
 
-  return isPositiveImpact ? 'text-emerald-600' : 'text-rose-600'
+  return isPositiveImpact ? 'text-emerald-600' : 'text-red-600'
 }
 
 function formatShortDate(dateKey: string) {
