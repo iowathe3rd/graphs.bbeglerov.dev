@@ -190,7 +190,7 @@ export default function Page() {
               Insight Service
             </h1>
             <Badge variant="secondary" className="text-[11px]">
-              Температурная карта
+              Дэшборд по температурной карте
             </Badge>
           </div>
 
