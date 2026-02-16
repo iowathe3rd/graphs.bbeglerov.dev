@@ -21,13 +21,6 @@ import { BerekeChartTooltip } from '@/components/charts/bereke-chart-tooltip'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
@@ -45,7 +38,6 @@ interface OverlapMultiLineChartProps {
   analytics: OverlapAnalytics
   title?: string
   granularity: OverlapGranularity
-  onGranularityChange: (value: OverlapGranularity) => void
   selectedSeries: string[]
   onSelectedSeriesChange: (next: string[]) => void
   seriesColorMap?: Record<string, string>
@@ -57,7 +49,6 @@ interface OverlapMultiLineChartProps {
     mobile: number
     desktop: number
   }
-  granularityOptions?: OverlapGranularity[]
   topTooltipRows?: number
   curveType?: 'linear' | 'monotone'
 }
@@ -134,12 +125,6 @@ function buildColorMap(labels: string[], seriesColorMap?: Record<string, string>
   return map
 }
 
-function granularityLabel(value: OverlapGranularity) {
-  if (value === 'day') return 'День'
-  if (value === 'week') return 'Неделя'
-  return 'Месяц'
-}
-
 function tooltipDateLabel(dateKey: string, granularity: OverlapGranularity) {
   const date = new Date(`${dateKey}T00:00:00.000Z`)
 
@@ -208,7 +193,6 @@ export function OverlapMultiLineChart({
   analytics,
   title = 'Температурная карта',
   granularity,
-  onGranularityChange,
   selectedSeries,
   onSelectedSeriesChange,
   seriesColorMap,
@@ -217,7 +201,6 @@ export function OverlapMultiLineChart({
   valueFormatter = defaultValueFormatter,
   xLabelFormatter = defaultBucketLabelFormatter,
   maxVisibleSeries = { mobile: 6, desktop: 10 },
-  granularityOptions = ['day', 'week', 'month'],
   topTooltipRows = 6,
   curveType = 'monotone',
 }: OverlapMultiLineChartProps) {
@@ -310,22 +293,6 @@ export function OverlapMultiLineChart({
               </TooltipProvider>
             </span>
           </h3>
-          <Select
-            value={granularity}
-            onValueChange={(value) => onGranularityChange(value as OverlapGranularity)}
-            disabled={granularityOptions.length === 1}
-          >
-            <SelectTrigger className="h-8 w-[128px] border-border/70 bg-background/85 text-[11px] font-medium">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {granularityOptions.map((option) => (
-                <SelectItem key={option} value={option}>
-                  {granularityLabel(option)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
         </div>
 
         <div className="flex items-center justify-between gap-2">
