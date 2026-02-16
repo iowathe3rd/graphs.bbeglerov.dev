@@ -265,7 +265,7 @@ export function OverlapMultiLineChart({
   const hasData = chartRows.length > 0 && seriesLabels.length > 0
 
   return (
-    <div className="flex h-full min-h-0 flex-col px-6 pb-3 pt-6">
+    <div className="flex h-full min-h-0 flex-col px-3 pb-3 pt-4 sm:px-4 sm:pt-5 md:px-6 md:pt-6">
       <div className="space-y-2 pb-2">
         <div className="flex items-center justify-between gap-2">
           <h3 className="text-[15px] font-semibold tracking-tight text-foreground/95">
@@ -295,7 +295,7 @@ export function OverlapMultiLineChart({
           </h3>
         </div>
 
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex min-h-7 flex-1 flex-wrap items-center gap-1">
             {selectedSeries.map((label) => (
               <Badge
@@ -316,7 +316,7 @@ export function OverlapMultiLineChart({
           <Button
             size="sm"
             variant="outline"
-            className="h-7 border-border/70 bg-background/70 px-2 text-[11px] font-medium"
+            className="h-7 w-full border-border/70 bg-background/70 px-2 text-[11px] font-medium sm:w-auto"
             onClick={() => onSelectedSeriesChange([])}
             disabled={selectedSeries.length === 0}
           >
@@ -332,7 +332,7 @@ export function OverlapMultiLineChart({
             Нет данных
           </div>
         ) : (
-          <div className="h-full min-h-0 overflow-hidden rounded-xl bg-background/10">
+          <div className="h-full min-h-[260px] overflow-hidden rounded-xl bg-background/10 md:min-h-0">
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart
                 data={chartRows}
@@ -363,9 +363,12 @@ export function OverlapMultiLineChart({
                   dataKey="date"
                   tickLine={false}
                   axisLine={false}
-                  minTickGap={18}
+                  minTickGap={isMobile ? 28 : 18}
                   tickMargin={8}
-                  tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                  tick={{
+                    fontSize: isMobile ? 10 : 11,
+                    fill: 'hsl(var(--muted-foreground))',
+                  }}
                   tickFormatter={(value) =>
                     xLabelFormatter(String(value), granularity)
                   }
@@ -374,7 +377,7 @@ export function OverlapMultiLineChart({
                   domain={[0, zoneConfig.max]}
                   tickLine={false}
                   axisLine={false}
-                  width={52}
+                  width={isMobile ? 40 : 52}
                   tickMargin={4}
                   ticks={yTicks}
                   tick={(props: SVGProps<SVGTextElement> & { payload?: { value: number } }) => {
@@ -387,7 +390,7 @@ export function OverlapMultiLineChart({
                         dy={props.dy}
                         textAnchor="end"
                         fill={zoneTickColor(value, zoneConfig)}
-                        fontSize={11}
+                        fontSize={isMobile ? 10 : 11}
                       >
                         {formatAxisPercent(value)}
                       </text>

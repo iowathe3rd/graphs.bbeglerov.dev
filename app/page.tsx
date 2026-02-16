@@ -385,7 +385,7 @@ export default function Page() {
   }
 
   return (
-    <div className="h-[100dvh] overflow-hidden bg-background">
+    <div className="min-h-dvh bg-background md:h-[100dvh] md:overflow-hidden">
       <header className="border-b border-border/70 bg-card/75 backdrop-blur">
         <div className="mx-auto flex h-16 w-full max-w-[1600px] items-center justify-between gap-3 px-4 md:px-6">
           <div className="flex min-w-0 items-center gap-3">
@@ -404,7 +404,7 @@ export default function Page() {
         </div>
       </header>
 
-      <main className="mx-auto flex h-[calc(100dvh-64px)] w-full max-w-[1600px] min-h-0 flex-col gap-3 px-4 py-4 md:px-6">
+      <main className="mx-auto flex w-full max-w-[1600px] flex-col gap-3 px-4 py-4 md:h-[calc(100dvh-64px)] md:min-h-0 md:px-6">
         <DashboardToolbar
           filters={filters}
           granularity={overlapGranularity}
@@ -413,26 +413,30 @@ export default function Page() {
           onReset={handleReset}
         />
 
-        <section className="flex min-h-0 flex-1 flex-col gap-2">
+        <section className="flex flex-col gap-2 md:min-h-0 md:flex-1">
           <h2 className="px-1 text-[13px] font-medium text-muted-foreground">
             Индикаторы
           </h2>
 
-          <div className="grid min-h-0 flex-1 gap-3 lg:grid-cols-[1.2fr_1fr]">
+          <div className="grid gap-3 md:min-h-0 md:flex-1 lg:grid-cols-[1.2fr_1fr]">
             <div className="grid min-h-0 grid-cols-1 gap-3 sm:grid-cols-2 sm:grid-rows-2">
               {lineCards.map(({ metric, data }) => (
-                <DashboardLineCard key={metric.id} metric={metric} data={data} />
+                <div key={metric.id} className="h-[220px] sm:h-[240px] md:h-full">
+                  <DashboardLineCard metric={metric} data={data} />
+                </div>
               ))}
             </div>
 
-            <DashboardOverlapCard
-              data={overlapData}
-              granularity={overlapGranularity}
-              selectedSeries={overlapSelection}
-              onSelectedSeriesChange={setOverlapSelection}
-              seriesColorMap={overlapSeriesColorMap}
-              zones={{ greenMax: 20, yellowMax: 40, max: 100 }}
-            />
+            <div className="h-[420px] sm:h-[500px] md:h-full">
+              <DashboardOverlapCard
+                data={overlapData}
+                granularity={overlapGranularity}
+                selectedSeries={overlapSelection}
+                onSelectedSeriesChange={setOverlapSelection}
+                seriesColorMap={overlapSeriesColorMap}
+                zones={{ greenMax: 20, yellowMax: 40, max: 100 }}
+              />
+            </div>
           </div>
         </section>
       </main>

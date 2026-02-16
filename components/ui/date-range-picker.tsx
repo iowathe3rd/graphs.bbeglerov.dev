@@ -8,6 +8,7 @@ import type { DateRange } from 'react-day-picker'
 import { Calendar } from '@/components/ui/calendar'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { useIsMobile } from '@/hooks/use-mobile'
 import { cn } from '@/lib/utils'
 
 interface DateRangePickerProps {
@@ -39,6 +40,7 @@ export function DateRangePicker({
   className,
   placeholder = 'Выберите период',
 }: DateRangePickerProps) {
+  const isMobile = useIsMobile()
   const label = formatRangeLabel(date)
 
   return (
@@ -59,14 +61,14 @@ export function DateRangePicker({
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-auto p-0" align="start">
+      <PopoverContent className="w-auto max-w-[calc(100vw-1rem)] p-0" align="start">
         <Calendar
           initialFocus
           mode="range"
           defaultMonth={date?.from}
           selected={date}
           onSelect={onDateChange}
-          numberOfMonths={2}
+          numberOfMonths={isMobile ? 1 : 2}
         />
       </PopoverContent>
     </Popover>
