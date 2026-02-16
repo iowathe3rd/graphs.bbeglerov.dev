@@ -12,6 +12,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import {
+  type OverlapGranularity,
   PRODUCT_GROUPS,
   SECTORS,
   type ProductGroup,
@@ -32,7 +33,9 @@ export interface DashboardFilters {
 
 interface DashboardToolbarProps {
   filters: DashboardFilters
+  granularity: OverlapGranularity
   onFiltersChange: (filters: DashboardFilters) => void
+  onGranularityChange: (granularity: OverlapGranularity) => void
   onReset: () => void
 }
 
@@ -48,12 +51,14 @@ export const DEFAULT_DASHBOARD_FILTERS: DashboardFilters = {
 
 export function DashboardToolbar({
   filters,
+  granularity,
   onFiltersChange,
+  onGranularityChange,
   onReset,
 }: DashboardToolbarProps) {
   return (
     <div className="rounded-xl border border-border/80 bg-card/85 p-3 backdrop-blur">
-      <div className="grid gap-2 md:grid-cols-3 xl:grid-cols-[repeat(4,minmax(0,1fr))_minmax(120px,1fr)_minmax(180px,220px)]">
+      <div className="grid gap-2 md:grid-cols-3 xl:grid-cols-[repeat(5,minmax(0,1fr))_minmax(120px,1fr)_minmax(180px,220px)]">
         <div className="space-y-1">
           <p className="text-[11px] text-muted-foreground">Поток</p>
           <Select
@@ -121,6 +126,25 @@ export function DashboardToolbar({
               })
             }
           />
+        </div>
+
+        <div className="space-y-1">
+          <p className="text-[11px] text-muted-foreground">Группировка</p>
+          <Select
+            value={granularity}
+            onValueChange={(value) =>
+              onGranularityChange(value as OverlapGranularity)
+            }
+          >
+            <SelectTrigger className="h-8 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="day">День</SelectItem>
+              <SelectItem value="week">Неделя</SelectItem>
+              <SelectItem value="month">Месяц</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         <div className="hidden xl:block" aria-hidden />

@@ -58,6 +58,66 @@ function getRangeDays(from?: Date, to?: Date) {
   return diff + 1
 }
 
+function startOfWeekKey(dateKey: string) {
+  const date = new Date(`${dateKey}T00:00:00.000Z`)
+  const day = (date.getUTCDay() + 6) % 7
+
+  date.setUTCDate(date.getUTCDate() - day)
+
+  return date.toISOString().slice(0, 10)
+}
+
+function startOfMonthKey(dateKey: string) {
+  const date = new Date(`${dateKey}T00:00:00.000Z`)
+
+  date.setUTCDate(1)
+
+  return date.toISOString().slice(0, 10)
+}
+
+function toBucketDateKey(dateKey: string, granularity: OverlapGranularity) {
+  if (granularity === 'week') {
+    return startOfWeekKey(dateKey)
+  }
+
+  if (granularity === 'month') {
+    return startOfMonthKey(dateKey)
+  }
+
+  return dateKey
+}
+
+function bucketMetricSeries(
+  series: Array<{ date: string; value: number }>,
+  granularity: OverlapGranularity
+) {
+  if (granularity === 'day') {
+    return series
+  }
+
+  const buckets = new Map<string, { sum: number; count: number }>()
+
+  for (const point of series) {
+    const bucketKey = toBucketDateKey(point.date, granularity)
+    const current = buckets.get(bucketKey)
+
+    if (current) {
+      current.sum += point.value
+      current.count += 1
+      continue
+    }
+
+    buckets.set(bucketKey, { sum: point.value, count: 1 })
+  }
+
+  return Array.from(buckets.entries())
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([date, stats]) => ({
+      date,
+      value: Math.round((stats.sum / stats.count) * 10) / 10,
+    }))
+}
+
 export default function Page() {
   const [filters, setFilters] = useState<DashboardFilters>(
     () => DEFAULT_DASHBOARD_FILTERS
@@ -141,13 +201,27 @@ export default function Page() {
     return result
   }, [rawMetricsData, normalizedRange])
 
+  const chartMetricsData = useMemo(() => {
+    if (overlapGranularity === 'day') {
+      return metricsData
+    }
+
+    const result: Record<string, Array<{ date: string; value: number }>> = {}
+
+    for (const [metricId, series] of Object.entries(metricsData)) {
+      result[metricId] = bucketMetricSeries(series, overlapGranularity)
+    }
+
+    return result
+  }, [metricsData, overlapGranularity])
+
   const lineCards = useMemo(
     () =>
       DASHBOARD_METRIC_IDS.map((id) => ({
         metric: METRICS[id],
-        data: (metricsData[id] ?? []).slice(-42),
+        data: (chartMetricsData[id] ?? []).slice(-42),
       })),
-    [metricsData]
+    [chartMetricsData]
   )
 
   const overlapMetricIds = useMemo(() => {
@@ -203,7 +277,9 @@ export default function Page() {
       <main className="mx-auto flex h-[calc(100dvh-64px)] w-full max-w-[1600px] min-h-0 flex-col gap-3 px-4 py-4 md:px-6">
         <DashboardToolbar
           filters={filters}
+          granularity={overlapGranularity}
           onFiltersChange={setFilters}
+          onGranularityChange={setOverlapGranularity}
           onReset={handleReset}
         />
 
