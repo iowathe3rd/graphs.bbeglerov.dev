@@ -299,7 +299,6 @@ export default function Page() {
               data={overlapData}
               granularity={overlapGranularity}
               selectedSeries={overlapSelection}
-              onGranularityChange={setOverlapGranularity}
               onSelectedSeriesChange={setOverlapSelection}
               seriesColorMap={overlapSeriesColorMap}
               zones={{ greenMax: 20, yellowMax: 40, max: 100 }}

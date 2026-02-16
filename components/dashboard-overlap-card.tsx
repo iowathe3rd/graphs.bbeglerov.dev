@@ -12,7 +12,6 @@ interface DashboardOverlapCardProps {
   data: OverlapAnalytics
   granularity: OverlapGranularity
   selectedSeries: string[]
-  onGranularityChange: (granularity: OverlapGranularity) => void
   onSelectedSeriesChange: (next: string[]) => void
   seriesColorMap?: Record<string, string>
   zones?: OverlapZoneConfig
@@ -22,7 +21,6 @@ export function DashboardOverlapCard({
   data,
   granularity,
   selectedSeries,
-  onGranularityChange,
   onSelectedSeriesChange,
   seriesColorMap,
   zones,
@@ -34,7 +32,6 @@ export function DashboardOverlapCard({
           analytics={data}
           title="Температурная карта"
           granularity={granularity}
-          onGranularityChange={onGranularityChange}
           selectedSeries={selectedSeries}
           onSelectedSeriesChange={onSelectedSeriesChange}
           seriesColorMap={seriesColorMap}
