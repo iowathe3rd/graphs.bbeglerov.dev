@@ -1,12 +1,13 @@
 'use client'
 
 import Image from 'next/image'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 import { DashboardLineCard } from '@/components/dashboard-line-card'
 import {
   DashboardToolbar,
   DEFAULT_DASHBOARD_FILTERS,
+  FIXED_CHANNEL,
   type DashboardFilters,
 } from '@/components/dashboard-toolbar'
 import { DashboardOverlapCard } from '@/components/dashboard-overlap-card'
@@ -15,6 +16,8 @@ import { Badge } from '@/components/ui/badge'
 import { filterTaxonomyByProduct } from '@/lib/taxonomy-mapping'
 import {
   METRICS,
+  PRODUCT_GROUPS,
+  SECTORS,
   buildOverlapAnalyticsFromMetricSeries,
   generateEventStream,
   generateMetricsDataFromEvents,
@@ -23,6 +26,20 @@ import {
 } from '@/lib/metrics-data'
 
 const DASHBOARD_METRIC_IDS = ['sla', 'aht', 'queueLoad', 'abandonment'] as const
+const GRANULARITY_VALUES: readonly OverlapGranularity[] = ['day', 'week', 'month']
+const DASHBOARD_PREFERENCES_STORAGE_KEY = 'insight-service:dashboard:v1'
+
+interface PersistedDashboardPreferences {
+  filters: {
+    sector: string
+    productGroup: string
+    dateRange: {
+      from?: string
+      to?: string
+    }
+  }
+  granularity: OverlapGranularity
+}
 
 function isDateInRange(date: string, from?: Date, to?: Date) {
   const current = new Date(`${date}T00:00:00.000Z`)
@@ -56,6 +73,94 @@ function getRangeDays(from?: Date, to?: Date) {
   const diff = Math.max(0, Math.round((toUtc - fromUtc) / 86400000))
 
   return diff + 1
+}
+
+function toDateKey(date?: Date) {
+  if (!date) {
+    return undefined
+  }
+
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+
+  return `${year}-${month}-${day}`
+}
+
+function parseDateKey(value?: string) {
+  if (!value) {
+    return undefined
+  }
+
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
+
+  if (!match) {
+    return undefined
+  }
+
+  const year = Number(match[1])
+  const month = Number(match[2]) - 1
+  const day = Number(match[3])
+  const date = new Date(year, month, day)
+
+  if (Number.isNaN(date.getTime())) {
+    return undefined
+  }
+
+  return date
+}
+
+function parseDashboardPreferences(raw: string | null) {
+  if (!raw) {
+    return null
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as PersistedDashboardPreferences
+    const sector = SECTORS.includes(parsed?.filters?.sector as (typeof SECTORS)[number])
+      ? (parsed.filters.sector as DashboardFilters['sector'])
+      : DEFAULT_DASHBOARD_FILTERS.sector
+    const productGroup = PRODUCT_GROUPS.includes(
+      parsed?.filters?.productGroup as (typeof PRODUCT_GROUPS)[number]
+    )
+      ? (parsed.filters.productGroup as DashboardFilters['productGroup'])
+      : DEFAULT_DASHBOARD_FILTERS.productGroup
+    const granularity = GRANULARITY_VALUES.includes(parsed?.granularity)
+      ? parsed.granularity
+      : 'day'
+
+    return {
+      filters: {
+        sector,
+        channel: FIXED_CHANNEL,
+        productGroup,
+        dateRange: {
+          from: parseDateKey(parsed?.filters?.dateRange?.from),
+          to: parseDateKey(parsed?.filters?.dateRange?.to),
+        },
+      } satisfies DashboardFilters,
+      granularity,
+    }
+  } catch {
+    return null
+  }
+}
+
+function serializeDashboardPreferences(
+  filters: DashboardFilters,
+  granularity: OverlapGranularity
+) {
+  return JSON.stringify({
+    filters: {
+      sector: filters.sector,
+      productGroup: filters.productGroup,
+      dateRange: {
+        from: toDateKey(filters.dateRange.from),
+        to: toDateKey(filters.dateRange.to),
+      },
+    },
+    granularity,
+  } satisfies PersistedDashboardPreferences)
 }
 
 function startOfWeekKey(dateKey: string) {
@@ -126,6 +231,31 @@ export default function Page() {
     () => 'day'
   )
   const [overlapSelection, setOverlapSelection] = useState<string[]>(() => [])
+  const [isPreferencesLoaded, setIsPreferencesLoaded] = useState(false)
+
+  useEffect(() => {
+    const restored = parseDashboardPreferences(
+      window.localStorage.getItem(DASHBOARD_PREFERENCES_STORAGE_KEY)
+    )
+
+    if (restored) {
+      setFilters(restored.filters)
+      setOverlapGranularity(restored.granularity)
+    }
+
+    setIsPreferencesLoaded(true)
+  }, [])
+
+  useEffect(() => {
+    if (!isPreferencesLoaded) {
+      return
+    }
+
+    window.localStorage.setItem(
+      DASHBOARD_PREFERENCES_STORAGE_KEY,
+      serializeDashboardPreferences(filters, overlapGranularity)
+    )
+  }, [filters, overlapGranularity, isPreferencesLoaded])
 
   const events = useMemo(
     () => generateEventStream(42000, 180, 42, filters.sector),
