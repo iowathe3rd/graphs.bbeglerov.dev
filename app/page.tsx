@@ -3,6 +3,9 @@
 import Image from 'next/image'
 import { useEffect, useMemo, useState } from 'react'
 
+import { DashboardMobileFilterSheet } from '@/components/dashboard-mobile-filter-sheet'
+import { DashboardMobileFilterSummary } from '@/components/dashboard-mobile-filter-summary'
+import { DashboardMobileKpiCarousel } from '@/components/dashboard-mobile-kpi-carousel'
 import { DashboardLineCard } from '@/components/dashboard-line-card'
 import {
   DashboardToolbar,
@@ -11,8 +14,10 @@ import {
   type DashboardFilters,
 } from '@/components/dashboard-toolbar'
 import { DashboardOverlapCard } from '@/components/dashboard-overlap-card'
+import { DashboardOverlapDetailsSheet } from '@/components/dashboard-overlap-details-sheet'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { filterTaxonomyByProduct } from '@/lib/taxonomy-mapping'
 import {
   METRICS,
@@ -163,6 +168,31 @@ function serializeDashboardPreferences(
   } satisfies PersistedDashboardPreferences)
 }
 
+function countActiveMobileFilters(
+  filters: DashboardFilters,
+  granularity: OverlapGranularity
+) {
+  let count = 0
+
+  if (filters.sector !== DEFAULT_DASHBOARD_FILTERS.sector) {
+    count += 1
+  }
+
+  if (filters.productGroup !== DEFAULT_DASHBOARD_FILTERS.productGroup) {
+    count += 1
+  }
+
+  if (filters.dateRange.from || filters.dateRange.to) {
+    count += 1
+  }
+
+  if (granularity !== 'day') {
+    count += 1
+  }
+
+  return count
+}
+
 function startOfWeekKey(dateKey: string) {
   const date = new Date(`${dateKey}T00:00:00.000Z`)
   const day = (date.getUTCDay() + 6) % 7
@@ -231,6 +261,8 @@ export default function Page() {
     () => 'day'
   )
   const [overlapSelection, setOverlapSelection] = useState<string[]>(() => [])
+  const [isMobileFilterSheetOpen, setIsMobileFilterSheetOpen] = useState(false)
+  const [isMobileDetailsSheetOpen, setIsMobileDetailsSheetOpen] = useState(false)
   const [isPreferencesLoaded, setIsPreferencesLoaded] = useState(false)
 
   useEffect(() => {
@@ -377,11 +409,30 @@ export default function Page() {
       ),
     []
   )
+  const mobileActiveFiltersCount = useMemo(
+    () => countActiveMobileFilters(filters, overlapGranularity),
+    [filters, overlapGranularity]
+  )
 
   const handleReset = () => {
     setFilters(DEFAULT_DASHBOARD_FILTERS)
     setOverlapGranularity('day')
     setOverlapSelection([])
+  }
+
+  const handleMobileApply = (
+    nextFilters: DashboardFilters,
+    nextGranularity: OverlapGranularity
+  ) => {
+    setFilters(nextFilters)
+    setOverlapGranularity(nextGranularity)
+    setOverlapSelection([])
+    setIsMobileFilterSheetOpen(false)
+  }
+
+  const handleMobileResetAndApply = () => {
+    handleReset()
+    setIsMobileFilterSheetOpen(false)
   }
 
   return (
@@ -405,29 +456,51 @@ export default function Page() {
       </header>
 
       <main className="mx-auto flex w-full max-w-[1600px] flex-col gap-3 px-4 py-4 md:h-[calc(100dvh-64px)] md:min-h-0 md:px-6">
-        <DashboardToolbar
-          filters={filters}
-          granularity={overlapGranularity}
-          onFiltersChange={setFilters}
-          onGranularityChange={setOverlapGranularity}
-          onReset={handleReset}
+        <div className="md:hidden">
+          <DashboardMobileFilterSummary
+            filters={filters}
+            granularity={overlapGranularity}
+            activeCount={mobileActiveFiltersCount}
+            onOpenFilters={() => setIsMobileFilterSheetOpen(true)}
+          />
+        </div>
+
+        <DashboardMobileFilterSheet
+          open={isMobileFilterSheetOpen}
+          onOpenChange={setIsMobileFilterSheetOpen}
+          initialFilters={filters}
+          initialGranularity={overlapGranularity}
+          onApply={handleMobileApply}
+          onResetAndApply={handleMobileResetAndApply}
         />
 
-        <section className="flex flex-col gap-2 md:min-h-0 md:flex-1">
-          <h2 className="px-1 text-[13px] font-medium text-muted-foreground">
-            Индикаторы
-          </h2>
+        <DashboardOverlapDetailsSheet
+          open={isMobileDetailsSheetOpen}
+          onOpenChange={setIsMobileDetailsSheetOpen}
+          data={overlapData}
+          granularity={overlapGranularity}
+          selectedSeries={overlapSelection}
+          onSelectedSeriesChange={setOverlapSelection}
+          seriesColorMap={overlapSeriesColorMap}
+          zones={{ greenMax: 20, yellowMax: 40, max: 100 }}
+        />
 
-          <div className="grid gap-3 md:min-h-0 md:flex-1 lg:grid-cols-[1.2fr_1fr]">
-            <div className="grid min-h-0 grid-cols-1 gap-3 sm:grid-cols-2 sm:grid-rows-2">
-              {lineCards.map(({ metric, data }) => (
-                <div key={metric.id} className="h-[220px] sm:h-[240px] md:h-full">
-                  <DashboardLineCard metric={metric} data={data} />
-                </div>
-              ))}
-            </div>
+        <div className="hidden md:block">
+          <DashboardToolbar
+            filters={filters}
+            granularity={overlapGranularity}
+            onFiltersChange={setFilters}
+            onGranularityChange={setOverlapGranularity}
+            onReset={handleReset}
+          />
+        </div>
 
-            <div className="h-[420px] sm:h-[500px] md:h-full">
+        <section className="space-y-3 md:hidden">
+          <div className="space-y-2">
+            <h2 className="px-1 text-[13px] font-medium text-muted-foreground">
+              Температурная карта
+            </h2>
+            <div className="h-[420px]">
               <DashboardOverlapCard
                 data={overlapData}
                 granularity={overlapGranularity}
@@ -437,6 +510,45 @@ export default function Page() {
                 zones={{ greenMax: 20, yellowMax: 40, max: 100 }}
               />
             </div>
+            <div className="px-1">
+              <Button
+                variant="outline"
+                className="h-9 w-full text-xs"
+                onClick={() => setIsMobileDetailsSheetOpen(true)}
+              >
+                Показать детали
+              </Button>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <h2 className="px-1 text-[13px] font-medium text-muted-foreground">
+              Индикаторы
+            </h2>
+            <DashboardMobileKpiCarousel items={lineCards} />
+          </div>
+        </section>
+
+        <section className="hidden md:flex md:min-h-0 md:flex-1 md:flex-col md:gap-2">
+          <h2 className="px-1 text-[13px] font-medium text-muted-foreground">
+            Индикаторы
+          </h2>
+
+          <div className="grid md:min-h-0 md:flex-1 md:gap-3 lg:grid-cols-[1.2fr_1fr]">
+            <div className="grid min-h-0 grid-cols-1 gap-3 sm:grid-cols-2 sm:grid-rows-2">
+              {lineCards.map(({ metric, data }) => (
+                <DashboardLineCard key={metric.id} metric={metric} data={data} />
+              ))}
+            </div>
+
+            <DashboardOverlapCard
+              data={overlapData}
+              granularity={overlapGranularity}
+              selectedSeries={overlapSelection}
+              onSelectedSeriesChange={setOverlapSelection}
+              seriesColorMap={overlapSeriesColorMap}
+              zones={{ greenMax: 20, yellowMax: 40, max: 100 }}
+            />
           </div>
         </section>
       </main>

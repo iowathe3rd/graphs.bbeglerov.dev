@@ -263,10 +263,11 @@ export function OverlapMultiLineChart({
   const yTicks = useMemo(() => buildZoneTicks(yTickStep, zoneConfig), [yTickStep, zoneConfig])
 
   const hasData = chartRows.length > 0 && seriesLabels.length > 0
+  const showSelectionControls = !isMobile || selectedSeries.length > 0
 
   return (
-    <div className="flex h-full min-h-0 flex-col px-3 pb-3 pt-4 sm:px-4 sm:pt-5 md:px-6 md:pt-6">
-      <div className="space-y-2 pb-2">
+    <div className="flex h-full min-h-0 flex-col px-3 pb-3 pt-3 sm:px-4 sm:pt-4 md:px-6 md:pt-6">
+      <div className="space-y-1 pb-1 md:space-y-2 md:pb-2">
         <div className="flex items-center justify-between gap-2">
           <h3 className="text-[15px] font-semibold tracking-tight text-foreground/95">
             <span className="inline-flex items-center gap-1.5">
@@ -295,35 +296,37 @@ export function OverlapMultiLineChart({
           </h3>
         </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex min-h-7 flex-1 flex-wrap items-center gap-1">
-            {selectedSeries.map((label) => (
-              <Badge
-                key={label}
-                className="h-5 cursor-pointer px-2 text-[10px]"
-                onClick={() =>
-                  onSelectedSeriesChange(removeSeries(selectedSeries, label))
-                }
-                role="button"
-                aria-label={`Снять фильтр ${label}`}
-                aria-pressed="true"
-              >
-                {shortLabel(label)}
-              </Badge>
-            ))}
-          </div>
+        {showSelectionControls ? (
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-1 flex-wrap items-center gap-1 md:min-h-7">
+              {selectedSeries.map((label) => (
+                <Badge
+                  key={label}
+                  className="h-5 cursor-pointer px-2 text-[10px]"
+                  onClick={() =>
+                    onSelectedSeriesChange(removeSeries(selectedSeries, label))
+                  }
+                  role="button"
+                  aria-label={`Снять фильтр ${label}`}
+                  aria-pressed="true"
+                >
+                  {shortLabel(label)}
+                </Badge>
+              ))}
+            </div>
 
-          <Button
-            size="sm"
-            variant="outline"
-            className="h-7 w-full border-border/70 bg-background/70 px-2 text-[11px] font-medium sm:w-auto"
-            onClick={() => onSelectedSeriesChange([])}
-            disabled={selectedSeries.length === 0}
-          >
-            <RotateCcw className="mr-1 h-3.5 w-3.5" />
-            Сброс
-          </Button>
-        </div>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 border-border/70 bg-background/70 px-2 text-[11px] font-medium"
+              onClick={() => onSelectedSeriesChange([])}
+              disabled={selectedSeries.length === 0}
+            >
+              <RotateCcw className="mr-1 h-3.5 w-3.5" />
+              Сброс
+            </Button>
+          </div>
+        ) : null}
       </div>
 
       <div className="min-h-0 flex-1 pb-1 pt-0">
