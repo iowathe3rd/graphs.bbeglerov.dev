@@ -14,6 +14,11 @@ const PAGES = [
     description: 'зоны наслаиваний + динамика',
   },
   {
+    href: '/showcase/product-situation',
+    title: 'Ситуация продукта',
+    description: 'комбинированный обзор риска, тегов и объема звонков',
+  },
+  {
     href: '/showcase/sankey',
     title: 'Потоки (Sankey)',
     description: 'потоки Channel → Process → Status',

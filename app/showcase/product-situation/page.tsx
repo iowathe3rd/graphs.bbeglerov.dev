@@ -1,23 +1,23 @@
 'use client'
 
-import Image from 'next/image'
-import Link from 'next/link'
 import { useMemo, useState } from 'react'
 
+import { ProductSituationConsultationChart } from '@/components/product-situation/product-situation-consultation-chart'
+import { ProductSituationExecutiveDrivers } from '@/components/product-situation/product-situation-executive-drivers'
 import { ProductSituationExecutiveHeroChart } from '@/components/product-situation/product-situation-executive-hero-chart'
+import { ProductSituationExecutiveRiskTable } from '@/components/product-situation/product-situation-executive-risk-table'
+import { ProductSituationExecutiveSummary } from '@/components/product-situation/product-situation-executive-summary'
 import {
   ProductSituationToolbar,
   type ProductSituationExecutiveGranularity,
 } from '@/components/product-situation/product-situation-toolbar'
-import { ThemeToggle } from '@/components/theme-toggle'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import { generateEventStream, type EventRecord } from '@/lib/metrics-data'
 import {
   buildProductSituationAnalytics,
   type ProductSituationFilters,
   type ProductSituationMode,
 } from '@/lib/product-situation-analytics'
+import { ProductSituationZoneMap } from '@/components/product-situation/product-situation-zone-map'
 
 const DEFAULT_FILTERS: ProductSituationFilters = {
   sector: 'РБ',
@@ -57,7 +57,7 @@ function isDateInRange(date: string, from?: Date, to?: Date) {
   return true
 }
 
-export default function Page() {
+export default function ProductSituationPage() {
   const [filters, setFilters] = useState<ProductSituationFilters>(() => DEFAULT_FILTERS)
   const [granularity, setGranularity] =
     useState<ProductSituationExecutiveGranularity>(() => 'month')
@@ -112,57 +112,48 @@ export default function Page() {
   }
 
   return (
-    <div className="h-[100dvh] overflow-hidden bg-background">
-      <header className="border-b border-border/70 bg-card/80 backdrop-blur">
-        <div className="mx-auto flex h-16 w-full max-w-[1600px] items-center justify-between gap-3 px-4 md:px-6">
-          <div className="flex min-w-0 items-center gap-3">
-            <Image src="/logo.png" alt="Logo" width={40} height={40} />
-            <h1 className="font-display text-[20px] font-semibold tracking-tight">
-              Insight Service
-            </h1>
-            <Badge variant="secondary" className="text-[11px]">
-              Состояние продукта
-            </Badge>
-          </div>
+    <div className="space-y-4">
+      <div className="space-y-1">
+        <h1 className="font-display text-xl tracking-tight">Ситуация продукта</h1>
+        <p className="text-sm text-muted-foreground">
+          Понятный срез жизнеспособности продукта по обращениям колл-центра.
+        </p>
+      </div>
 
-          <div className="flex shrink-0 items-center gap-2">
-            <Link href="/product-analytics">
-              <Button variant="outline" size="sm" className="hidden h-8 text-xs md:inline-flex">
-                Детальная аналитика
-              </Button>
-            </Link>
-            <Link href="/product-analytics" className="md:hidden">
-              <Button variant="outline" size="sm" className="h-8 px-2 text-xs">
-                Детали
-              </Button>
-            </Link>
-            <ThemeToggle />
-          </div>
-        </div>
-      </header>
+      <ProductSituationToolbar
+        filters={filters}
+        granularity={granularity}
+        mode={mode}
+        onFiltersChange={setFilters}
+        onGranularityChange={setGranularity}
+        onModeChange={setMode}
+        onReset={handleReset}
+      />
 
-      <main className="mx-auto h-[calc(100dvh-64px)] w-full max-w-[1600px] overflow-hidden px-4 py-3 md:px-6">
-        <div className="flex h-full min-h-0 flex-col gap-3">
-          <ProductSituationToolbar
-            filters={filters}
-            granularity={granularity}
-            mode={mode}
-            onFiltersChange={setFilters}
-            onGranularityChange={setGranularity}
-            onModeChange={setMode}
-            onReset={handleReset}
-          />
+      <ProductSituationExecutiveHeroChart
+        buckets={analytics.buckets}
+        granularity={granularity}
+        mode={mode}
+      />
 
-          <div className="min-h-0 flex-1">
-            <ProductSituationExecutiveHeroChart
-              buckets={analytics.buckets}
-              granularity={granularity}
-              mode={mode}
-              chartHeightClassName="h-full min-h-[260px] md:h-full md:min-h-0"
-            />
-          </div>
-        </div>
-      </main>
+      <div className="grid gap-4 xl:grid-cols-2">
+        <ProductSituationExecutiveSummary summary={analytics.summary} />
+        <ProductSituationExecutiveDrivers drivers={analytics.drivers} />
+      </div>
+
+      <ProductSituationConsultationChart
+        buckets={analytics.buckets}
+        granularity={granularity}
+      />
+
+      <ProductSituationZoneMap
+        domains={analytics.domains}
+        topDomains={analytics.topDomains}
+      />
+
+      {filters.productGroup === 'all' ? (
+        <ProductSituationExecutiveRiskTable items={analytics.topDomains.slice(0, 5)} />
+      ) : null}
     </div>
   )
 }

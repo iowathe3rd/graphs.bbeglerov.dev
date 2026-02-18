@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils'
 const LINKS = [
   { href: '/showcase', label: 'Обзор' },
   { href: '/showcase/line', label: 'Линии' },
+  { href: '/showcase/product-situation', label: 'Ситуация продукта' },
   { href: '/showcase/overlap', label: 'Наслаивания' },
   { href: '/showcase/sankey', label: 'Потоки' },
   { href: '/showcase/funnel', label: 'Воронка' },
@@ -41,4 +42,3 @@ export function ShowcaseHeaderNav() {
     </nav>
   )
 }
-
