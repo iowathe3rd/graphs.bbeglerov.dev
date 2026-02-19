@@ -8,6 +8,7 @@ import {
   ProductSituationBubbleMatrix,
   ProductSituationToolbar,
   type ProductBubblePoint,
+  useInsightEvents,
   useProductSituationModel,
 } from '@/features/insight-dashboard'
 import {
@@ -20,8 +21,13 @@ import { Button } from '@/components/ui/button'
 
 export default function Page() {
   const router = useRouter()
+  const eventsState = useInsightEvents()
   const { filters, setFilters, resetFilters, bubblePoints, loading, error } =
-    useProductSituationModel()
+    useProductSituationModel({
+      events: eventsState.events,
+      loading: eventsState.status === 'idle' || eventsState.status === 'loading',
+      error: eventsState.error,
+    })
 
   const handleBubbleClick = (point: ProductBubblePoint) => {
     const range = normalizeDateRange(filters.dateRange)

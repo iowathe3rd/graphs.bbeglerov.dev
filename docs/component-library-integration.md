@@ -9,7 +9,11 @@ Available layers:
 2. Pure calculators (`buildHealthIndexMetrics`, `buildBubbleMatrixPoints`, `buildDetailedAnalyticsModel`)
 3. UI blocks (`ProductSituationToolbar`, `ProductSituationBubbleMatrix`, `ProductDetailedAnalyticsView`)
 
-Built-in source adapter in this repo:
+Core hooks are source-agnostic:
+1. They expect `events` and optional `loading/error`.
+2. They do not fetch from CSV/REST/GraphQL by themselves.
+
+Optional source adapter in this repo:
 1. `useInsightEvents()` loads `/public/calls.csv`.
 2. `parseCallsCsv()` maps CSV rows to `InsightEvent[]`.
 3. `calls.csv` sample contains only rows with negative tags; this is why matrix X values cluster near `100%`.
@@ -43,7 +47,11 @@ import { normalizeDateRange, toDateKey } from '@/features/insight-dashboard/doma
 
 export function ExecutiveScreen({ events }: { events: any[] }) {
   const router = useRouter()
-  const { filters, setFilters, resetFilters, bubblePoints } = useProductSituationModel({ events })
+  const { filters, setFilters, resetFilters, bubblePoints } = useProductSituationModel({
+    events,
+    loading: false,
+    error: null,
+  })
 
   const onPointClick = (point: ProductBubblePoint) => {
     const range = normalizeDateRange(filters.dateRange)
@@ -75,11 +83,30 @@ export function ExecutiveScreen({ events }: { events: any[] }) {
 import { ProductDetailedAnalyticsView } from '@/features/insight-dashboard'
 
 export default function ProductAnalyticsPage() {
-  return <ProductDetailedAnalyticsView />
+  return <ProductDetailedAnalyticsView events={events} loading={isLoading} error={errorMessage} />
 }
 ```
 
-## 5) Query contract for drilldown
+## 5) Data source examples (SWR / TanStack / GraphQL)
+```tsx
+// SWR
+const { data, isLoading, error } = useSWR('/api/calls', fetcher)
+const model = useProductSituationModel({
+  events: data ?? [],
+  loading: isLoading,
+  error: error?.message ?? null,
+})
+
+// TanStack Query
+const query = useQuery({ queryKey: ['calls'], queryFn: fetchCalls })
+const detailed = useProductDetailedModel({
+  events: query.data ?? [],
+  loading: query.isPending,
+  error: query.error instanceof Error ? query.error.message : null,
+})
+```
+
+## 6) Query contract for drilldown
 Use these query params when opening detailed analytics:
 1. `productGroup`
 2. `sector`
@@ -92,7 +119,7 @@ Detailed screen applies state with priority:
 2. localStorage (`insight-service:dashboard:v1`)
 3. defaults
 
-## 6) UI copy policy
+## 7) UI copy policy
 For end users keep business wording:
 1. `Индекс здоровья`
 2. `Проблемные обращения`

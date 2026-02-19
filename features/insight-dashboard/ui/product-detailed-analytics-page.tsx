@@ -16,9 +16,17 @@ import { ThemeToggle } from '@/components/theme-toggle'
 import { useProductDetailedModel } from '@/features/insight-dashboard/hooks/use-product-detailed-model'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import type { InsightEvent } from '@/features/insight-dashboard/domain/types'
 import type { OverlapGranularity } from '@/lib/metrics-data'
 
-export function ProductDetailedAnalyticsView() {
+interface ProductDetailedAnalyticsViewProps {
+  events?: InsightEvent[]
+  loading?: boolean
+  error?: string | null
+  query?: URLSearchParams | null
+}
+
+export function ProductDetailedAnalyticsView(props: ProductDetailedAnalyticsViewProps = {}) {
   const {
     filters,
     setFilters,
@@ -39,7 +47,12 @@ export function ProductDetailedAnalyticsView() {
     resetMobileFilters,
     loading,
     error,
-  } = useProductDetailedModel()
+  } = useProductDetailedModel({
+    events: props.events,
+    loading: props.loading,
+    error: props.error,
+    query: props.query,
+  })
 
   const handleMobileApply = (
     nextFilters: DashboardFilters,

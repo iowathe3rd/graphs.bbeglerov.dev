@@ -14,7 +14,6 @@ import {
   parseDashboardQueryParams,
   serializeDashboardPreferences,
 } from '@/features/insight-dashboard/domain/detailed-analytics'
-import { useInsightEvents } from '@/features/insight-dashboard/hooks/use-insight-events'
 import type {
   InsightDetailedFilters,
   InsightEvent,
@@ -23,13 +22,14 @@ import { type OverlapGranularity } from '@/lib/metrics-data'
 
 interface UseProductDetailedModelParams {
   events?: InsightEvent[]
+  loading?: boolean
+  error?: string | null
   query?: URLSearchParams | null
 }
 
 export function useProductDetailedModel(
   params: UseProductDetailedModelParams = {}
 ) {
-  const csvState = useInsightEvents()
   const [filters, setFilters] = useState<InsightDetailedFilters>(() => DEFAULT_DETAILED_FILTERS)
   const [overlapGranularity, setOverlapGranularity] = useState<OverlapGranularity>(() => 'day')
   const [overlapSelection, setOverlapSelection] = useState<string[]>(() => [])
@@ -72,7 +72,7 @@ export function useProductDetailedModel(
     )
   }, [filters, overlapGranularity, isPreferencesLoaded])
 
-  const events = params.events ?? csvState.events
+  const events = params.events ?? []
 
   const model = useMemo(
     () =>
@@ -130,7 +130,7 @@ export function useProductDetailedModel(
     resetFilters,
     applyMobileFilters,
     resetMobileFilters,
-    loading: !params.events && (csvState.status === 'idle' || csvState.status === 'loading'),
-    error: params.events ? null : csvState.error,
+    loading: params.loading ?? false,
+    error: params.error ?? null,
   }
 }

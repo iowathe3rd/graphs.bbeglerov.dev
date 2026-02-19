@@ -3,15 +3,7 @@
 import { useEffect, useState } from 'react'
 
 import { parseCallsCsv } from '@/features/insight-dashboard/domain/calls-csv'
-import type { InsightEvent } from '@/features/insight-dashboard/domain/types'
-
-type InsightEventsStatus = 'idle' | 'loading' | 'ready' | 'error'
-
-interface InsightEventsState {
-  events: InsightEvent[]
-  status: InsightEventsStatus
-  error: string | null
-}
+import type { InsightDataSourceState, InsightEvent } from '@/features/insight-dashboard/domain/types'
 
 let cachedEvents: InsightEvent[] | null = null
 let loadPromise: Promise<InsightEvent[]> | null = null
@@ -42,7 +34,7 @@ async function loadInsightEventsFromCsv(): Promise<InsightEvent[]> {
 }
 
 export function useInsightEvents() {
-  const [state, setState] = useState<InsightEventsState>(() => ({
+  const [state, setState] = useState<InsightDataSourceState>(() => ({
     events: cachedEvents ?? [],
     status: cachedEvents ? 'ready' : 'idle',
     error: null,

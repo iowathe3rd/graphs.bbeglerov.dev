@@ -41,6 +41,13 @@ export interface InsightEventInput {
 }
 
 export type InsightEvent = InsightEventInput
+export type InsightDataStatus = 'idle' | 'loading' | 'ready' | 'error'
+
+export interface InsightDataSourceState {
+  events: InsightEvent[]
+  status: InsightDataStatus
+  error: string | null
+}
 
 export type ProductSituationMode = 'rate' | 'volume' | 'combo'
 export type ProductSituationZone = 'green' | 'yellow' | 'red'

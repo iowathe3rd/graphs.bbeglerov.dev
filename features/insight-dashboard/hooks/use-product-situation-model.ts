@@ -6,7 +6,6 @@ import { BUBBLE_ZONE_BREAKPOINTS, DEFAULT_HOME_FILTERS } from '@/features/insigh
 import { createLastDaysRange } from '@/features/insight-dashboard/domain/date-bucketing'
 import { filterEventsForProductSituation } from '@/features/insight-dashboard/domain/bubble-matrix'
 import { buildBubbleMatrixPoints } from '@/features/insight-dashboard/domain/health-index'
-import { useInsightEvents } from '@/features/insight-dashboard/hooks/use-insight-events'
 import type {
   InsightEvent,
   InsightFilters,
@@ -15,6 +14,8 @@ import type {
 
 interface UseProductSituationModelParams {
   events?: InsightEvent[]
+  loading?: boolean
+  error?: string | null
   defaultWindowDays?: number
 }
 
@@ -41,13 +42,12 @@ export function useProductSituationModel(
   params: UseProductSituationModelParams = {}
 ): ProductSituationModel {
   const defaultWindowDays = params.defaultWindowDays ?? 30
-  const csvState = useInsightEvents()
 
   const [filters, setFilters] = useState<InsightFilters>(() =>
     createDefaultFilters(defaultWindowDays)
   )
 
-  const events = params.events ?? csvState.events
+  const events = params.events ?? []
 
   const filteredEvents = useMemo(
     () => filterEventsForProductSituation(events, filters),
@@ -73,7 +73,7 @@ export function useProductSituationModel(
     events,
     filteredEvents,
     bubblePoints,
-    loading: !params.events && (csvState.status === 'idle' || csvState.status === 'loading'),
-    error: params.events ? null : csvState.error,
+    loading: params.loading ?? false,
+    error: params.error ?? null,
   }
 }

@@ -1,6 +1,8 @@
 export type {
   DetailedAnalyticsModel,
   HealthIndexBreakpoints,
+  InsightDataSourceState,
+  InsightDataStatus,
   InsightDetailedFilters,
   InsightEvent,
   InsightEventInput,

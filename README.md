@@ -43,8 +43,9 @@ Domain functions:
 3. `buildDetailedAnalyticsModel({ events, filters, granularity })`
 
 Hooks:
-1. `useProductSituationModel({ events?, defaultWindowDays? })`
-2. `useProductDetailedModel({ events?, query? })`
+1. `useProductSituationModel({ events, loading?, error?, defaultWindowDays? })`
+2. `useProductDetailedModel({ events, loading?, error?, query? })`
+3. `useInsightEvents()` — optional CSV adapter for local demo/runtime only
 
 UI components:
 1. `<ProductSituationToolbar />`
@@ -65,11 +66,15 @@ Minimal required input fields (for external mapping):
 8. `metric`
 9. `tag`
 
-Current runtime source:
+Default adapter in this repository:
 `/Users/bbeglerov/Developer/Playground/graphs.bbeglerov.dev/public/calls.csv`.
 
-Parsing/mapping layer:
+CSV parsing/mapping layer:
 `/Users/bbeglerov/Developer/Playground/graphs.bbeglerov.dev/features/insight-dashboard/domain/calls-csv.ts`.
+
+Core hooks are API-agnostic and do not fetch by themselves.
+They only consume ready data (`events/loading/error`) from any source:
+SWR, TanStack Query, REST, GraphQL, server actions, etc.
 
 The old synthetic generator (`generateEventStream`) is not used by `/` and `/product-analytics`.
 
