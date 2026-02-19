@@ -3,121 +3,27 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useMemo, useState } from 'react'
 
-import { ProductSituationBubbleMatrix } from '@/components/product-situation/product-situation-bubble-matrix'
-import { ProductSituationToolbar } from '@/components/product-situation/product-situation-toolbar'
+import {
+  ProductSituationBubbleMatrix,
+  ProductSituationToolbar,
+  type ProductBubblePoint,
+  useProductSituationModel,
+} from '@/features/insight-dashboard'
+import {
+  normalizeDateRange,
+  toDateKey,
+} from '@/features/insight-dashboard/domain/date-bucketing'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { generateEventStream, type EventRecord } from '@/lib/metrics-data'
-import {
-  buildProductSituationBubblePoints,
-  type ProductSituationBubblePoint,
-  type ProductSituationFilters,
-} from '@/lib/product-situation-analytics'
-
-function createDefaultFilters(): ProductSituationFilters {
-  const to = new Date()
-  const from = new Date(to)
-  from.setDate(from.getDate() - 30)
-
-  return {
-    sector: 'РБ',
-    productGroup: 'all',
-    dateRange: {
-      from,
-      to,
-    },
-  }
-}
-
-function normalizeDateRange(range: ProductSituationFilters['dateRange']) {
-  if (range.from && !range.to) {
-    return {
-      from: range.from,
-      to: range.from,
-    }
-  }
-
-  return range
-}
-
-function isDateInRange(date: string, from?: Date, to?: Date) {
-  const current = new Date(`${date}T00:00:00.000Z`)
-
-  if (Number.isNaN(current.getTime())) {
-    return false
-  }
-
-  if (from && current < from) {
-    return false
-  }
-
-  if (to && current > to) {
-    return false
-  }
-
-  return true
-}
-
-function toDateKey(date?: Date) {
-  if (!date) {
-    return undefined
-  }
-
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-
-  return `${year}-${month}-${day}`
-}
 
 export default function Page() {
   const router = useRouter()
-  const [filters, setFilters] = useState<ProductSituationFilters>(() => createDefaultFilters())
+  const { filters, setFilters, resetFilters, bubblePoints, loading, error } =
+    useProductSituationModel()
 
-  const events = useMemo(
-    () => generateEventStream(42000, 180, 42, filters.sector),
-    [filters.sector]
-  )
-
-  const filteredEvents = useMemo(() => {
-    const range = normalizeDateRange(filters.dateRange)
-    const result: EventRecord[] = []
-
-    for (const event of events) {
-      if (event.channel !== 'Колл-центр') {
-        continue
-      }
-
-      if (!isDateInRange(event.date, range.from, range.to)) {
-        continue
-      }
-
-      result.push(event)
-    }
-
-    return result
-  }, [events, filters.dateRange])
-
-  const bubblePoints = useMemo(
-    () =>
-      buildProductSituationBubblePoints(filteredEvents, {
-        zones: {
-          greenMax: 10,
-          yellowMax: 30,
-          max: 100,
-        },
-      }),
-    [filteredEvents]
-  )
-
-  const handleReset = () => {
-    setFilters(createDefaultFilters())
-  }
-
-  const handleBubbleClick = (point: ProductSituationBubblePoint) => {
+  const handleBubbleClick = (point: ProductBubblePoint) => {
     const range = normalizeDateRange(filters.dateRange)
     const params = new URLSearchParams({
       productGroup: point.productGroup,
@@ -155,7 +61,11 @@ export default function Page() {
 
           <div className="flex shrink-0 items-center gap-2">
             <Link href="/product-analytics">
-              <Button variant="outline" size="sm" className="hidden h-8 text-xs md:inline-flex">
+              <Button
+                variant="outline"
+                size="sm"
+                className="hidden h-7 px-3 text-[12px] md:inline-flex"
+              >
                 Детальная аналитика
               </Button>
             </Link>
@@ -175,14 +85,18 @@ export default function Page() {
             variant="home"
             filters={filters}
             onFiltersChange={setFilters}
-            onReset={handleReset}
+            onReset={resetFilters}
           />
 
           <div className="min-h-0 flex-1">
+            {error ? (
+              <p className="mb-2 px-1 text-xs text-red-600">{error}</p>
+            ) : null}
             <ProductSituationBubbleMatrix
               points={bubblePoints}
               onPointClick={handleBubbleClick}
               chartHeightClassName="h-full min-h-[280px]"
+              loading={loading}
             />
           </div>
         </div>

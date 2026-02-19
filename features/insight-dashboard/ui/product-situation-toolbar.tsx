@@ -12,11 +12,11 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
-import { PRODUCT_GROUPS, SECTORS, type ProductGroup, type Sector } from '@/lib/metrics-data'
 import type {
-  ProductSituationFilters,
+  InsightFilters,
   ProductSituationMode,
-} from '@/lib/product-situation-analytics'
+} from '@/features/insight-dashboard/domain/types'
+import { PRODUCT_GROUPS, SECTORS, type ProductGroup, type Sector } from '@/lib/metrics-data'
 import { cn } from '@/lib/utils'
 
 export type ProductSituationExecutiveGranularity = 'week' | 'month'
@@ -24,10 +24,10 @@ export type ProductSituationToolbarVariant = 'executive' | 'home'
 
 interface ProductSituationToolbarProps {
   variant?: ProductSituationToolbarVariant
-  filters: ProductSituationFilters
+  filters: InsightFilters
   granularity?: ProductSituationExecutiveGranularity
   mode?: ProductSituationMode
-  onFiltersChange: (filters: ProductSituationFilters) => void
+  onFiltersChange: (filters: InsightFilters) => void
   onGranularityChange?: (granularity: ProductSituationExecutiveGranularity) => void
   onModeChange?: (mode: ProductSituationMode) => void
   onReset: () => void
@@ -56,12 +56,12 @@ export function ProductSituationToolbar({
   const isHome = variant === 'home'
 
   return (
-    <div className="rounded-xl border border-border/80 bg-card/85 p-3 backdrop-blur">
+    <div className="rounded-xl border border-border/80 bg-card/85 p-2.5 backdrop-blur md:p-3">
       <div
         className={cn(
-          'grid gap-2',
+          'grid gap-1.5 md:gap-2',
           isHome
-            ? 'md:grid-cols-[140px_minmax(0,1fr)_minmax(130px,160px)] md:items-end'
+            ? 'md:grid-cols-[160px_1fr_auto] md:items-end'
             : 'md:grid-cols-[120px_minmax(0,1fr)_minmax(0,1fr)]'
         )}
       >
@@ -76,7 +76,7 @@ export function ProductSituationToolbar({
               })
             }
           >
-            <SelectTrigger className="h-8 text-xs">
+            <SelectTrigger className="h-8 text-xs md:h-7">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -101,7 +101,7 @@ export function ProductSituationToolbar({
                 })
               }
             >
-              <SelectTrigger className="h-8 text-xs">
+              <SelectTrigger className="h-8 text-xs md:h-7">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -121,6 +121,7 @@ export function ProductSituationToolbar({
           <DateRangePicker
             date={filters.dateRange}
             placeholder="Все"
+            className="h-8 md:h-7 max-w-64"
             onDateChange={(date) =>
               onFiltersChange({
                 ...filters,
@@ -135,7 +136,11 @@ export function ProductSituationToolbar({
 
         {isHome ? (
           <div className="flex items-end md:justify-end">
-            <Button variant="outline" className="h-8 w-full px-3 text-xs md:w-auto" onClick={onReset}>
+            <Button
+              variant="outline"
+              className="h-8 w-auto px-2.5 text-[12px] md:h-7"
+              onClick={onReset}
+            >
               <RotateCcw className="mr-1 h-3.5 w-3.5" />
               Сброс
             </Button>

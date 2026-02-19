@@ -1,16 +1,25 @@
+import {
+  BUBBLE_ZONE_BREAKPOINTS,
+  HEALTH_INDEX_BREAKPOINTS,
+  PRODUCT_SITUATION_TAGS,
+  PRODUCT_TAG_WEIGHTS,
+} from '@/features/insight-dashboard/config/constants'
 import type {
-  EventRecord,
-  OverlapGranularity,
-  ProductGroup,
-  Sector,
-} from '@/lib/metrics-data'
-
-export const PRODUCT_TAG_WEIGHTS = {
-  'Технические проблемы/сбои': 0.2,
-  'Запрос не решен': 0.3,
-  'Отрицательный продуктовый фидбэк': 0.2,
-  'Угроза ухода/отказа от продуктов банка': 0.3,
-} as const
+  HealthIndexBreakpoints,
+  InsightEvent,
+  ProductBubblePoint,
+  ProductSituationAnalytics,
+  ProductSituationBucket,
+  ProductSituationDomainPoint,
+  ProductSituationDriverRow,
+  ProductSituationDriverTrend,
+  ProductSituationExecutiveSummary,
+  ProductSituationExecutiveSummaryPoint,
+  ProductSituationTag,
+  ProductSituationZone,
+  ProductSituationZones,
+} from '@/features/insight-dashboard/domain/types'
+import type { OverlapGranularity } from '@/lib/metrics-data'
 
 const METRIC_TO_TAG = {
   sla: 'Технические проблемы/сбои',
@@ -21,160 +30,15 @@ const METRIC_TO_TAG = {
 
 const POSITIVE_METRICS = new Set(['fcr', 'csat'])
 
-const DEFAULT_HEALTH_THRESHOLDS = {
-  greenMin: 85,
-  yellowMin: 70,
-}
-
-export type ProductSituationTag = keyof typeof PRODUCT_TAG_WEIGHTS
-export type ProductSituationMode = 'rate' | 'volume' | 'combo'
-export type ProductSituationZone = 'green' | 'yellow' | 'red'
-export type ProductSituationDriverTrend = 'up' | 'down' | 'flat'
-
-export interface ProductSituationFilters {
-  sector: Sector
-  productGroup: ProductGroup | 'all'
-  dateRange: {
-    from: Date | undefined
-    to: Date | undefined
-  }
-}
-
-export const PRODUCT_TAG_COLORS: Record<ProductSituationTag, string> = {
-  'Технические проблемы/сбои': '#2563eb',
-  'Запрос не решен': '#f97316',
-  'Отрицательный продуктовый фидбэк': '#0f766e',
-  'Угроза ухода/отказа от продуктов банка': '#64748b',
-}
-
-export const PRODUCT_SITUATION_TAGS = Object.keys(
-  PRODUCT_TAG_WEIGHTS
-) as ProductSituationTag[]
-
-export interface ProductSituationTagShare {
-  tag: ProductSituationTag
-  count: number
-  rate: number
-}
-
-export interface ProductSituationBucket {
-  date: string
-  totalCalls: number
-  negativeCalls: number
-  problemCallsUnique: number
-  problemRate: number
-  negativeRate: number
-  weightedNegativeRate: number
-  severityRate: number
-  volumeWeight: number
-  confidence: number
-  riskCore: number
-  riskIndex: number
-  healthIndex: number
-  tagCounts: Record<ProductSituationTag, number>
-  tagRates: Record<ProductSituationTag, number>
-  consultationCalls: number
-  consultationNegativeCalls: number
-  consultationCleanCalls: number
-  consultationCleanRate: number
-  consultationNegativeRate: number
-  consultationWeightedNegativeRate: number
-  consultationTagCounts: Record<ProductSituationTag, number>
-  consultationTagRates: Record<ProductSituationTag, number>
-}
-
-export interface ProductSituationDomainPoint {
-  id: string
-  label: string
-  totalCalls: number
-  negativeCalls: number
-  problemCallsUnique: number
-  problemRate: number
-  negativeRate: number
-  weightedNegativeRate: number
-  severityRate: number
-  volumeWeight: number
-  confidence: number
-  riskCore: number
-  riskIndex: number
-  healthIndex: number
-  zone: ProductSituationZone
-  topDriverTag: string
-  tagCounts: Record<ProductSituationTag, number>
-  tagRates: Record<ProductSituationTag, number>
-}
-
-export interface ProductSituationBubblePoint {
-  id: string
-  productGroup: ProductGroup
-  label: string
-  totalCalls: number
-  problemCallsUnique: number
-  problemRate: number
-  healthIndex: number
-  riskIndex: number
-  zone: ProductSituationZone
-  topDriverTag: string
-}
-
-export interface ProductSituationExecutiveSummaryPoint {
-  label: string
-  healthIndex: number
-  problematicCalls: number
-  problematicRate: number
-  totalCalls: number
-}
-
-export interface ProductSituationExecutiveSummary {
-  current: ProductSituationExecutiveSummaryPoint | null
-  previous: ProductSituationExecutiveSummaryPoint | null
-  delta: {
-    healthIndex: number
-    problematicCalls: number
-    problematicRate: number
-    totalCalls: number
-  } | null
-}
-
-export interface ProductSituationDriverRow {
-  tag: ProductSituationTag
-  label: string
-  calls: number
-  contributionRate: number
-  currentContributionRate: number
-  previousContributionRate: number
-  deltaContributionRate: number
-  trend: ProductSituationDriverTrend
-}
-
-export interface ProductSituationAnalytics {
-  buckets: ProductSituationBucket[]
-  domains: ProductSituationDomainPoint[]
-  topDomains: ProductSituationDomainPoint[]
-  baselineCalls: number
-  domainBaselineCalls: number
-  summary: ProductSituationExecutiveSummary
-  drivers: ProductSituationDriverRow[]
-}
-
-export interface ProductSituationZones {
-  greenMax: number
-  yellowMax: number
-  max: number
-}
-
-interface BuildProductSituationAnalyticsOptions {
+interface BuildHealthIndexMetricsOptions {
   granularity: OverlapGranularity
   topDomainsLimit?: number
   zones?: Partial<ProductSituationZones>
 }
 
-interface BuildProductSituationBubblePointsOptions {
+interface BuildBubbleMatrixPointsOptions {
   zones?: Partial<ProductSituationZones>
-  healthThresholds?: {
-    greenMin: number
-    yellowMin: number
-  }
+  healthThresholds?: Partial<HealthIndexBreakpoints>
 }
 
 interface CaseAccumulator {
@@ -220,27 +84,21 @@ interface RiskMetrics {
   consultationTagRates: Record<ProductSituationTag, number>
 }
 
-const DEFAULT_ZONES: ProductSituationZones = {
-  greenMax: 10,
-  yellowMax: 30,
-  max: 100,
-}
-
-function round1(value: number) {
+function round1(value: number): number {
   return Math.round(value * 10) / 10
 }
 
-function clamp(value: number, min: number, max: number) {
+function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value))
 }
 
-function buildEmptyTagCounts() {
+function buildEmptyTagCounts(): Record<ProductSituationTag, number> {
   return Object.fromEntries(
     PRODUCT_SITUATION_TAGS.map((tag) => [tag, 0])
   ) as Record<ProductSituationTag, number>
 }
 
-function buildEmptyTagFlags() {
+function buildEmptyTagFlags(): Record<ProductSituationTag, boolean> {
   return Object.fromEntries(
     PRODUCT_SITUATION_TAGS.map((tag) => [tag, false])
   ) as Record<ProductSituationTag, boolean>
@@ -249,7 +107,7 @@ function buildEmptyTagFlags() {
 function toTagRates(
   tagCounts: Record<ProductSituationTag, number>,
   totalCalls: number
-) {
+): Record<ProductSituationTag, number> {
   const result = buildEmptyTagCounts()
 
   if (totalCalls <= 0) {
@@ -263,7 +121,7 @@ function toTagRates(
   return result
 }
 
-function weightedRate(tagRates: Record<ProductSituationTag, number>) {
+function weightedRate(tagRates: Record<ProductSituationTag, number>): number {
   let value = 0
 
   for (const tag of PRODUCT_SITUATION_TAGS) {
@@ -273,11 +131,11 @@ function weightedRate(tagRates: Record<ProductSituationTag, number>) {
   return round1(value)
 }
 
-function sumTagCounts(tagCounts: Record<ProductSituationTag, number>) {
+function sumTagCounts(tagCounts: Record<ProductSituationTag, number>): number {
   return PRODUCT_SITUATION_TAGS.reduce((sum, tag) => sum + tagCounts[tag], 0)
 }
 
-function toBucketDate(dateKey: string, granularity: OverlapGranularity) {
+function toBucketDate(dateKey: string, granularity: OverlapGranularity): string {
   const date = new Date(`${dateKey}T00:00:00.000Z`)
 
   if (Number.isNaN(date.getTime())) {
@@ -296,7 +154,7 @@ function toBucketDate(dateKey: string, granularity: OverlapGranularity) {
   return date.toISOString().slice(0, 10)
 }
 
-function median(values: number[]) {
+function median(values: number[]): number {
   if (values.length === 0) {
     return 1
   }
@@ -311,10 +169,10 @@ function median(values: number[]) {
   return ((sorted[middle - 1] || 0) + (sorted[middle] || 0)) / 2 || 1
 }
 
-function normalizeZones(zones?: Partial<ProductSituationZones>) {
-  const max = Math.max(1, zones?.max ?? DEFAULT_ZONES.max)
-  const greenMax = clamp(zones?.greenMax ?? DEFAULT_ZONES.greenMax, 0, max)
-  const yellowMax = clamp(zones?.yellowMax ?? DEFAULT_ZONES.yellowMax, greenMax, max)
+function normalizeZones(zones?: Partial<ProductSituationZones>): ProductSituationZones {
+  const max = Math.max(1, zones?.max ?? BUBBLE_ZONE_BREAKPOINTS.max)
+  const greenMax = clamp(zones?.greenMax ?? BUBBLE_ZONE_BREAKPOINTS.greenMax, 0, max)
+  const yellowMax = clamp(zones?.yellowMax ?? BUBBLE_ZONE_BREAKPOINTS.yellowMax, greenMax, max)
 
   return {
     greenMax,
@@ -337,7 +195,7 @@ function zoneByRisk(value: number, zones: ProductSituationZones): ProductSituati
 
 function zoneByHealthIndex(
   healthIndex: number,
-  thresholds: { greenMin: number; yellowMin: number }
+  thresholds: HealthIndexBreakpoints
 ): ProductSituationZone {
   if (healthIndex >= thresholds.greenMin) {
     return 'green'
@@ -350,7 +208,7 @@ function zoneByHealthIndex(
   return 'red'
 }
 
-function volumeWeight(totalCalls: number, baselineCalls: number) {
+function volumeWeight(totalCalls: number, baselineCalls: number): number {
   if (totalCalls <= 0 || baselineCalls <= 0) {
     return 0.6
   }
@@ -358,7 +216,7 @@ function volumeWeight(totalCalls: number, baselineCalls: number) {
   return round1(clamp(Math.sqrt(totalCalls / baselineCalls), 0.6, 1.8))
 }
 
-function confidenceWeight(totalCalls: number) {
+function confidenceWeight(totalCalls: number): number {
   if (totalCalls <= 0) {
     return 0.35
   }
@@ -366,11 +224,11 @@ function confidenceWeight(totalCalls: number) {
   return round1(clamp(Math.sqrt(totalCalls) / Math.sqrt(400), 0.35, 1))
 }
 
-function healthFromRisk(riskIndex: number, maxRisk: number) {
+function healthFromRisk(riskIndex: number, maxRisk: number): number {
   return round1(clamp(maxRisk - riskIndex, 0, 100))
 }
 
-function resolveTag(event: EventRecord): ProductSituationTag | null {
+function resolveTag(event: InsightEvent): ProductSituationTag | null {
   const metricTag = METRIC_TO_TAG[event.metric as keyof typeof METRIC_TO_TAG]
 
   if (metricTag) {
@@ -392,7 +250,7 @@ function resolveTag(event: EventRecord): ProductSituationTag | null {
 function getOrCreateCaseAccumulator(
   cases: Map<string, CaseAccumulator>,
   caseId: string
-) {
+): CaseAccumulator {
   const existing = cases.get(caseId)
 
   if (existing) {
@@ -413,9 +271,9 @@ function getOrCreateCaseAccumulator(
 
 function updateCaseAccumulator(
   accumulator: CaseAccumulator,
-  event: EventRecord,
+  event: InsightEvent,
   tag: ProductSituationTag | null
-) {
+): void {
   if (event.dialogueType === 'Консультация') {
     accumulator.isConsultation = true
   }
@@ -540,7 +398,7 @@ function computeRiskMetrics(
   }
 }
 
-function topDriverTag(tagCounts: Record<ProductSituationTag, number>) {
+function topDriverTag(tagCounts: Record<ProductSituationTag, number>): string {
   let bestTag: ProductSituationTag | null = null
   let bestCount = -1
 
@@ -618,9 +476,9 @@ function trendFromDelta(delta: number): ProductSituationDriverTrend {
   return 'flat'
 }
 
-function buildDrivers(buckets: ProductSituationBucket[]) {
+function buildDrivers(buckets: ProductSituationBucket[]): ProductSituationDriverRow[] {
   if (buckets.length === 0) {
-    return [] as ProductSituationDriverRow[]
+    return []
   }
 
   const current = buckets[buckets.length - 1]
@@ -667,15 +525,15 @@ function buildDrivers(buckets: ProductSituationBucket[]) {
 }
 
 function normalizeHealthThresholds(
-  thresholds?: BuildProductSituationBubblePointsOptions['healthThresholds']
-) {
+  thresholds?: Partial<HealthIndexBreakpoints>
+): HealthIndexBreakpoints {
   const greenMin = clamp(
-    thresholds?.greenMin ?? DEFAULT_HEALTH_THRESHOLDS.greenMin,
+    thresholds?.greenMin ?? HEALTH_INDEX_BREAKPOINTS.greenMin,
     0,
     100
   )
   const yellowMin = clamp(
-    thresholds?.yellowMin ?? DEFAULT_HEALTH_THRESHOLDS.yellowMin,
+    thresholds?.yellowMin ?? HEALTH_INDEX_BREAKPOINTS.yellowMin,
     0,
     greenMin
   )
@@ -686,9 +544,9 @@ function normalizeHealthThresholds(
   }
 }
 
-export function buildProductSituationAnalytics(
-  events: EventRecord[],
-  options: BuildProductSituationAnalyticsOptions
+export function buildHealthIndexMetrics(
+  events: InsightEvent[],
+  options: BuildHealthIndexMetricsOptions
 ): ProductSituationAnalytics {
   const granularity = options.granularity
   const topDomainsLimit = options.topDomainsLimit ?? 8
@@ -827,12 +685,12 @@ export function buildProductSituationAnalytics(
   }
 }
 
-export function buildProductSituationBubblePoints(
-  events: EventRecord[],
-  options?: BuildProductSituationBubblePointsOptions
-): ProductSituationBubblePoint[] {
+export function buildBubbleMatrixPoints(
+  events: InsightEvent[],
+  options?: BuildBubbleMatrixPointsOptions
+): ProductBubblePoint[] {
   const thresholds = normalizeHealthThresholds(options?.healthThresholds)
-  const analytics = buildProductSituationAnalytics(events, {
+  const analytics = buildHealthIndexMetrics(events, {
     granularity: 'month',
     topDomainsLimit: Number.MAX_SAFE_INTEGER,
     zones: options?.zones,
@@ -850,4 +708,18 @@ export function buildProductSituationBubblePoints(
     zone: zoneByHealthIndex(domain.healthIndex, thresholds),
     topDriverTag: domain.topDriverTag,
   }))
+}
+
+export function buildProductSituationAnalytics(
+  events: InsightEvent[],
+  options: BuildHealthIndexMetricsOptions
+): ProductSituationAnalytics {
+  return buildHealthIndexMetrics(events, options)
+}
+
+export function buildProductSituationBubblePoints(
+  events: InsightEvent[],
+  options?: BuildBubbleMatrixPointsOptions
+): ProductBubblePoint[] {
+  return buildBubbleMatrixPoints(events, options)
 }

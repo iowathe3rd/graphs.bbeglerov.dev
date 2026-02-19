@@ -26,8 +26,8 @@ export function DashboardOverlapCard({
   zones,
 }: DashboardOverlapCardProps) {
   return (
-    <Card className="flex h-full min-h-0 flex-col">
-      <CardContent className=" h-full min-h-0 p-0 w-full">
+    <Card className="flex h-full min-h-[320px] flex-col">
+      <CardContent className="h-full min-h-[320px] w-full p-0">
         <OverlapMultiLineChart
           analytics={data}
           title="Температурная карта"

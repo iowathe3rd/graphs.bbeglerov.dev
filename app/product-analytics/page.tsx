@@ -1,5 +1,5 @@
-import { ProductDetailedAnalyticsPage } from '@/components/product-detailed-analytics-page'
+import { ProductDetailedAnalyticsView } from '@/features/insight-dashboard'
 
 export default function ProductAnalyticsPage() {
-  return <ProductDetailedAnalyticsPage />
+  return <ProductDetailedAnalyticsView />
 }

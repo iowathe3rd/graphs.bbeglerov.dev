@@ -57,8 +57,8 @@ export function DashboardToolbar({
   onReset,
 }: DashboardToolbarProps) {
   return (
-    <div className="rounded-xl border border-border/80 bg-card/85 p-3 backdrop-blur">
-      <div className="grid gap-2 md:grid-cols-3 xl:grid-cols-[repeat(5,minmax(0,1fr))_minmax(120px,1fr)_minmax(180px,220px)]">
+    <div className="rounded-xl border border-border/80 bg-card/85 p-2.5 backdrop-blur md:p-3">
+      <div className="grid gap-1.5 md:gap-2 md:grid-cols-3 xl:grid-cols-[repeat(5,minmax(0,1fr))_minmax(120px,1fr)_minmax(160px,190px)]">
         <div className="space-y-1">
           <p className="text-[11px] text-muted-foreground">Поток</p>
           <Select
@@ -67,7 +67,7 @@ export function DashboardToolbar({
               onFiltersChange({ ...filters, sector: value as Sector })
             }
           >
-            <SelectTrigger className="h-8 text-xs">
+            <SelectTrigger className="h-8 text-xs md:h-7">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -91,7 +91,7 @@ export function DashboardToolbar({
               })
             }
           >
-            <SelectTrigger className="h-8 text-xs">
+            <SelectTrigger className="h-8 text-xs md:h-7">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -106,7 +106,7 @@ export function DashboardToolbar({
 
         <div className="space-y-1">
           <p className="text-[11px] text-muted-foreground">Канал обращения</p>
-          <div className="flex h-8 items-center rounded-md border border-input bg-muted/40 px-3 text-xs text-muted-foreground">
+          <div className="flex h-8 items-center rounded-md border border-input bg-muted/40 px-3 text-xs text-muted-foreground md:h-7">
             КЦ (звонки)
           </div>
         </div>
@@ -116,6 +116,7 @@ export function DashboardToolbar({
           <DateRangePicker
             date={filters.dateRange}
             placeholder="Все"
+            className="h-8 md:h-7"
             onDateChange={(date) =>
               onFiltersChange({
                 ...filters,
@@ -136,7 +137,7 @@ export function DashboardToolbar({
               onGranularityChange(value as OverlapGranularity)
             }
           >
-            <SelectTrigger className="h-8 text-xs">
+            <SelectTrigger className="h-8 text-xs md:h-7">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -152,7 +153,7 @@ export function DashboardToolbar({
         <div className="flex items-end xl:justify-end">
           <Button
             variant="outline"
-            className="h-8 w-full text-xs xl:w-[220px]"
+            className="h-8 w-full text-[12px] md:h-7 xl:w-[190px]"
             onClick={onReset}
           >
             <RotateCcw className="mr-1 h-3.5 w-3.5" />

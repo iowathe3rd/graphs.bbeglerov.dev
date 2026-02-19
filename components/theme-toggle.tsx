@@ -31,11 +31,11 @@ export function ThemeToggle() {
       <Button
         variant="outline"
         size="icon"
-        className="h-8 w-8 rounded-full border-border/70"
+        className="h-8 w-8 rounded-full border-border/70 md:h-7 md:w-7"
         disabled
         aria-label="Тема"
       >
-        <Monitor className="h-4 w-4" />
+        <Monitor className="h-4 w-4 md:h-3.5 md:w-3.5" />
       </Button>
     )
   }
@@ -49,10 +49,10 @@ export function ThemeToggle() {
         <Button
           variant="outline"
           size="icon"
-          className="h-8 w-8 rounded-full border-border/70 bg-background/80"
+          className="h-8 w-8 rounded-full border-border/70 bg-background/80 md:h-7 md:w-7"
           aria-label="Сменить тему"
         >
-          <Icon className="h-4 w-4" />
+          <Icon className="h-4 w-4 md:h-3.5 md:w-3.5" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-40">

@@ -13,6 +13,11 @@ import {
   YAxis,
 } from 'recharts'
 
+import { BUBBLE_ZONE_BREAKPOINTS } from '@/features/insight-dashboard/config/constants'
+import { INSIGHT_TOOLTIP_COPY } from '@/features/insight-dashboard/config/tooltips'
+import type { ProductBubblePoint } from '@/features/insight-dashboard/domain/types'
+import { useIsMobile } from '@/hooks/use-mobile'
+import { PRODUCT_GROUPS } from '@/lib/metrics-data'
 import { BerekeChartTooltip } from '@/components/charts/bereke-chart-tooltip'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -22,30 +27,22 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
-import { useIsMobile } from '@/hooks/use-mobile'
-import { PRODUCT_GROUPS } from '@/lib/metrics-data'
-import type { ProductSituationBubblePoint } from '@/lib/product-situation-analytics'
 import { cn } from '@/lib/utils'
 
 interface ProductSituationBubbleMatrixProps {
-  points: ProductSituationBubblePoint[]
-  onPointClick?: (point: ProductSituationBubblePoint) => void
+  points: ProductBubblePoint[]
+  onPointClick?: (point: ProductBubblePoint) => void
   chartHeightClassName?: string
+  loading?: boolean
 }
 
-interface MatrixPoint extends ProductSituationBubblePoint {
+interface MatrixPoint extends ProductBubblePoint {
   x: number
   y: number
   bubbleRadius: number
 }
 
-const MATRIX_ZONE_THRESHOLDS = {
-  greenMax: 5,
-  yellowMax: 30,
-  max: 100,
-} as const
-
-const ZONE_LABELS: Record<ProductSituationBubblePoint['zone'], string> = {
+const ZONE_LABELS: Record<ProductBubblePoint['zone'], string> = {
   green: 'Норма',
   yellow: 'Внимание',
   red: 'Критично',
@@ -67,19 +64,19 @@ function shortLabel(label: string, maxLength: number) {
   return `${label.slice(0, Math.max(1, maxLength - 1))}…`
 }
 
-function zoneByProblemRate(problemRate: number): ProductSituationBubblePoint['zone'] {
-  if (problemRate <= MATRIX_ZONE_THRESHOLDS.greenMax) {
+function zoneByProblemRate(problemRate: number): ProductBubblePoint['zone'] {
+  if (problemRate <= BUBBLE_ZONE_BREAKPOINTS.greenMax) {
     return 'green'
   }
 
-  if (problemRate <= MATRIX_ZONE_THRESHOLDS.yellowMax) {
+  if (problemRate <= BUBBLE_ZONE_BREAKPOINTS.yellowMax) {
     return 'yellow'
   }
 
   return 'red'
 }
 
-function zoneStyles(zone: ProductSituationBubblePoint['zone']) {
+function zoneStyles(zone: ProductBubblePoint['zone']) {
   if (zone === 'green') {
     return {
       fill: 'rgba(16, 185, 129, 0.32)',
@@ -103,10 +100,13 @@ function zoneStyles(zone: ProductSituationBubblePoint['zone']) {
   }
 }
 
+const PLOT_X_MAX = BUBBLE_ZONE_BREAKPOINTS.max + 4
+
 export function ProductSituationBubbleMatrix({
   points,
   onPointClick,
   chartHeightClassName,
+  loading = false,
 }: ProductSituationBubbleMatrixProps) {
   const isMobile = useIsMobile()
 
@@ -138,21 +138,21 @@ export function ProductSituationBubbleMatrix({
     const problemCallsValues = ordered.map((point) => point.problemCallsUnique)
     const minProblemCalls = Math.min(...problemCallsValues)
     const maxProblemCalls = Math.max(...problemCallsValues)
-    const radiusMin = isMobile ? 8 : 9
-    const radiusMax = isMobile ? 18 : 24
+    const radiusMin = isMobile ? 7 : 8
+    const radiusMax = isMobile ? 24 : 32
     const valueRange = Math.max(1, maxProblemCalls - minProblemCalls)
 
     const prepared = ordered.map<MatrixPoint>((point, rowIndex) => {
       const normalized = (point.problemCallsUnique - minProblemCalls) / valueRange
-      const stretched = Math.pow(normalized, 0.55)
       const bubbleRadius =
         maxProblemCalls === minProblemCalls
           ? (radiusMin + radiusMax) / 2
-          : radiusMin + stretched * (radiusMax - radiusMin)
+          : radiusMin + normalized * (radiusMax - radiusMin)
 
       return {
         ...point,
-        x: clamp(point.problemRate, 0, MATRIX_ZONE_THRESHOLDS.max),
+        // Keep bubbles inside plot area when real data sits near 100%.
+        x: clamp(point.problemRate, 0, BUBBLE_ZONE_BREAKPOINTS.max),
         y: rowIndex + 1,
         bubbleRadius,
       }
@@ -168,6 +168,17 @@ export function ProductSituationBubbleMatrix({
       yTicks,
     }
   }, [isMobile, points])
+
+  if (loading) {
+    return (
+      <Card className="flex h-full min-h-0 flex-col">
+        <CardHeader>
+          <CardTitle className="text-base">Состояние продуктов</CardTitle>
+        </CardHeader>
+        <CardContent className="text-sm text-muted-foreground">Загрузка звонков…</CardContent>
+      </Card>
+    )
+  }
 
   if (matrixData.points.length === 0) {
     return (
@@ -198,11 +209,7 @@ export function ProductSituationBubbleMatrix({
                   </button>
                 </TooltipTrigger>
                 <TooltipContent className="max-w-[280px] text-xs leading-5">
-                  Индекс здоровья: шкала 0–100, где выше — лучше. Показатель учитывает
-                  долю проблемных обращений, их тяжесть и объем звонков. По горизонтали:
-                  доля проблемных обращений (0–5%, 5–30%, 30–100%). По вертикали:
-                  продукты. Размер пузыря: количество проблемных обращений. Нажмите на
-                  пузырь, чтобы открыть детальную аналитику продукта.
+                  {INSIGHT_TOOLTIP_COPY.bubbleMatrixHelp}
                 </TooltipContent>
               </HelpTooltip>
             </TooltipProvider>
@@ -210,15 +217,15 @@ export function ProductSituationBubbleMatrix({
 
           <div className="flex items-center gap-2 text-[11px]">
             <Badge variant="outline" className="gap-1">
-              <span className="h-2 w-2 rounded-full bg-emerald-500/80" />
+              <span className="inline-block h-2.5 w-2.5 rounded-full bg-emerald-500" />
               Норма 0–5%
             </Badge>
             <Badge variant="outline" className="gap-1">
-              <span className="h-2 w-2 rounded-full bg-amber-500/80" />
+              <span className="inline-block h-2.5 w-2.5 rounded-full bg-amber-500" />
               Внимание 5–30%
             </Badge>
             <Badge variant="outline" className="gap-1">
-              <span className="h-2 w-2 rounded-full bg-red-500/80" />
+              <span className="inline-block h-2.5 w-2.5 rounded-full bg-red-500" />
               Критично 30–100%
             </Badge>
           </div>
@@ -233,16 +240,16 @@ export function ProductSituationBubbleMatrix({
           )}
         >
           <ResponsiveContainer width="100%" height="100%">
-            <ScatterChart margin={{ top: 6, right: 8, bottom: 22, left: 8 }}>
-              <ReferenceArea x1={0} x2={MATRIX_ZONE_THRESHOLDS.greenMax} fill="rgba(16, 185, 129, 0.10)" />
+            <ScatterChart margin={{ top: 6, right: 4, bottom: 22, left: 8 }}>
+              <ReferenceArea x1={0} x2={BUBBLE_ZONE_BREAKPOINTS.greenMax} fill="rgba(16, 185, 129, 0.10)" />
               <ReferenceArea
-                x1={MATRIX_ZONE_THRESHOLDS.greenMax}
-                x2={MATRIX_ZONE_THRESHOLDS.yellowMax}
+                x1={BUBBLE_ZONE_BREAKPOINTS.greenMax}
+                x2={BUBBLE_ZONE_BREAKPOINTS.yellowMax}
                 fill="rgba(245, 158, 11, 0.10)"
               />
               <ReferenceArea
-                x1={MATRIX_ZONE_THRESHOLDS.yellowMax}
-                x2={MATRIX_ZONE_THRESHOLDS.max}
+                x1={BUBBLE_ZONE_BREAKPOINTS.yellowMax}
+                x2={BUBBLE_ZONE_BREAKPOINTS.max}
                 fill="rgba(239, 68, 68, 0.10)"
               />
 
@@ -250,12 +257,12 @@ export function ProductSituationBubbleMatrix({
               <XAxis
                 type="number"
                 dataKey="x"
-                domain={[0, MATRIX_ZONE_THRESHOLDS.max]}
+                domain={[0, PLOT_X_MAX]}
                 ticks={[
                   0,
-                  MATRIX_ZONE_THRESHOLDS.greenMax,
-                  MATRIX_ZONE_THRESHOLDS.yellowMax,
-                  MATRIX_ZONE_THRESHOLDS.max,
+                  BUBBLE_ZONE_BREAKPOINTS.greenMax,
+                  BUBBLE_ZONE_BREAKPOINTS.yellowMax,
+                  BUBBLE_ZONE_BREAKPOINTS.max,
                 ]}
                 tickFormatter={(value) => `${Number(value).toFixed(0)}%`}
                 tickLine={false}
@@ -298,6 +305,9 @@ export function ProductSituationBubbleMatrix({
 
               <Tooltip
                 cursor={{ strokeDasharray: '4 4', stroke: 'hsl(var(--border))' }}
+                allowEscapeViewBox={{ x: false, y: true }}
+                offset={12}
+                wrapperStyle={{ zIndex: 30 }}
                 content={({ active, payload }) => {
                   if (!active || !payload?.length) {
                     return null
@@ -314,7 +324,7 @@ export function ProductSituationBubbleMatrix({
                   return (
                     <BerekeChartTooltip
                       title={point.label}
-                      subtitle="Индекс здоровья 0–100: выше — лучше. Учитывает долю проблем, их тяжесть и объем звонков."
+                      subtitle={INSIGHT_TOOLTIP_COPY.bubbleMatrixHealthIndex}
                       rows={[
                         {
                           id: 'health-index',

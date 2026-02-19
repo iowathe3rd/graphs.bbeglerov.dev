@@ -111,6 +111,30 @@ export function DashboardLineCard({ metric, data }: DashboardLineCardProps) {
   const currentTone = metricSemanticTone(metric, current)
   const trendTone = trendSemanticTone(metric, deltaPercent)
   const trendComparison = trendComparisonLabel(data)
+  const chartData =
+    data.length === 1
+      ? (() => {
+          const baseDate = new Date(`${data[0]?.date}T00:00:00.000Z`)
+          if (Number.isNaN(baseDate.getTime())) {
+            return [
+              data[0] as MetricDataPoint,
+              {
+                date: `${data[0]?.date}-next`,
+                value: data[0]?.value ?? 0,
+              },
+            ]
+          }
+
+          baseDate.setUTCDate(baseDate.getUTCDate() + 1)
+          return [
+            data[0] as MetricDataPoint,
+            {
+              date: baseDate.toISOString().slice(0, 10),
+              value: data[0]?.value ?? 0,
+            },
+          ]
+        })()
+      : data
 
   return (
     <Card className="flex h-full min-h-0 flex-col">
@@ -128,7 +152,7 @@ export function DashboardLineCard({ metric, data }: DashboardLineCardProps) {
       </CardHeader>
       <CardContent className="flex-1 pb-3 pt-0">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={data} margin={{ left: 0, right: 4, top: 2, bottom: 0 }}>
+          <LineChart data={chartData} margin={{ left: 0, right: 4, top: 2, bottom: 0 }}>
             <XAxis
               dataKey="date"
               tickLine={false}
@@ -165,7 +189,16 @@ export function DashboardLineCard({ metric, data }: DashboardLineCardProps) {
               dataKey="value"
               stroke={metric.color}
               strokeWidth={2}
-              dot={false}
+              dot={
+                data.length === 1
+                  ? {
+                      r: 3,
+                      stroke: '#fff',
+                      strokeWidth: 1.5,
+                      fill: metric.color,
+                    }
+                  : false
+              }
               activeDot={{ r: 4, stroke: '#fff', strokeWidth: 2, fill: metric.color }}
             />
           </LineChart>

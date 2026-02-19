@@ -263,6 +263,30 @@ export function OverlapMultiLineChart({
   const yTicks = useMemo(() => buildZoneTicks(yTickStep, zoneConfig), [yTickStep, zoneConfig])
 
   const hasData = chartRows.length > 0 && seriesLabels.length > 0
+  const singleBucket = chartRows.length === 1
+  const renderChartRows = useMemo(() => {
+    if (chartRows.length !== 1) {
+      return chartRows
+    }
+
+    const first = chartRows[0]
+    const rawDate = String(first.date ?? '')
+    const parsed = new Date(`${rawDate}T00:00:00.000Z`)
+    const nextDate = Number.isNaN(parsed.getTime())
+      ? `${rawDate}-next`
+      : (() => {
+          parsed.setUTCDate(parsed.getUTCDate() + 1)
+          return parsed.toISOString().slice(0, 10)
+        })()
+
+    return [
+      first,
+      {
+        ...first,
+        date: nextDate,
+      },
+    ]
+  }, [chartRows])
   const showSelectionControls = !isMobile || selectedSeries.length > 0
 
   return (
@@ -338,7 +362,7 @@ export function OverlapMultiLineChart({
           <div className="h-full min-h-[260px] overflow-hidden rounded-xl bg-background/10 md:min-h-0">
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart
-                data={chartRows}
+                data={renderChartRows}
                 margin={{ left: 8, right: 2, top: 8, bottom: 10 }}
               >
                 <ReferenceArea
@@ -450,7 +474,16 @@ export function OverlapMultiLineChart({
                       strokeOpacity={strokeOpacity}
                       isAnimationActive={false}
                       connectNulls
-                      dot={false}
+                      dot={
+                        singleBucket
+                          ? {
+                              r: 3,
+                              stroke: '#fff',
+                              strokeWidth: 1.5,
+                              fill: colorBySeries.get(label) ?? '#2E69D6',
+                            }
+                          : false
+                      }
                       activeDot={{
                         r: 4,
                         fill: colorBySeries.get(label) ?? '#2E69D6',

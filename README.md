@@ -1,81 +1,94 @@
 # Insight Service Dashboard
 
-## Что это
-Веб-дашборд на Next.js 16 для оценки состояния банковских продуктов по обращениям колл-центра.
+Internal Next.js dashboard with reusable UI + analytics feature module for product health monitoring.
 
-Проект построен как двухуровневый сценарий:
-1. `/` — executive-экран: bubble matrix для быстрого приоритезационного обзора.
-2. `/product-analytics` — детальная аналитика продукта (индикаторы + температурная карта).
+## Runtime routes
+1. `/` — executive screen with one bubble matrix (`Состояние продуктов`).
+2. `/product-analytics` — detailed product analytics (line indicators + overlap map).
 
-## Основные страницы
-1. `/`
-- Главная матрица продуктов.
-- Фильтры: `Поток`, `Период`, `Сброс`.
-- Клик по пузырю открывает `/product-analytics` с авто-применением фильтров.
+`/showcase/*` and legacy demo pages are removed from runtime.
 
-2. `/product-analytics`
-- Детальная страница с текущей полной аналитикой.
-- Инициализация фильтров: `query params > localStorage > defaults`.
-
-3. `/showcase/*`
-- Песочница/демо-графики для экспериментов.
-
-## Быстрый запуск
+## Quick start
 ```bash
 pnpm install
 pnpm dev
 ```
 
-Проверки:
+Validation:
 ```bash
 pnpm lint
 pnpm build
 ```
 
-## Источник данных
-В текущей задаче используются синтетические события из:
-- `lib/metrics-data.ts` (`generateEventStream`)
+## Internal component library architecture
+Main reusable module:
+`/Users/bbeglerov/Developer/Playground/graphs.bbeglerov.dev/features/insight-dashboard`
 
-Каждое событие содержит продукт, тип диалога, тег, метрику, канал и временные поля.
+Structure:
+1. `domain/*` — pure calculations and aggregations (no React).
+2. `hooks/*` — state orchestration and view-model assembly.
+3. `ui/*` — presentation components.
+4. `config/*` — constants, zones, tooltip copy.
+5. `index.ts` — public entrypoint.
 
-## 4 ключевых тега (негатив)
-1. `Технические проблемы/сбои`
-2. `Запрос не решен`
-3. `Отрицательный продуктовый фидбэк`
-4. `Угроза ухода/отказа от продуктов банка`
+## Public API (`features/insight-dashboard/index.ts`)
+Types:
+1. `InsightEvent`, `InsightEventInput`
+2. `InsightFilters`, `InsightDetailedFilters`, `InsightGranularity`
+3. `ProductBubblePoint`, `HealthIndexBreakpoints`
 
-## Бизнес-логика индекса здоровья
-Подробно: `docs/health-index-model.md`
+Domain functions:
+1. `buildHealthIndexMetrics(events, options)`
+2. `buildBubbleMatrixPoints(events, options)`
+3. `buildDetailedAnalyticsModel({ events, filters, granularity })`
 
-Коротко:
-1. Считаются уникальные обращения (`caseId`), чтобы не раздувать вес повторяющихся событий.
-2. Считается доля проблемных обращений (`problemRate`) и взвешенная тяжесть по тегам.
-3. Добавляются поправки на объем (`volumeWeight`) и статистическую уверенность (`confidence`).
-4. Итог: `riskIndex`, затем `healthIndex = 100 - riskIndex`.
+Hooks:
+1. `useProductSituationModel({ events?, defaultWindowDays? })`
+2. `useProductDetailedModel({ events?, query? })`
 
-## Bubble matrix на главной
-Семантика визуализации:
-1. По горизонтали — зона по доле проблемных обращений:
-`Норма 0–5%`, `Внимание 5–30%`, `Критично 30–100%`.
-2. По вертикали — продукты (каждый продукт в отдельной строке).
-3. Размер пузыря — число проблемных обращений.
-4. Цвет пузыря — зона по доле проблемных обращений (та же шкала 0–5/5–30/30–100).
+UI components:
+1. `<ProductSituationToolbar />`
+2. `<ProductSituationBubbleMatrix />`
+3. `<ProductDetailedAnalyticsView />`
 
-Tooltip в графике содержит:
-1. Продукт
-2. Индекс здоровья
-3. Проблемные обращения: `шт / %`
-4. Все обращения
-5. Главная причина (тег-драйвер)
+## Data integration contract
+The library accepts raw events as `InsightEvent[]`.
 
-## Drilldown контракт
-Клик по пузырю формирует переход:
+Minimal required input fields (for external mapping):
+1. `id`
+2. `caseId`
+3. `date`
+4. `sector`
+5. `productGroup`
+6. `channel`
+7. `dialogueType`
+8. `metric`
+9. `tag`
+
+Current runtime source:
+`/Users/bbeglerov/Developer/Playground/graphs.bbeglerov.dev/public/calls.csv`.
+
+Parsing/mapping layer:
+`/Users/bbeglerov/Developer/Playground/graphs.bbeglerov.dev/features/insight-dashboard/domain/calls-csv.ts`.
+
+The old synthetic generator (`generateEventStream`) is not used by `/` and `/product-analytics`.
+
+Current sample note:
+`calls.csv` is an anonymized real extract where every call row already has at least one negative tag.
+Because of this, `problemRate` is close to `100%` across products on `/`.
+Bubble differentiation is currently mostly by bubble size (`problemCallsUnique`) and health index mix.
+
+## Drilldown contract
+Bubble click navigates with:
 `/product-analytics?productGroup=<...>&sector=<...>&from=<YYYY-MM-DD>&to=<YYYY-MM-DD>&source=bubble`
 
-## Ключевые файлы
-1. `app/page.tsx` — главная executive-страница
-2. `app/product-analytics/page.tsx` — роут детальной аналитики
-3. `components/product-detailed-analytics-page.tsx` — детальная аналитика
-4. `components/product-situation/product-situation-bubble-matrix.tsx` — матрица пузырей
-5. `components/product-situation/product-situation-toolbar.tsx` — тулбар (режимы `home`/`executive`)
-6. `lib/product-situation-analytics.ts` — расчетные формулы и агрегаты
+Detailed page initialization priority:
+`query params > localStorage > defaults`
+
+## Health model source of truth
+Formulas, weights, and zone definitions are documented in:
+`/Users/bbeglerov/Developer/Playground/graphs.bbeglerov.dev/docs/health-index-model.md`
+
+## Integration guide
+Step-by-step external integration guide:
+`/Users/bbeglerov/Developer/Playground/graphs.bbeglerov.dev/docs/component-library-integration.md`
