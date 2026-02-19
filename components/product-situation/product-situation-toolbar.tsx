@@ -17,16 +17,19 @@ import type {
   ProductSituationFilters,
   ProductSituationMode,
 } from '@/lib/product-situation-analytics'
+import { cn } from '@/lib/utils'
 
 export type ProductSituationExecutiveGranularity = 'week' | 'month'
+export type ProductSituationToolbarVariant = 'executive' | 'home'
 
 interface ProductSituationToolbarProps {
+  variant?: ProductSituationToolbarVariant
   filters: ProductSituationFilters
-  granularity: ProductSituationExecutiveGranularity
-  mode: ProductSituationMode
+  granularity?: ProductSituationExecutiveGranularity
+  mode?: ProductSituationMode
   onFiltersChange: (filters: ProductSituationFilters) => void
-  onGranularityChange: (granularity: ProductSituationExecutiveGranularity) => void
-  onModeChange: (mode: ProductSituationMode) => void
+  onGranularityChange?: (granularity: ProductSituationExecutiveGranularity) => void
+  onModeChange?: (mode: ProductSituationMode) => void
   onReset: () => void
 }
 
@@ -41,17 +44,27 @@ function isMode(value: string): value is ProductSituationMode {
 }
 
 export function ProductSituationToolbar({
+  variant = 'executive',
   filters,
-  granularity,
-  mode,
+  granularity = 'month',
+  mode = 'combo',
   onFiltersChange,
   onGranularityChange,
   onModeChange,
   onReset,
 }: ProductSituationToolbarProps) {
+  const isHome = variant === 'home'
+
   return (
     <div className="rounded-xl border border-border/80 bg-card/85 p-3 backdrop-blur">
-      <div className="grid gap-2 md:grid-cols-[120px_minmax(0,1fr)_minmax(0,1fr)]">
+      <div
+        className={cn(
+          'grid gap-2',
+          isHome
+            ? 'md:grid-cols-[140px_minmax(0,1fr)_minmax(130px,160px)] md:items-end'
+            : 'md:grid-cols-[120px_minmax(0,1fr)_minmax(0,1fr)]'
+        )}
+      >
         <div className="space-y-1">
           <p className="text-[11px] text-muted-foreground">Поток</p>
           <Select
@@ -76,30 +89,32 @@ export function ProductSituationToolbar({
           </Select>
         </div>
 
-        <div className="space-y-1">
-          <p className="text-[11px] text-muted-foreground">Продукт</p>
-          <Select
-            value={filters.productGroup}
-            onValueChange={(value) =>
-              onFiltersChange({
-                ...filters,
-                productGroup: value as ProductGroup | 'all',
-              })
-            }
-          >
-            <SelectTrigger className="h-8 text-xs">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Все продукты</SelectItem>
-              {PRODUCT_GROUPS.map((group) => (
-                <SelectItem key={group} value={group}>
-                  {group}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        {!isHome ? (
+          <div className="space-y-1">
+            <p className="text-[11px] text-muted-foreground">Продукт</p>
+            <Select
+              value={filters.productGroup}
+              onValueChange={(value) =>
+                onFiltersChange({
+                  ...filters,
+                  productGroup: value as ProductGroup | 'all',
+                })
+              }
+            >
+              <SelectTrigger className="h-8 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Все продукты</SelectItem>
+                {PRODUCT_GROUPS.map((group) => (
+                  <SelectItem key={group} value={group}>
+                    {group}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        ) : null}
 
         <div className="space-y-1">
           <p className="text-[11px] text-muted-foreground">Период</p>
@@ -117,65 +132,84 @@ export function ProductSituationToolbar({
             }
           />
         </div>
+
+        {isHome ? (
+          <div className="flex items-end md:justify-end">
+            <Button variant="outline" className="h-8 w-full px-3 text-xs md:w-auto" onClick={onReset}>
+              <RotateCcw className="mr-1 h-3.5 w-3.5" />
+              Сброс
+            </Button>
+          </div>
+        ) : null}
       </div>
 
-      <div className="mt-3 grid gap-2 md:grid-cols-[auto_auto_1fr] md:items-end">
-        <div className="space-y-1">
-          <p className="text-[11px] text-muted-foreground">Показать</p>
-          <ToggleGroup
-            type="single"
-            value={mode}
-            onValueChange={(value) => {
-              if (isMode(value)) {
-                onModeChange(value)
-              } else if (!value) {
-                onModeChange('combo')
-              }
-            }}
-            className="justify-start gap-1"
-          >
-            <ToggleGroupItem value="rate" variant="outline" size="sm" className="h-8 px-2 text-xs">
-              %
-            </ToggleGroupItem>
-            <ToggleGroupItem value="volume" variant="outline" size="sm" className="h-8 px-2 text-xs">
-              Кол-во
-            </ToggleGroupItem>
-            <ToggleGroupItem value="combo" variant="outline" size="sm" className="h-8 px-2 text-xs">
-              Комбо
-            </ToggleGroupItem>
-          </ToggleGroup>
-        </div>
+      {!isHome ? (
+        <div className="mt-3 grid gap-2 md:grid-cols-[auto_auto_1fr] md:items-end">
+          <div className="space-y-1">
+            <p className="text-[11px] text-muted-foreground">Показать</p>
+            <ToggleGroup
+              type="single"
+              value={mode}
+              onValueChange={(value) => {
+                if (!onModeChange) {
+                  return
+                }
 
-        <div className="space-y-1">
-          <p className="text-[11px] text-muted-foreground">Детализация</p>
-          <ToggleGroup
-            type="single"
-            value={granularity}
-            onValueChange={(value) => {
-              if (isExecutiveGranularity(value)) {
-                onGranularityChange(value)
-              } else if (!value) {
-                onGranularityChange('month')
-              }
-            }}
-            className="justify-start gap-1"
-          >
-            <ToggleGroupItem value="week" variant="outline" size="sm" className="h-8 px-2 text-xs">
-              Неделя
-            </ToggleGroupItem>
-            <ToggleGroupItem value="month" variant="outline" size="sm" className="h-8 px-2 text-xs">
-              Месяц
-            </ToggleGroupItem>
-          </ToggleGroup>
-        </div>
+                if (isMode(value)) {
+                  onModeChange(value)
+                } else if (!value) {
+                  onModeChange('combo')
+                }
+              }}
+              className="justify-start gap-1"
+            >
+              <ToggleGroupItem value="rate" variant="outline" size="sm" className="h-8 px-2 text-xs">
+                %
+              </ToggleGroupItem>
+              <ToggleGroupItem value="volume" variant="outline" size="sm" className="h-8 px-2 text-xs">
+                Кол-во
+              </ToggleGroupItem>
+              <ToggleGroupItem value="combo" variant="outline" size="sm" className="h-8 px-2 text-xs">
+                Комбо
+              </ToggleGroupItem>
+            </ToggleGroup>
+          </div>
 
-        <div className="flex items-end md:justify-end">
-          <Button variant="outline" className="h-8 px-3 text-xs" onClick={onReset}>
-            <RotateCcw className="mr-1 h-3.5 w-3.5" />
-            Сброс
-          </Button>
+          <div className="space-y-1">
+            <p className="text-[11px] text-muted-foreground">Детализация</p>
+            <ToggleGroup
+              type="single"
+              value={granularity}
+              onValueChange={(value) => {
+                if (!onGranularityChange) {
+                  return
+                }
+
+                if (isExecutiveGranularity(value)) {
+                  onGranularityChange(value)
+                } else if (!value) {
+                  onGranularityChange('month')
+                }
+              }}
+              className="justify-start gap-1"
+            >
+              <ToggleGroupItem value="week" variant="outline" size="sm" className="h-8 px-2 text-xs">
+                Неделя
+              </ToggleGroupItem>
+              <ToggleGroupItem value="month" variant="outline" size="sm" className="h-8 px-2 text-xs">
+                Месяц
+              </ToggleGroupItem>
+            </ToggleGroup>
+          </div>
+
+          <div className="flex items-end md:justify-end">
+            <Button variant="outline" className="h-8 px-3 text-xs" onClick={onReset}>
+              <RotateCcw className="mr-1 h-3.5 w-3.5" />
+              Сброс
+            </Button>
+          </div>
         </div>
-      </div>
+      ) : null}
     </div>
   )
 }

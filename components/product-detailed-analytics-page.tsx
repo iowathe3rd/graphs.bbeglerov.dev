@@ -151,6 +151,46 @@ function parseDashboardPreferences(raw: string | null) {
   }
 }
 
+function parseDashboardQueryParams(searchParams: URLSearchParams | null) {
+  if (!searchParams) {
+    return null
+  }
+
+  const sectorRaw = searchParams.get('sector')
+  const productGroupRaw = searchParams.get('productGroup')
+  const fromRaw = searchParams.get('from') ?? undefined
+  const toRaw = searchParams.get('to') ?? undefined
+  const granularityRaw = searchParams.get('granularity')
+
+  const sector = SECTORS.includes(sectorRaw as (typeof SECTORS)[number])
+    ? (sectorRaw as DashboardFilters['sector'])
+    : null
+  const productGroup = PRODUCT_GROUPS.includes(
+    productGroupRaw as (typeof PRODUCT_GROUPS)[number]
+  )
+    ? (productGroupRaw as DashboardFilters['productGroup'])
+    : null
+  const granularity = GRANULARITY_VALUES.includes(granularityRaw as OverlapGranularity)
+    ? (granularityRaw as OverlapGranularity)
+    : null
+  const from = parseDateKey(fromRaw)
+  const to = parseDateKey(toRaw)
+
+  const hasDateRange = Boolean(from || to)
+  const hasOverrides = Boolean(sector || productGroup || granularity || hasDateRange)
+
+  if (!hasOverrides) {
+    return null
+  }
+
+  return {
+    sector,
+    productGroup,
+    granularity,
+    dateRange: hasDateRange ? { from, to } : null,
+  }
+}
+
 function serializeDashboardPreferences(
   filters: DashboardFilters,
   granularity: OverlapGranularity
@@ -269,11 +309,22 @@ export function ProductDetailedAnalyticsPage() {
     const restored = parseDashboardPreferences(
       window.localStorage.getItem(DASHBOARD_PREFERENCES_STORAGE_KEY)
     )
+    const queryOverrides = parseDashboardQueryParams(
+      new URLSearchParams(window.location.search)
+    )
 
-    if (restored) {
-      setFilters(restored.filters)
-      setOverlapGranularity(restored.granularity)
+    const baseFilters = restored?.filters ?? DEFAULT_DASHBOARD_FILTERS
+    const baseGranularity = restored?.granularity ?? 'day'
+    const nextFilters: DashboardFilters = {
+      sector: queryOverrides?.sector ?? baseFilters.sector,
+      channel: FIXED_CHANNEL,
+      productGroup: queryOverrides?.productGroup ?? baseFilters.productGroup,
+      dateRange: queryOverrides?.dateRange ?? baseFilters.dateRange,
     }
+    const nextGranularity = queryOverrides?.granularity ?? baseGranularity
+
+    setFilters(nextFilters)
+    setOverlapGranularity(nextGranularity)
 
     setIsPreferencesLoaded(true)
   }, [])

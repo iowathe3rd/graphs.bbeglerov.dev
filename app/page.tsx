@@ -2,30 +2,34 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useMemo, useState } from 'react'
 
-import { ProductSituationExecutiveHeroChart } from '@/components/product-situation/product-situation-executive-hero-chart'
-import {
-  ProductSituationToolbar,
-  type ProductSituationExecutiveGranularity,
-} from '@/components/product-situation/product-situation-toolbar'
+import { ProductSituationBubbleMatrix } from '@/components/product-situation/product-situation-bubble-matrix'
+import { ProductSituationToolbar } from '@/components/product-situation/product-situation-toolbar'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { generateEventStream, type EventRecord } from '@/lib/metrics-data'
 import {
-  buildProductSituationAnalytics,
+  buildProductSituationBubblePoints,
+  type ProductSituationBubblePoint,
   type ProductSituationFilters,
-  type ProductSituationMode,
 } from '@/lib/product-situation-analytics'
 
-const DEFAULT_FILTERS: ProductSituationFilters = {
-  sector: 'РБ',
-  productGroup: 'all',
-  dateRange: {
-    from: undefined,
-    to: undefined,
-  },
+function createDefaultFilters(): ProductSituationFilters {
+  const to = new Date()
+  const from = new Date(to)
+  from.setDate(from.getDate() - 30)
+
+  return {
+    sector: 'РБ',
+    productGroup: 'all',
+    dateRange: {
+      from,
+      to,
+    },
+  }
 }
 
 function normalizeDateRange(range: ProductSituationFilters['dateRange']) {
@@ -57,11 +61,21 @@ function isDateInRange(date: string, from?: Date, to?: Date) {
   return true
 }
 
+function toDateKey(date?: Date) {
+  if (!date) {
+    return undefined
+  }
+
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+
+  return `${year}-${month}-${day}`
+}
+
 export default function Page() {
-  const [filters, setFilters] = useState<ProductSituationFilters>(() => DEFAULT_FILTERS)
-  const [granularity, setGranularity] =
-    useState<ProductSituationExecutiveGranularity>(() => 'month')
-  const [mode, setMode] = useState<ProductSituationMode>(() => 'combo')
+  const router = useRouter()
+  const [filters, setFilters] = useState<ProductSituationFilters>(() => createDefaultFilters())
 
   const events = useMemo(
     () => generateEventStream(42000, 180, 42, filters.sector),
@@ -77,10 +91,6 @@ export default function Page() {
         continue
       }
 
-      if (filters.productGroup !== 'all' && event.productGroup !== filters.productGroup) {
-        continue
-      }
-
       if (!isDateInRange(event.date, range.from, range.to)) {
         continue
       }
@@ -89,26 +99,44 @@ export default function Page() {
     }
 
     return result
-  }, [events, filters.dateRange, filters.productGroup])
+  }, [events, filters.dateRange])
 
-  const analytics = useMemo(
+  const bubblePoints = useMemo(
     () =>
-      buildProductSituationAnalytics(filteredEvents, {
-        granularity,
-        topDomainsLimit: 8,
+      buildProductSituationBubblePoints(filteredEvents, {
         zones: {
           greenMax: 10,
           yellowMax: 30,
           max: 100,
         },
       }),
-    [filteredEvents, granularity]
+    [filteredEvents]
   )
 
   const handleReset = () => {
-    setFilters(DEFAULT_FILTERS)
-    setGranularity('month')
-    setMode('combo')
+    setFilters(createDefaultFilters())
+  }
+
+  const handleBubbleClick = (point: ProductSituationBubblePoint) => {
+    const range = normalizeDateRange(filters.dateRange)
+    const params = new URLSearchParams({
+      productGroup: point.productGroup,
+      sector: filters.sector,
+      source: 'bubble',
+    })
+
+    const from = toDateKey(range.from)
+    const to = toDateKey(range.to)
+
+    if (from) {
+      params.set('from', from)
+    }
+
+    if (to) {
+      params.set('to', to)
+    }
+
+    router.push(`/product-analytics?${params.toString()}`)
   }
 
   return (
@@ -144,21 +172,17 @@ export default function Page() {
       <main className="mx-auto h-[calc(100dvh-64px)] w-full max-w-[1600px] overflow-hidden px-4 py-3 md:px-6">
         <div className="flex h-full min-h-0 flex-col gap-3">
           <ProductSituationToolbar
+            variant="home"
             filters={filters}
-            granularity={granularity}
-            mode={mode}
             onFiltersChange={setFilters}
-            onGranularityChange={setGranularity}
-            onModeChange={setMode}
             onReset={handleReset}
           />
 
           <div className="min-h-0 flex-1">
-            <ProductSituationExecutiveHeroChart
-              buckets={analytics.buckets}
-              granularity={granularity}
-              mode={mode}
-              chartHeightClassName="h-full min-h-[260px] md:h-full md:min-h-0"
+            <ProductSituationBubbleMatrix
+              points={bubblePoints}
+              onPointClick={handleBubbleClick}
+              chartHeightClassName="h-full min-h-[280px]"
             />
           </div>
         </div>
