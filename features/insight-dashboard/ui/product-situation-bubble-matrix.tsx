@@ -55,6 +55,12 @@ function formatCount(value: number) {
   return value.toLocaleString('ru-RU')
 }
 
+function formatPercent(value: number) {
+  const rounded = Math.round(value * 10) / 10
+  const isInteger = Math.abs(rounded - Math.round(rounded)) < 0.001
+  return `${isInteger ? Math.round(rounded) : rounded.toFixed(1)}%`
+}
+
 function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value))
 }
@@ -103,7 +109,8 @@ function zoneStyles(zone: ProductBubblePoint['zone']) {
   }
 }
 
-const PLOT_X_MAX = BUBBLE_ZONE_BREAKPOINTS.max + 4
+const PLOT_X_MAX = BUBBLE_ZONE_BREAKPOINTS.max + 8
+const PLOT_X_POINT_MAX = BUBBLE_ZONE_BREAKPOINTS.max - 0.6
 
 export function ProductSituationBubbleMatrix({
   points,
@@ -156,7 +163,7 @@ export function ProductSituationBubbleMatrix({
       return {
         ...point,
         // Keep bubbles inside plot area when real data sits near 100%.
-        x: clamp(point.problemRate, 0, BUBBLE_ZONE_BREAKPOINTS.max),
+        x: clamp(point.problemRate, 0, PLOT_X_POINT_MAX),
         y: rowIndex + 1,
         bubbleRadius,
       }
@@ -309,9 +316,9 @@ export function ProductSituationBubbleMatrix({
 
               <Tooltip
                 cursor={{ strokeDasharray: '4 4', stroke: 'hsl(var(--border))' }}
-                allowEscapeViewBox={{ x: false, y: true }}
-                offset={12}
-                wrapperStyle={{ zIndex: 30 }}
+                allowEscapeViewBox={{ x: false, y: false }}
+                offset={10}
+                wrapperStyle={{ zIndex: 30, pointerEvents: 'none' }}
                 content={({ active, payload }) => {
                   if (!active || !payload?.length) {
                     return null
@@ -332,28 +339,22 @@ export function ProductSituationBubbleMatrix({
                       rows={[
                         {
                           id: 'health-index',
-                          label: 'Индекс здоровья',
-                          value: `${point.healthIndex.toFixed(1)} / 100`,
+                          label: 'Индекс продукта',
+                          value: formatPercent(point.healthIndex),
                           color: styles.stroke,
                           strong: true,
                         },
                         {
                           id: 'problem-calls',
-                          label: 'Проблемные обращения',
-                          value: `${formatCount(point.problemCallsUnique)} / ${point.problemRate.toFixed(1)}%`,
+                          label: 'С индикаторами',
+                          value: `${formatCount(point.problemCallsUnique)} из ${formatCount(point.totalCalls)}`,
                           color: '#dc2626',
                         },
                         {
-                          id: 'total-calls',
-                          label: 'Все обращения',
-                          value: formatCount(point.totalCalls),
+                          id: 'top-driver',
+                          label: 'Ключевой сигнал',
+                          value: point.topDriverTag ? shortLabel(point.topDriverTag, 20) : '—',
                           color: '#64748b',
-                        },
-                        {
-                          id: 'driver-tag',
-                          label: 'Главная причина',
-                          value: point.topDriverTag,
-                          color: '#334155',
                         },
                         {
                           id: 'zone',

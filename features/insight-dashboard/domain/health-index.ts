@@ -1,11 +1,8 @@
 import {
   BUBBLE_ZONE_BREAKPOINTS,
-  HEALTH_INDEX_BREAKPOINTS,
   PRODUCT_SITUATION_TAGS,
-  PRODUCT_TAG_WEIGHTS,
 } from '@/features/insight-dashboard/config/constants'
 import type {
-  HealthIndexBreakpoints,
   InsightEvent,
   ProductBubblePoint,
   ProductSituationAnalytics,
@@ -38,7 +35,6 @@ interface BuildHealthIndexMetricsOptions {
 
 interface BuildBubbleMatrixPointsOptions {
   zones?: Partial<ProductSituationZones>
-  healthThresholds?: Partial<HealthIndexBreakpoints>
 }
 
 interface CaseAccumulator {
@@ -121,16 +117,6 @@ function toTagRates(
   return result
 }
 
-function weightedRate(tagRates: Record<ProductSituationTag, number>): number {
-  let value = 0
-
-  for (const tag of PRODUCT_SITUATION_TAGS) {
-    value += tagRates[tag] * PRODUCT_TAG_WEIGHTS[tag]
-  }
-
-  return round1(value)
-}
-
 function sumTagCounts(tagCounts: Record<ProductSituationTag, number>): number {
   return PRODUCT_SITUATION_TAGS.reduce((sum, tag) => sum + tagCounts[tag], 0)
 }
@@ -191,41 +177,6 @@ function zoneByRisk(value: number, zones: ProductSituationZones): ProductSituati
   }
 
   return 'red'
-}
-
-function zoneByHealthIndex(
-  healthIndex: number,
-  thresholds: HealthIndexBreakpoints
-): ProductSituationZone {
-  if (healthIndex >= thresholds.greenMin) {
-    return 'green'
-  }
-
-  if (healthIndex >= thresholds.yellowMin) {
-    return 'yellow'
-  }
-
-  return 'red'
-}
-
-function volumeWeight(totalCalls: number, baselineCalls: number): number {
-  if (totalCalls <= 0 || baselineCalls <= 0) {
-    return 0.6
-  }
-
-  return round1(clamp(Math.sqrt(totalCalls / baselineCalls), 0.6, 1.8))
-}
-
-function confidenceWeight(totalCalls: number): number {
-  if (totalCalls <= 0) {
-    return 0.35
-  }
-
-  return round1(clamp(Math.sqrt(totalCalls) / Math.sqrt(400), 0.35, 1))
-}
-
-function healthFromRisk(riskIndex: number, maxRisk: number): number {
-  return round1(clamp(maxRisk - riskIndex, 0, 100))
 }
 
 function resolveTag(event: InsightEvent): ProductSituationTag | null {
@@ -343,7 +294,7 @@ function summarizeCases(cases: Map<string, CaseAccumulator>): CaseRollup {
 
 function computeRiskMetrics(
   rollup: CaseRollup,
-  baselineCalls: number,
+  _baselineCalls: number,
   maxRisk: number
 ): RiskMetrics {
   const problemRate =
@@ -352,7 +303,7 @@ function computeRiskMetrics(
       : 0
 
   const tagRates = toTagRates(rollup.tagCounts, rollup.totalCalls)
-  const weightedNegativeRate = weightedRate(tagRates)
+  const weightedNegativeRate = problemRate
 
   const consultationTagRates = toTagRates(
     rollup.consultationTagCounts,
@@ -369,17 +320,14 @@ function computeRiskMetrics(
       ? round1((rollup.consultationCleanCalls / rollup.consultationCalls) * 100)
       : 100
 
-  const currentVolumeWeight = volumeWeight(rollup.totalCalls, baselineCalls)
-  const confidence = confidenceWeight(rollup.totalCalls)
-  const severityRate = weightedNegativeRate
-  const riskCore = round1(
-    0.65 * severityRate +
-      0.35 * problemRate +
-      0.15 * (100 - consultationCleanRate)
-  )
-  const riskIndex = round1(
-    clamp(riskCore * currentVolumeWeight * confidence, 0, maxRisk)
-  )
+  // PO simplification:
+  // health/risk is driven only by share of calls with at least one indicator.
+  const currentVolumeWeight = 1
+  const confidence = 1
+  const severityRate = problemRate
+  const riskCore = problemRate
+  const riskIndex = round1(clamp(problemRate, 0, maxRisk))
+  const healthIndex = round1(clamp(problemRate, 0, 100))
 
   return {
     problemRate,
@@ -389,11 +337,11 @@ function computeRiskMetrics(
     confidence,
     riskCore,
     riskIndex,
-    healthIndex: healthFromRisk(riskIndex, maxRisk),
+    healthIndex,
     tagRates,
     consultationNegativeRate,
     consultationCleanRate,
-    consultationWeightedNegativeRate: weightedRate(consultationTagRates),
+    consultationWeightedNegativeRate: consultationNegativeRate,
     consultationTagRates,
   }
 }
@@ -522,26 +470,6 @@ function buildDrivers(buckets: ProductSituationBucket[]): ProductSituationDriver
 
     return a.label.localeCompare(b.label, 'ru')
   })
-}
-
-function normalizeHealthThresholds(
-  thresholds?: Partial<HealthIndexBreakpoints>
-): HealthIndexBreakpoints {
-  const greenMin = clamp(
-    thresholds?.greenMin ?? HEALTH_INDEX_BREAKPOINTS.greenMin,
-    0,
-    100
-  )
-  const yellowMin = clamp(
-    thresholds?.yellowMin ?? HEALTH_INDEX_BREAKPOINTS.yellowMin,
-    0,
-    greenMin
-  )
-
-  return {
-    greenMin,
-    yellowMin,
-  }
 }
 
 export function buildHealthIndexMetrics(
@@ -689,7 +617,7 @@ export function buildBubbleMatrixPoints(
   events: InsightEvent[],
   options?: BuildBubbleMatrixPointsOptions
 ): ProductBubblePoint[] {
-  const thresholds = normalizeHealthThresholds(options?.healthThresholds)
+  const zones = normalizeZones(options?.zones)
   const analytics = buildHealthIndexMetrics(events, {
     granularity: 'month',
     topDomainsLimit: Number.MAX_SAFE_INTEGER,
@@ -705,7 +633,7 @@ export function buildBubbleMatrixPoints(
     problemRate: domain.problemRate,
     healthIndex: domain.healthIndex,
     riskIndex: domain.riskIndex,
-    zone: zoneByHealthIndex(domain.healthIndex, thresholds),
+    zone: zoneByRisk(domain.problemRate, zones),
     topDriverTag: domain.topDriverTag,
   }))
 }

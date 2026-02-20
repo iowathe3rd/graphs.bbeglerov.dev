@@ -45,7 +45,7 @@ Domain functions:
 Hooks:
 1. `useProductSituationModel({ events, loading?, error?, defaultWindowDays?, sectorOptions?, productOptions? })`
 2. `useProductDetailedModel({ events, loading?, error?, query?, channel?, sectorOptions?, productOptions? })`
-3. `useInsightEvents()` — optional CSV adapter for local demo/runtime only
+3. `useInsightEvents()` — optional file adapter for local demo/runtime only
 
 UI components:
 1. `<ProductSituationToolbar />`
@@ -67,10 +67,10 @@ Minimal required input fields (for external mapping):
 9. `tag`
 
 Default adapter in this repository:
-`/Users/bbeglerov/Developer/Playground/graphs.bbeglerov.dev/public/calls.csv`.
+`/Users/bbeglerov/Developer/Playground/graphs.bbeglerov.dev/public/export.xlsx`.
 
-CSV parsing/mapping layer:
-`/Users/bbeglerov/Developer/Playground/graphs.bbeglerov.dev/features/insight-dashboard/domain/calls-csv.ts`.
+Excel parsing/mapping layer:
+`/Users/bbeglerov/Developer/Playground/graphs.bbeglerov.dev/features/insight-dashboard/domain/calls-xlsx.ts`.
 
 Core hooks are API-agnostic and do not fetch by themselves.
 They only consume ready data (`events/loading/error`) from any source:
@@ -82,10 +82,9 @@ Filter options are also source-agnostic:
 
 The old synthetic generator (`generateEventStream`) is not used by `/` and `/product-analytics`.
 
-Current sample note:
-`calls.csv` is an anonymized real extract where every call row already has at least one negative tag.
-Because of this, `problemRate` is close to `100%` across products on `/`.
-Bubble differentiation is currently mostly by bubble size (`problemCallsUnique`) and health index mix.
+Fallback compatibility:
+if `export.xlsx` is unavailable or empty, adapter falls back to:
+`/Users/bbeglerov/Developer/Playground/graphs.bbeglerov.dev/public/calls.csv`.
 
 ## Drilldown contract
 Bubble click navigates with:
@@ -95,7 +94,7 @@ Detailed page initialization priority:
 `query params > localStorage > defaults`
 
 ## Health model source of truth
-Formulas, weights, and zone definitions are documented in:
+Current formula and zone definitions are documented in:
 `/Users/bbeglerov/Developer/Playground/graphs.bbeglerov.dev/docs/health-index-model.md`
 
 ## Integration guide

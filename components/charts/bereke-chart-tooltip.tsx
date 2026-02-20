@@ -32,15 +32,15 @@ export function BerekeChartTooltip({
   return (
     <div
       className={cn(
-        'min-w-[180px] rounded-lg border border-border/75 bg-background/95 px-3 py-2 shadow-md backdrop-blur-sm',
+        'max-w-[260px] min-w-[168px] rounded-lg border border-border/75 bg-background/95 px-2.5 py-2 shadow-md backdrop-blur-sm',
         className
       )}
     >
       {title ? (
-        <p className="mb-1 text-[12px] font-semibold leading-none text-foreground">{title}</p>
+        <p className="mb-1 text-[12px] font-semibold leading-tight text-foreground">{title}</p>
       ) : null}
       {subtitle ? (
-        <p className="mb-1.5 text-[11px] leading-none text-muted-foreground">{subtitle}</p>
+        <p className="mb-1.5 text-[11px] leading-snug text-muted-foreground">{subtitle}</p>
       ) : null}
 
       {rows.length > 0 ? (
@@ -48,19 +48,24 @@ export function BerekeChartTooltip({
           {rows.map((row, index) => (
             <div
               key={row.id ?? `${String(row.label)}-${index}`}
-              className="flex items-center justify-between gap-3"
+              className="flex min-w-0 items-center justify-between gap-2.5"
             >
-              <span className="inline-flex items-center gap-1.5 text-[12px] text-foreground">
+              <span className="inline-flex min-w-0 items-center gap-1.5 text-[12px] text-foreground">
                 {row.color ? (
                   <span
                     className="h-1.5 w-1.5 rounded-full"
                     style={{ backgroundColor: row.color }}
                   />
                 ) : null}
-                <span className={row.strong ? 'font-semibold' : undefined}>{row.label}</span>
+                <span className={cn('min-w-0 truncate', row.strong && 'font-semibold')}>{row.label}</span>
               </span>
               {row.value !== undefined ? (
-                <span className={cn('text-[12px] font-medium text-foreground', row.strong && 'font-semibold')}>
+                <span
+                  className={cn(
+                    'shrink-0 whitespace-nowrap text-[12px] font-medium text-foreground',
+                    row.strong && 'font-semibold'
+                  )}
+                >
                   {row.value}
                 </span>
               ) : null}
@@ -71,4 +76,3 @@ export function BerekeChartTooltip({
     </div>
   )
 }
-

@@ -15,9 +15,9 @@ Core hooks are source-agnostic:
 3. They can derive filter options from events or receive explicit options (`sectorOptions`, `productOptions`).
 
 Optional source adapter in this repo:
-1. `useInsightEvents()` loads `/public/calls.csv`.
-2. `parseCallsCsv()` maps CSV rows to `InsightEvent[]`.
-3. `calls.csv` sample contains only rows with negative tags; this is why matrix X values cluster near `100%`.
+1. `useInsightEvents()` loads `/public/export.xlsx`.
+2. `parseCallsWorkbook()` maps XLSX rows to `InsightEvent[]`.
+3. If `export.xlsx` is unavailable, adapter falls back to `/public/calls.csv`.
 
 ## 2) External data mapping
 Library expects `InsightEvent[]`.
