@@ -109,8 +109,10 @@ function zoneStyles(zone: ProductBubblePoint['zone']) {
   }
 }
 
-const PLOT_X_MAX = BUBBLE_ZONE_BREAKPOINTS.max + 8
-const PLOT_X_POINT_MAX = BUBBLE_ZONE_BREAKPOINTS.max - 0.6
+const PLOT_Y_MIN = 0
+const PLOT_Y_MAX = BUBBLE_ZONE_BREAKPOINTS.max + 8
+const PLOT_Y_POINT_MIN = 0.6
+const PLOT_Y_POINT_MAX = BUBBLE_ZONE_BREAKPOINTS.max - 0.6
 
 export function ProductSituationBubbleMatrix({
   points,
@@ -162,21 +164,21 @@ export function ProductSituationBubbleMatrix({
 
       return {
         ...point,
+        x: rowIndex + 1,
         // Keep bubbles inside plot area when real data sits near 100%.
-        x: clamp(point.problemRate, 0, PLOT_X_POINT_MAX),
-        y: rowIndex + 1,
+        y: clamp(point.problemRate, PLOT_Y_POINT_MIN, PLOT_Y_POINT_MAX),
         bubbleRadius,
       }
     })
 
-    const yLabelMap = new Map<number, string>(
-      prepared.map((point) => [point.y, point.label])
+    const xLabelMap = new Map<number, string>(
+      prepared.map((point) => [point.x, point.label])
     )
-    const yTicks = prepared.map((point) => point.y)
+    const xTicks = prepared.map((point) => point.x)
     return {
       points: prepared,
-      yLabelMap,
-      yTicks,
+      xLabelMap,
+      xTicks,
     }
   }, [isMobile, points, productOrder])
 
@@ -251,16 +253,23 @@ export function ProductSituationBubbleMatrix({
           )}
         >
           <ResponsiveContainer width="100%" height="100%">
-            <ScatterChart margin={{ top: 6, right: 4, bottom: 22, left: 8 }}>
-              <ReferenceArea x1={0} x2={BUBBLE_ZONE_BREAKPOINTS.greenMax} fill="rgba(16, 185, 129, 0.10)" />
+            <ScatterChart
+              margin={{
+                top: 8,
+                right: 10,
+                bottom: isMobile ? 62 : 30,
+                left: isMobile ? 24 : 28,
+              }}
+            >
+              <ReferenceArea y1={0} y2={BUBBLE_ZONE_BREAKPOINTS.greenMax} fill="rgba(16, 185, 129, 0.10)" />
               <ReferenceArea
-                x1={BUBBLE_ZONE_BREAKPOINTS.greenMax}
-                x2={BUBBLE_ZONE_BREAKPOINTS.yellowMax}
+                y1={BUBBLE_ZONE_BREAKPOINTS.greenMax}
+                y2={BUBBLE_ZONE_BREAKPOINTS.yellowMax}
                 fill="rgba(245, 158, 11, 0.10)"
               />
               <ReferenceArea
-                x1={BUBBLE_ZONE_BREAKPOINTS.yellowMax}
-                x2={BUBBLE_ZONE_BREAKPOINTS.max}
+                y1={BUBBLE_ZONE_BREAKPOINTS.yellowMax}
+                y2={BUBBLE_ZONE_BREAKPOINTS.max}
                 fill="rgba(239, 68, 68, 0.10)"
               />
 
@@ -268,7 +277,34 @@ export function ProductSituationBubbleMatrix({
               <XAxis
                 type="number"
                 dataKey="x"
-                domain={[0, PLOT_X_MAX]}
+                domain={[0.5, matrixData.points.length + 0.5]}
+                ticks={matrixData.xTicks}
+                tickFormatter={(value) =>
+                  shortLabel(
+                    matrixData.xLabelMap.get(Number(value)) ?? '',
+                    isMobile ? 11 : 16
+                  )
+                }
+                tickLine={false}
+                axisLine={false}
+                interval={0}
+                angle={-15}
+                textAnchor="end"
+                height={isMobile ? 64 : 56}
+                tick={{ fontSize: isMobile ? 10 : 11, fill: 'hsl(var(--muted-foreground))' }}
+                label={{
+                  value: 'Продукты',
+                  position: 'bottom',
+                  offset: isMobile ? 10 : 8,
+                  fill: 'hsl(var(--muted-foreground))',
+                  fontSize: isMobile ? 10 : 11,
+                }}
+              />
+
+              <YAxis
+                type="number"
+                dataKey="y"
+                domain={[PLOT_Y_MIN, PLOT_Y_MAX]}
                 ticks={[
                   0,
                   BUBBLE_ZONE_BREAKPOINTS.greenMax,
@@ -278,39 +314,18 @@ export function ProductSituationBubbleMatrix({
                 tickFormatter={(value) => `${Number(value).toFixed(0)}%`}
                 tickLine={false}
                 axisLine={false}
+                width={isMobile ? 56 : 68}
                 tick={{ fontSize: isMobile ? 10 : 11, fill: 'hsl(var(--muted-foreground))' }}
                 label={{
                   value: 'Зона по доле проблемных обращений',
-                  position: 'insideBottom',
-                  offset: -12,
-                  fill: 'hsl(var(--muted-foreground))',
-                  fontSize: isMobile ? 10 : 11,
-                }}
-              />
-
-              <YAxis
-                type="number"
-                dataKey="y"
-                domain={[0.5, matrixData.points.length + 0.5]}
-                ticks={matrixData.yTicks}
-                tickFormatter={(value) =>
-                  shortLabel(
-                    matrixData.yLabelMap.get(Number(value)) ?? '',
-                    isMobile ? 14 : 22
-                  )
-                }
-                tickLine={false}
-                axisLine={false}
-                width={isMobile ? 120 : 170}
-                interval={0}
-                tick={{ fontSize: isMobile ? 10 : 11, fill: 'hsl(var(--muted-foreground))' }}
-                label={{
-                  value: 'Продукты',
                   angle: -90,
-                  position: 'insideLeft',
+                  position: 'left',
                   fill: 'hsl(var(--muted-foreground))',
                   fontSize: isMobile ? 10 : 11,
-                  offset: 2,
+                  offset: isMobile ? 12 : 14,
+                  dx: isMobile ? -2 : -4,
+                  verticalAnchor: 'middle',
+                  textAnchor: 'middle',
                 }}
               />
 
