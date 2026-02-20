@@ -24,6 +24,9 @@ interface ProductDetailedAnalyticsViewProps {
   loading?: boolean
   error?: string | null
   query?: URLSearchParams | null
+  channel?: string
+  sectorOptions?: string[]
+  productOptions?: string[]
 }
 
 export function ProductDetailedAnalyticsView(props: ProductDetailedAnalyticsViewProps = {}) {
@@ -41,6 +44,8 @@ export function ProductDetailedAnalyticsView(props: ProductDetailedAnalyticsView
     lineCards,
     overlapData,
     overlapSeriesColorMap,
+    sectorOptions,
+    productOptions,
     mobileActiveFiltersCount,
     resetFilters,
     applyMobileFilters,
@@ -52,6 +57,9 @@ export function ProductDetailedAnalyticsView(props: ProductDetailedAnalyticsView
     loading: props.loading,
     error: props.error,
     query: props.query,
+    channel: props.channel,
+    sectorOptions: props.sectorOptions,
+    productOptions: props.productOptions,
   })
 
   const handleMobileApply = (
@@ -104,6 +112,9 @@ export function ProductDetailedAnalyticsView(props: ProductDetailedAnalyticsView
           onOpenChange={setIsMobileFilterSheetOpen}
           initialFilters={filters as DashboardFilters}
           initialGranularity={overlapGranularity}
+          sectorOptions={sectorOptions}
+          productOptions={productOptions}
+          channelLabel={filters.channel}
           onApply={handleMobileApply}
           onResetAndApply={resetMobileFilters}
         />
@@ -123,6 +134,8 @@ export function ProductDetailedAnalyticsView(props: ProductDetailedAnalyticsView
           <DashboardToolbar
             filters={filters as DashboardFilters}
             granularity={overlapGranularity}
+            sectorOptions={sectorOptions}
+            productOptions={productOptions}
             onFiltersChange={handleFiltersChange}
             onGranularityChange={setOverlapGranularity}
             onReset={resetFilters}

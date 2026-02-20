@@ -2,6 +2,10 @@
 
 import { RotateCcw } from 'lucide-react'
 
+import {
+  DEFAULT_PRODUCT_OPTIONS,
+  DEFAULT_SECTOR_OPTIONS,
+} from '@/features/insight-dashboard/config/constants'
 import { Button } from '@/components/ui/button'
 import { DateRangePicker } from '@/components/ui/date-range-picker'
 import {
@@ -13,10 +17,11 @@ import {
 } from '@/components/ui/select'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import type {
+  InsightProductGroup,
+  InsightSector,
   InsightFilters,
   ProductSituationMode,
 } from '@/features/insight-dashboard/domain/types'
-import { PRODUCT_GROUPS, SECTORS, type ProductGroup, type Sector } from '@/lib/metrics-data'
 import { cn } from '@/lib/utils'
 
 export type ProductSituationExecutiveGranularity = 'week' | 'month'
@@ -27,6 +32,8 @@ interface ProductSituationToolbarProps {
   filters: InsightFilters
   granularity?: ProductSituationExecutiveGranularity
   mode?: ProductSituationMode
+  sectorOptions?: string[]
+  productOptions?: string[]
   onFiltersChange: (filters: InsightFilters) => void
   onGranularityChange?: (granularity: ProductSituationExecutiveGranularity) => void
   onModeChange?: (mode: ProductSituationMode) => void
@@ -48,6 +55,8 @@ export function ProductSituationToolbar({
   filters,
   granularity = 'month',
   mode = 'combo',
+  sectorOptions = [...DEFAULT_SECTOR_OPTIONS],
+  productOptions = [...DEFAULT_PRODUCT_OPTIONS],
   onFiltersChange,
   onGranularityChange,
   onModeChange,
@@ -72,7 +81,7 @@ export function ProductSituationToolbar({
             onValueChange={(value) =>
               onFiltersChange({
                 ...filters,
-                sector: value as Sector,
+                sector: value as InsightSector,
               })
             }
           >
@@ -80,7 +89,7 @@ export function ProductSituationToolbar({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {SECTORS.map((sector) => (
+              {sectorOptions.map((sector) => (
                 <SelectItem key={sector} value={sector}>
                   {sector}
                 </SelectItem>
@@ -97,7 +106,7 @@ export function ProductSituationToolbar({
               onValueChange={(value) =>
                 onFiltersChange({
                   ...filters,
-                  productGroup: value as ProductGroup | 'all',
+                  productGroup: value as InsightProductGroup | 'all',
                 })
               }
             >
@@ -106,7 +115,7 @@ export function ProductSituationToolbar({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Все продукты</SelectItem>
-                {PRODUCT_GROUPS.map((group) => (
+                {productOptions.map((group) => (
                   <SelectItem key={group} value={group}>
                     {group}
                   </SelectItem>

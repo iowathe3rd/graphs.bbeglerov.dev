@@ -12,6 +12,7 @@ Available layers:
 Core hooks are source-agnostic:
 1. They expect `events` and optional `loading/error`.
 2. They do not fetch from CSV/REST/GraphQL by themselves.
+3. They can derive filter options from events or receive explicit options (`sectorOptions`, `productOptions`).
 
 Optional source adapter in this repo:
 1. `useInsightEvents()` loads `/public/calls.csv`.
@@ -47,7 +48,7 @@ import { normalizeDateRange, toDateKey } from '@/features/insight-dashboard/doma
 
 export function ExecutiveScreen({ events }: { events: any[] }) {
   const router = useRouter()
-  const { filters, setFilters, resetFilters, bubblePoints } = useProductSituationModel({
+  const { filters, setFilters, resetFilters, sectorOptions, productOptions, bubblePoints } = useProductSituationModel({
     events,
     loading: false,
     error: null,
@@ -71,8 +72,18 @@ export function ExecutiveScreen({ events }: { events: any[] }) {
 
   return (
     <>
-      <ProductSituationToolbar variant="home" filters={filters} onFiltersChange={setFilters} onReset={resetFilters} />
-      <ProductSituationBubbleMatrix points={bubblePoints} onPointClick={onPointClick} />
+      <ProductSituationToolbar
+        variant="home"
+        filters={filters}
+        sectorOptions={sectorOptions}
+        onFiltersChange={setFilters}
+        onReset={resetFilters}
+      />
+      <ProductSituationBubbleMatrix
+        points={bubblePoints}
+        productOrder={productOptions}
+        onPointClick={onPointClick}
+      />
     </>
   )
 }

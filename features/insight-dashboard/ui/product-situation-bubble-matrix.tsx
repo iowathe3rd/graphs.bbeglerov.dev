@@ -13,11 +13,13 @@ import {
   YAxis,
 } from 'recharts'
 
-import { BUBBLE_ZONE_BREAKPOINTS } from '@/features/insight-dashboard/config/constants'
+import {
+  BUBBLE_ZONE_BREAKPOINTS,
+  DEFAULT_PRODUCT_OPTIONS,
+} from '@/features/insight-dashboard/config/constants'
 import { INSIGHT_TOOLTIP_COPY } from '@/features/insight-dashboard/config/tooltips'
 import type { ProductBubblePoint } from '@/features/insight-dashboard/domain/types'
 import { useIsMobile } from '@/hooks/use-mobile'
-import { PRODUCT_GROUPS } from '@/lib/metrics-data'
 import { BerekeChartTooltip } from '@/components/charts/bereke-chart-tooltip'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -32,6 +34,7 @@ import { cn } from '@/lib/utils'
 interface ProductSituationBubbleMatrixProps {
   points: ProductBubblePoint[]
   onPointClick?: (point: ProductBubblePoint) => void
+  productOrder?: string[]
   chartHeightClassName?: string
   loading?: boolean
 }
@@ -105,20 +108,21 @@ const PLOT_X_MAX = BUBBLE_ZONE_BREAKPOINTS.max + 4
 export function ProductSituationBubbleMatrix({
   points,
   onPointClick,
+  productOrder = [...DEFAULT_PRODUCT_OPTIONS],
   chartHeightClassName,
   loading = false,
 }: ProductSituationBubbleMatrixProps) {
   const isMobile = useIsMobile()
 
   const matrixData = useMemo(() => {
-    const productOrder = new Map<string, number>(
-      PRODUCT_GROUPS.map((name, index) => [name, index])
+    const productOrderMap = new Map<string, number>(
+      productOrder.map((name, index) => [name, index])
     )
     const ordered = [...points]
       .filter((point) => point.totalCalls > 0)
       .sort((a, b) => {
-        const aOrder = productOrder.get(a.label) ?? Number.MAX_SAFE_INTEGER
-        const bOrder = productOrder.get(b.label) ?? Number.MAX_SAFE_INTEGER
+        const aOrder = productOrderMap.get(a.label) ?? Number.MAX_SAFE_INTEGER
+        const bOrder = productOrderMap.get(b.label) ?? Number.MAX_SAFE_INTEGER
 
         if (aOrder !== bOrder) {
           return aOrder - bOrder
@@ -167,7 +171,7 @@ export function ProductSituationBubbleMatrix({
       yLabelMap,
       yTicks,
     }
-  }, [isMobile, points])
+  }, [isMobile, points, productOrder])
 
   if (loading) {
     return (

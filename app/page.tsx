@@ -22,7 +22,16 @@ import { Button } from '@/components/ui/button'
 export default function Page() {
   const router = useRouter()
   const eventsState = useInsightEvents()
-  const { filters, setFilters, resetFilters, bubblePoints, loading, error } =
+  const {
+    filters,
+    setFilters,
+    resetFilters,
+    sectorOptions,
+    productOptions,
+    bubblePoints,
+    loading,
+    error,
+  } =
     useProductSituationModel({
       events: eventsState.events,
       loading: eventsState.status === 'idle' || eventsState.status === 'loading',
@@ -90,6 +99,7 @@ export default function Page() {
           <ProductSituationToolbar
             variant="home"
             filters={filters}
+            sectorOptions={sectorOptions}
             onFiltersChange={setFilters}
             onReset={resetFilters}
           />
@@ -100,6 +110,7 @@ export default function Page() {
             ) : null}
             <ProductSituationBubbleMatrix
               points={bubblePoints}
+              productOrder={productOptions}
               onPointClick={handleBubbleClick}
               chartHeightClassName="h-full min-h-[280px]"
               loading={loading}

@@ -2,6 +2,14 @@
 
 import { RotateCcw } from 'lucide-react'
 
+import {
+  DEFAULT_PRODUCT_OPTIONS,
+  DEFAULT_SECTOR_OPTIONS,
+} from '@/features/insight-dashboard/config/constants'
+import type {
+  InsightProductGroup,
+  InsightSector,
+} from '@/features/insight-dashboard/domain/types'
 import { Button } from '@/components/ui/button'
 import { DateRangePicker } from '@/components/ui/date-range-picker'
 import {
@@ -11,20 +19,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import {
-  type OverlapGranularity,
-  PRODUCT_GROUPS,
-  SECTORS,
-  type ProductGroup,
-  type Sector,
-} from '@/lib/metrics-data'
+import { type OverlapGranularity } from '@/lib/metrics-data'
 
 export const FIXED_CHANNEL = 'Колл-центр' as const
 
 export interface DashboardFilters {
-  sector: Sector
-  channel: typeof FIXED_CHANNEL
-  productGroup: ProductGroup
+  sector: InsightSector
+  channel: string
+  productGroup: InsightProductGroup
   dateRange: {
     from: Date | undefined
     to: Date | undefined
@@ -34,15 +36,17 @@ export interface DashboardFilters {
 interface DashboardToolbarProps {
   filters: DashboardFilters
   granularity: OverlapGranularity
+  sectorOptions?: string[]
+  productOptions?: string[]
   onFiltersChange: (filters: DashboardFilters) => void
   onGranularityChange: (granularity: OverlapGranularity) => void
   onReset: () => void
 }
 
 export const DEFAULT_DASHBOARD_FILTERS: DashboardFilters = {
-  sector: 'РБ',
+  sector: DEFAULT_SECTOR_OPTIONS[0],
   channel: FIXED_CHANNEL,
-  productGroup: PRODUCT_GROUPS[0],
+  productGroup: DEFAULT_PRODUCT_OPTIONS[0],
   dateRange: {
     from: undefined,
     to: undefined,
@@ -52,6 +56,8 @@ export const DEFAULT_DASHBOARD_FILTERS: DashboardFilters = {
 export function DashboardToolbar({
   filters,
   granularity,
+  sectorOptions = [...DEFAULT_SECTOR_OPTIONS],
+  productOptions = [...DEFAULT_PRODUCT_OPTIONS],
   onFiltersChange,
   onGranularityChange,
   onReset,
@@ -64,14 +70,14 @@ export function DashboardToolbar({
           <Select
             value={filters.sector}
             onValueChange={(value) =>
-              onFiltersChange({ ...filters, sector: value as Sector })
+              onFiltersChange({ ...filters, sector: value as InsightSector })
             }
           >
             <SelectTrigger className="h-8 text-xs md:h-7">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {SECTORS.map((sector) => (
+              {sectorOptions.map((sector) => (
                 <SelectItem key={sector} value={sector}>
                   {sector}
                 </SelectItem>
@@ -87,7 +93,7 @@ export function DashboardToolbar({
             onValueChange={(value) =>
               onFiltersChange({
                 ...filters,
-                productGroup: value as ProductGroup,
+                productGroup: value as InsightProductGroup,
               })
             }
           >
@@ -95,7 +101,7 @@ export function DashboardToolbar({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {PRODUCT_GROUPS.map((group) => (
+              {productOptions.map((group) => (
                 <SelectItem key={group} value={group}>
                   {group}
                 </SelectItem>

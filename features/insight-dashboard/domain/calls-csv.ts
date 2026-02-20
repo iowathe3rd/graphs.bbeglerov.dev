@@ -1,5 +1,9 @@
-import type { InsightEvent } from '@/features/insight-dashboard/domain/types'
-import { PRODUCT_GROUPS, type ProductGroup, type Sector } from '@/lib/metrics-data'
+import { DEFAULT_PRODUCT_OPTIONS } from '@/features/insight-dashboard/config/constants'
+import type {
+  InsightEvent,
+  InsightProductGroup,
+  InsightSector,
+} from '@/features/insight-dashboard/domain/types'
 
 const TAG_TO_METRIC: Record<string, string> = {
   'Технические проблемы/сбои': 'sla',
@@ -9,7 +13,7 @@ const TAG_TO_METRIC: Record<string, string> = {
 }
 
 interface ProductMatcher {
-  productGroup: ProductGroup
+  productGroup: InsightProductGroup
   patterns: string[]
 }
 
@@ -164,7 +168,7 @@ function buildMatcherPatterns() {
 
 const MATCHERS = buildMatcherPatterns()
 
-function mapSector(value: string): Sector {
+function mapSector(value: string): InsightSector {
   const normalized = value.trim().toUpperCase()
 
   if (normalized === 'RB') {
@@ -186,14 +190,14 @@ function mapSector(value: string): Sector {
   return 'РБ'
 }
 
-function detectProductGroup(rawTail: string): ProductGroup {
+function detectProductGroup(rawTail: string): InsightProductGroup {
   for (const matcher of MATCHERS.products) {
     if (matcher.patterns.some((pattern) => rawTail.includes(pattern))) {
       return matcher.productGroup
     }
   }
 
-  return PRODUCT_GROUPS[0]
+  return DEFAULT_PRODUCT_OPTIONS[0]
 }
 
 function detectTags(rawTail: string): Array<keyof typeof TAG_TO_METRIC> {

@@ -1,5 +1,4 @@
 import type { InsightDetailedFilters, ProductSituationTag } from '@/features/insight-dashboard/domain/types'
-import { PRODUCT_GROUPS } from '@/lib/metrics-data'
 
 export const INSIGHT_CHANNEL = 'Колл-центр' as const
 
@@ -47,10 +46,25 @@ export const DEFAULT_HOME_FILTERS = {
   },
 } as const
 
+export const DEFAULT_SECTOR_OPTIONS = ['РБ', 'БММБ', 'КРС', 'КСБ'] as const
+
+export const DEFAULT_PRODUCT_OPTIONS = [
+  'Автокредитование',
+  'Ипотека',
+  'Депозиты',
+  'Лояльность',
+  'Переводы',
+  'МП Bereke',
+  'Под залог недвижимости',
+  'Кредит без залога онлайн',
+  'Платежные карты',
+  'Премиум карта',
+] as const
+
 export const DEFAULT_DETAILED_FILTERS: InsightDetailedFilters = {
   sector: 'РБ',
   channel: INSIGHT_CHANNEL,
-  productGroup: PRODUCT_GROUPS[0],
+  productGroup: DEFAULT_PRODUCT_OPTIONS[0],
   dateRange: {
     from: undefined,
     to: undefined,

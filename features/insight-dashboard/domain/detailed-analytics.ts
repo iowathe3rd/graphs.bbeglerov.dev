@@ -18,8 +18,6 @@ import type {
 import { filterTaxonomyByProduct } from '@/lib/taxonomy-mapping'
 import {
   METRICS,
-  PRODUCT_GROUPS,
-  SECTORS,
   type MetricDataPoint,
   type OverlapGranularity,
 } from '@/lib/metrics-data'
@@ -55,14 +53,15 @@ export function parseDashboardPreferences(raw: string | null): {
 
   try {
     const parsed = JSON.parse(raw) as PersistedDashboardPreferences
-    const sector = SECTORS.includes(parsed?.filters?.sector as (typeof SECTORS)[number])
-      ? (parsed.filters.sector as InsightDetailedFilters['sector'])
-      : DEFAULT_DETAILED_FILTERS.sector
-    const productGroup = PRODUCT_GROUPS.includes(
-      parsed?.filters?.productGroup as (typeof PRODUCT_GROUPS)[number]
-    )
-      ? (parsed.filters.productGroup as InsightDetailedFilters['productGroup'])
-      : DEFAULT_DETAILED_FILTERS.productGroup
+    const sector =
+      typeof parsed?.filters?.sector === 'string' && parsed.filters.sector.trim().length > 0
+        ? parsed.filters.sector
+        : DEFAULT_DETAILED_FILTERS.sector
+    const productGroup =
+      typeof parsed?.filters?.productGroup === 'string' &&
+      parsed.filters.productGroup.trim().length > 0
+        ? parsed.filters.productGroup
+        : DEFAULT_DETAILED_FILTERS.productGroup
     const granularity = DETAILED_GRANULARITY_VALUES.includes(parsed?.granularity)
       ? parsed.granularity
       : 'day'
@@ -97,14 +96,14 @@ export function parseDashboardQueryParams(
   const toRaw = searchParams.get('to') ?? undefined
   const granularityRaw = searchParams.get('granularity')
 
-  const sector = SECTORS.includes(sectorRaw as (typeof SECTORS)[number])
-    ? (sectorRaw as InsightDetailedFilters['sector'])
-    : null
-  const productGroup = PRODUCT_GROUPS.includes(
-    productGroupRaw as (typeof PRODUCT_GROUPS)[number]
-  )
-    ? (productGroupRaw as InsightDetailedFilters['productGroup'])
-    : null
+  const sector =
+    typeof sectorRaw === 'string' && sectorRaw.trim().length > 0
+      ? (sectorRaw as InsightDetailedFilters['sector'])
+      : null
+  const productGroup =
+    typeof productGroupRaw === 'string' && productGroupRaw.trim().length > 0
+      ? (productGroupRaw as InsightDetailedFilters['productGroup'])
+      : null
   const granularity = DETAILED_GRANULARITY_VALUES.includes(granularityRaw as OverlapGranularity)
     ? (granularityRaw as OverlapGranularity)
     : null

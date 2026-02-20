@@ -43,8 +43,8 @@ Domain functions:
 3. `buildDetailedAnalyticsModel({ events, filters, granularity })`
 
 Hooks:
-1. `useProductSituationModel({ events, loading?, error?, defaultWindowDays? })`
-2. `useProductDetailedModel({ events, loading?, error?, query? })`
+1. `useProductSituationModel({ events, loading?, error?, defaultWindowDays?, sectorOptions?, productOptions? })`
+2. `useProductDetailedModel({ events, loading?, error?, query?, channel?, sectorOptions?, productOptions? })`
 3. `useInsightEvents()` — optional CSV adapter for local demo/runtime only
 
 UI components:
@@ -75,6 +75,10 @@ CSV parsing/mapping layer:
 Core hooks are API-agnostic and do not fetch by themselves.
 They only consume ready data (`events/loading/error`) from any source:
 SWR, TanStack Query, REST, GraphQL, server actions, etc.
+
+Filter options are also source-agnostic:
+1. By default they are derived from incoming events.
+2. You can override them explicitly via `sectorOptions` / `productOptions`.
 
 The old synthetic generator (`generateEventStream`) is not used by `/` and `/product-analytics`.
 

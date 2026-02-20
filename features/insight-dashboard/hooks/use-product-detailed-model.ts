@@ -14,6 +14,7 @@ import {
   parseDashboardQueryParams,
   serializeDashboardPreferences,
 } from '@/features/insight-dashboard/domain/detailed-analytics'
+import { buildInsightFilterOptions, ensureOption } from '@/features/insight-dashboard/domain/filter-options'
 import type {
   InsightDetailedFilters,
   InsightEvent,
@@ -25,11 +26,39 @@ interface UseProductDetailedModelParams {
   loading?: boolean
   error?: string | null
   query?: URLSearchParams | null
+  channel?: string
+  sectorOptions?: string[]
+  productOptions?: string[]
 }
 
 export function useProductDetailedModel(
   params: UseProductDetailedModelParams = {}
 ) {
+  const events = params.events ?? []
+  const resolvedChannel = params.channel ?? DEFAULT_DETAILED_FILTERS.channel
+  const { sectorOptions, productOptions } = useMemo(
+    () =>
+      buildInsightFilterOptions({
+        events,
+        sectorOptions: params.sectorOptions,
+        productOptions: params.productOptions,
+      }),
+    [events, params.productOptions, params.sectorOptions]
+  )
+
+  const defaultFilters = useMemo<InsightDetailedFilters>(
+    () => ({
+      sector: sectorOptions[0] ?? DEFAULT_DETAILED_FILTERS.sector,
+      channel: resolvedChannel,
+      productGroup: productOptions[0] ?? DEFAULT_DETAILED_FILTERS.productGroup,
+      dateRange: {
+        from: undefined,
+        to: undefined,
+      },
+    }),
+    [productOptions, resolvedChannel, sectorOptions]
+  )
+
   const [filters, setFilters] = useState<InsightDetailedFilters>(() => DEFAULT_DETAILED_FILTERS)
   const [overlapGranularity, setOverlapGranularity] = useState<OverlapGranularity>(() => 'day')
   const [overlapSelection, setOverlapSelection] = useState<string[]>(() => [])
@@ -45,13 +74,14 @@ export function useProductDetailedModel(
       params.query ?? new URLSearchParams(window.location.search)
     )
 
-    const baseFilters = restored?.filters ?? DEFAULT_DETAILED_FILTERS
+    const baseFilters = restored?.filters ?? defaultFilters
     const baseGranularity = restored?.granularity ?? 'day'
 
     const nextFilters: InsightDetailedFilters = {
-      sector: queryOverrides?.sector ?? baseFilters.sector,
-      channel: 'Колл-центр',
-      productGroup: queryOverrides?.productGroup ?? baseFilters.productGroup,
+      sector: queryOverrides?.sector ?? baseFilters.sector ?? defaultFilters.sector,
+      channel: resolvedChannel,
+      productGroup:
+        queryOverrides?.productGroup ?? baseFilters.productGroup ?? defaultFilters.productGroup,
       dateRange: queryOverrides?.dateRange ?? baseFilters.dateRange,
     }
     const nextGranularity = queryOverrides?.granularity ?? baseGranularity
@@ -59,7 +89,44 @@ export function useProductDetailedModel(
     setFilters(nextFilters)
     setOverlapGranularity(nextGranularity)
     setIsPreferencesLoaded(true)
-  }, [params.query])
+  }, [defaultFilters, params.query, resolvedChannel])
+
+  useEffect(() => {
+    if (!isPreferencesLoaded) {
+      return
+    }
+
+    setFilters((previous) => {
+      const nextSector = ensureOption(previous.sector, sectorOptions, defaultFilters.sector)
+      const nextProductGroup = ensureOption(
+        previous.productGroup,
+        productOptions,
+        defaultFilters.productGroup
+      )
+
+      if (
+        nextSector === previous.sector &&
+        nextProductGroup === previous.productGroup &&
+        previous.channel === resolvedChannel
+      ) {
+        return previous
+      }
+
+      return {
+        ...previous,
+        sector: nextSector,
+        productGroup: nextProductGroup,
+        channel: resolvedChannel,
+      }
+    })
+  }, [
+    defaultFilters.productGroup,
+    defaultFilters.sector,
+    isPreferencesLoaded,
+    productOptions,
+    resolvedChannel,
+    sectorOptions,
+  ])
 
   useEffect(() => {
     if (!isPreferencesLoaded) {
@@ -71,8 +138,6 @@ export function useProductDetailedModel(
       serializeDashboardPreferences(filters, overlapGranularity)
     )
   }, [filters, overlapGranularity, isPreferencesLoaded])
-
-  const events = params.events ?? []
 
   const model = useMemo(
     () =>
@@ -92,7 +157,7 @@ export function useProductDetailedModel(
   )
 
   const resetFilters = () => {
-    setFilters(DEFAULT_DETAILED_FILTERS)
+    setFilters(defaultFilters)
     setOverlapGranularity('day')
     setOverlapSelection([])
   }
@@ -126,6 +191,8 @@ export function useProductDetailedModel(
     lineCards: model.lineCards,
     overlapData: model.overlapData,
     overlapSeriesColorMap,
+    sectorOptions,
+    productOptions,
     mobileActiveFiltersCount,
     resetFilters,
     applyMobileFilters,

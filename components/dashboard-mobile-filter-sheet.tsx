@@ -10,6 +10,14 @@ import {
   FIXED_CHANNEL,
   type DashboardFilters,
 } from '@/components/dashboard-toolbar'
+import {
+  DEFAULT_PRODUCT_OPTIONS,
+  DEFAULT_SECTOR_OPTIONS,
+} from '@/features/insight-dashboard/config/constants'
+import type {
+  InsightProductGroup,
+  InsightSector,
+} from '@/features/insight-dashboard/domain/types'
 import { Button } from '@/components/ui/button'
 import { Calendar } from '@/components/ui/calendar'
 import {
@@ -27,11 +35,7 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet'
 import {
-  PRODUCT_GROUPS,
-  SECTORS,
   type OverlapGranularity,
-  type ProductGroup,
-  type Sector,
 } from '@/lib/metrics-data'
 
 interface DashboardMobileFilterSheetProps {
@@ -39,6 +43,9 @@ interface DashboardMobileFilterSheetProps {
   onOpenChange: (open: boolean) => void
   initialFilters: DashboardFilters
   initialGranularity: OverlapGranularity
+  sectorOptions?: string[]
+  productOptions?: string[]
+  channelLabel?: string
   onApply: (filters: DashboardFilters, granularity: OverlapGranularity) => void
   onResetAndApply: () => void
 }
@@ -81,6 +88,9 @@ export function DashboardMobileFilterSheet({
   onOpenChange,
   initialFilters,
   initialGranularity,
+  sectorOptions = [...DEFAULT_SECTOR_OPTIONS],
+  productOptions = [...DEFAULT_PRODUCT_OPTIONS],
+  channelLabel = FIXED_CHANNEL,
   onApply,
   onResetAndApply,
 }: DashboardMobileFilterSheetProps) {
@@ -141,7 +151,7 @@ export function DashboardMobileFilterSheet({
                 onValueChange={(value) =>
                   setDraftFilters({
                     ...draftFilters,
-                    sector: value as Sector,
+                    sector: value as InsightSector,
                   })
                 }
               >
@@ -149,7 +159,7 @@ export function DashboardMobileFilterSheet({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {SECTORS.map((sector) => (
+                  {sectorOptions.map((sector) => (
                     <SelectItem key={sector} value={sector}>
                       {sector}
                     </SelectItem>
@@ -165,7 +175,7 @@ export function DashboardMobileFilterSheet({
                 onValueChange={(value) =>
                   setDraftFilters({
                     ...draftFilters,
-                    productGroup: value as ProductGroup,
+                    productGroup: value as InsightProductGroup,
                   })
                 }
               >
@@ -173,7 +183,7 @@ export function DashboardMobileFilterSheet({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {PRODUCT_GROUPS.map((group) => (
+                  {productOptions.map((group) => (
                     <SelectItem key={group} value={group}>
                       {group}
                     </SelectItem>
@@ -185,7 +195,7 @@ export function DashboardMobileFilterSheet({
             <div className="space-y-1">
               <p className="text-[11px] text-muted-foreground">Канал обращения</p>
               <div className="flex h-9 items-center rounded-md border border-input bg-muted/40 px-3 text-xs text-muted-foreground">
-                {FIXED_CHANNEL === 'Колл-центр' ? 'КЦ (звонки)' : FIXED_CHANNEL}
+                {channelLabel === 'Колл-центр' ? 'КЦ (звонки)' : channelLabel}
               </div>
             </div>
 

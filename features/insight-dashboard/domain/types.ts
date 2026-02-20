@@ -3,11 +3,12 @@ import type {
   MetricInfo,
   OverlapAnalytics,
   OverlapGranularity,
-  ProductGroup,
-  Sector,
 } from '@/lib/metrics-data'
 
 export type InsightGranularity = OverlapGranularity
+export type InsightSector = string
+export type InsightProductGroup = string
+export type InsightChannel = string
 
 export interface InsightDateRange {
   from: Date | undefined
@@ -15,15 +16,15 @@ export interface InsightDateRange {
 }
 
 export interface InsightFilters {
-  sector: Sector
-  productGroup: ProductGroup | 'all'
+  sector: InsightSector
+  productGroup: InsightProductGroup | 'all'
   dateRange: InsightDateRange
 }
 
 export interface InsightDetailedFilters {
-  sector: Sector
-  channel: 'Колл-центр'
-  productGroup: ProductGroup
+  sector: InsightSector
+  channel: InsightChannel
+  productGroup: InsightProductGroup
   dateRange: InsightDateRange
 }
 
@@ -32,8 +33,8 @@ export interface InsightEventInput {
   caseId: string
   date: string
   timestamp?: string
-  sector: Sector
-  productGroup: ProductGroup
+  sector: InsightSector
+  productGroup: InsightProductGroup
   channel: string
   dialogueType: 'Консультация' | 'Претензия'
   metric: string
@@ -119,7 +120,7 @@ export interface ProductSituationDomainPoint {
 
 export interface ProductBubblePoint {
   id: string
-  productGroup: ProductGroup
+  productGroup: InsightProductGroup
   label: string
   totalCalls: number
   problemCallsUnique: number

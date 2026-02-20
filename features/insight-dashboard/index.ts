@@ -1,6 +1,7 @@
 export type {
   DetailedAnalyticsModel,
   HealthIndexBreakpoints,
+  InsightChannel,
   InsightDataSourceState,
   InsightDataStatus,
   InsightDetailedFilters,
@@ -8,6 +9,8 @@ export type {
   InsightEventInput,
   InsightFilters,
   InsightGranularity,
+  InsightProductGroup,
+  InsightSector,
   ProductBubblePoint,
   ProductSituationAnalytics,
   ProductSituationBucket,
@@ -18,6 +21,11 @@ export type {
   ProductSituationZone,
   ProductSituationZones,
 } from '@/features/insight-dashboard/domain/types'
+export {
+  buildInsightFilterOptions,
+  ensureOption,
+  type InsightFilterOptions,
+} from '@/features/insight-dashboard/domain/filter-options'
 
 export {
   buildBubbleMatrixPoints,
