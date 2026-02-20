@@ -252,169 +252,166 @@ export function ProductSituationBubbleMatrix({
             chartHeightClassName
           )}
         >
-          <ResponsiveContainer width="100%" height="100%">
-            <ScatterChart
-              margin={{
-                top: 8,
-                right: 10,
-                bottom: isMobile ? 62 : 30,
-                left: isMobile ? 24 : 28,
-              }}
-            >
-              <ReferenceArea y1={0} y2={BUBBLE_ZONE_BREAKPOINTS.greenMax} fill="rgba(16, 185, 129, 0.10)" />
-              <ReferenceArea
-                y1={BUBBLE_ZONE_BREAKPOINTS.greenMax}
-                y2={BUBBLE_ZONE_BREAKPOINTS.yellowMax}
-                fill="rgba(245, 158, 11, 0.10)"
-              />
-              <ReferenceArea
-                y1={BUBBLE_ZONE_BREAKPOINTS.yellowMax}
-                y2={BUBBLE_ZONE_BREAKPOINTS.max}
-                fill="rgba(239, 68, 68, 0.10)"
-              />
+          <div className="grid h-full w-full grid-cols-[32px_minmax(0,1fr)] gap-1 md:grid-cols-[38px_minmax(0,1fr)] md:gap-2">
+            <div className="flex items-center justify-center">
+              <span className="-rotate-90 whitespace-nowrap text-[10px] text-muted-foreground md:text-[11px]">
+                Зона по доле проблемных обращений
+              </span>
+            </div>
 
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-              <XAxis
-                type="number"
-                dataKey="x"
-                domain={[0.5, matrixData.points.length + 0.5]}
-                ticks={matrixData.xTicks}
-                tickFormatter={(value) =>
-                  shortLabel(
-                    matrixData.xLabelMap.get(Number(value)) ?? '',
-                    isMobile ? 11 : 16
-                  )
-                }
-                tickLine={false}
-                axisLine={false}
-                interval={0}
-                angle={-15}
-                textAnchor="end"
-                height={isMobile ? 64 : 56}
-                tick={{ fontSize: isMobile ? 10 : 11, fill: 'hsl(var(--muted-foreground))' }}
-                label={{
-                  value: 'Продукты',
-                  position: 'bottom',
-                  offset: isMobile ? 10 : 8,
-                  fill: 'hsl(var(--muted-foreground))',
-                  fontSize: isMobile ? 10 : 11,
+            <ResponsiveContainer width="100%" height="100%">
+              <ScatterChart
+                margin={{
+                  top: 8,
+                  right: 10,
+                  bottom: isMobile ? 62 : 30,
+                  left: isMobile ? 8 : 10,
                 }}
-              />
+              >
+                <ReferenceArea y1={0} y2={BUBBLE_ZONE_BREAKPOINTS.greenMax} fill="rgba(16, 185, 129, 0.10)" />
+                <ReferenceArea
+                  y1={BUBBLE_ZONE_BREAKPOINTS.greenMax}
+                  y2={BUBBLE_ZONE_BREAKPOINTS.yellowMax}
+                  fill="rgba(245, 158, 11, 0.10)"
+                />
+                <ReferenceArea
+                  y1={BUBBLE_ZONE_BREAKPOINTS.yellowMax}
+                  y2={BUBBLE_ZONE_BREAKPOINTS.max}
+                  fill="rgba(239, 68, 68, 0.10)"
+                />
 
-              <YAxis
-                type="number"
-                dataKey="y"
-                domain={[PLOT_Y_MIN, PLOT_Y_MAX]}
-                ticks={[
-                  0,
-                  BUBBLE_ZONE_BREAKPOINTS.greenMax,
-                  BUBBLE_ZONE_BREAKPOINTS.yellowMax,
-                  BUBBLE_ZONE_BREAKPOINTS.max,
-                ]}
-                tickFormatter={(value) => `${Number(value).toFixed(0)}%`}
-                tickLine={false}
-                axisLine={false}
-                width={isMobile ? 56 : 68}
-                tick={{ fontSize: isMobile ? 10 : 11, fill: 'hsl(var(--muted-foreground))' }}
-                label={{
-                  value: 'Зона по доле проблемных обращений',
-                  angle: -90,
-                  position: 'left',
-                  fill: 'hsl(var(--muted-foreground))',
-                  fontSize: isMobile ? 10 : 11,
-                  offset: isMobile ? 12 : 14,
-                  dx: isMobile ? -2 : -4,
-                  verticalAnchor: 'middle',
-                  textAnchor: 'middle',
-                }}
-              />
-
-              <Tooltip
-                cursor={{ strokeDasharray: '4 4', stroke: 'hsl(var(--border))' }}
-                allowEscapeViewBox={{ x: false, y: false }}
-                offset={10}
-                wrapperStyle={{ zIndex: 30, pointerEvents: 'none' }}
-                content={({ active, payload }) => {
-                  if (!active || !payload?.length) {
-                    return null
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis
+                  type="number"
+                  dataKey="x"
+                  domain={[0.5, matrixData.points.length + 0.5]}
+                  ticks={matrixData.xTicks}
+                  tickFormatter={(value) =>
+                    shortLabel(
+                      matrixData.xLabelMap.get(Number(value)) ?? '',
+                      isMobile ? 11 : 16
+                    )
                   }
+                  tickLine={false}
+                  axisLine={false}
+                  interval={0}
+                  angle={-15}
+                  textAnchor="end"
+                  height={isMobile ? 64 : 56}
+                  tick={{ fontSize: isMobile ? 10 : 11, fill: 'hsl(var(--muted-foreground))' }}
+                  label={{
+                    value: 'Продукты',
+                    position: 'bottom',
+                    offset: isMobile ? 10 : 8,
+                    fill: 'hsl(var(--muted-foreground))',
+                    fontSize: isMobile ? 10 : 11,
+                  }}
+                />
 
-                  const point = payload[0]?.payload as MatrixPoint | undefined
-                  if (!point) {
-                    return null
-                  }
+                <YAxis
+                  type="number"
+                  dataKey="y"
+                  domain={[PLOT_Y_MIN, PLOT_Y_MAX]}
+                  ticks={[
+                    0,
+                    BUBBLE_ZONE_BREAKPOINTS.greenMax,
+                    BUBBLE_ZONE_BREAKPOINTS.yellowMax,
+                    BUBBLE_ZONE_BREAKPOINTS.max,
+                  ]}
+                  tickFormatter={(value) => `${Number(value).toFixed(0)}%`}
+                  tickLine={false}
+                  axisLine={false}
+                  width={isMobile ? 56 : 66}
+                  tick={{ fontSize: isMobile ? 10 : 11, fill: 'hsl(var(--muted-foreground))' }}
+                />
 
-                  const visualZone = zoneByProblemRate(point.problemRate)
-                  const styles = zoneStyles(visualZone)
+                <Tooltip
+                  cursor={{ strokeDasharray: '4 4', stroke: 'hsl(var(--border))' }}
+                  allowEscapeViewBox={{ x: false, y: false }}
+                  offset={10}
+                  wrapperStyle={{ zIndex: 30, pointerEvents: 'none' }}
+                  content={({ active, payload }) => {
+                    if (!active || !payload?.length) {
+                      return null
+                    }
 
-                  return (
-                    <BerekeChartTooltip
-                      title={point.label}
-                      subtitle={INSIGHT_TOOLTIP_COPY.bubbleMatrixHealthIndex}
-                      rows={[
-                        {
-                          id: 'health-index',
-                          label: 'Индекс продукта',
-                          value: formatPercent(point.healthIndex),
-                          color: styles.stroke,
-                          strong: true,
-                        },
-                        {
-                          id: 'problem-calls',
-                          label: 'С индикаторами',
-                          value: `${formatCount(point.problemCallsUnique)} из ${formatCount(point.totalCalls)}`,
-                          color: '#dc2626',
-                        },
-                        {
-                          id: 'top-driver',
-                          label: 'Ключевой сигнал',
-                          value: point.topDriverTag ? shortLabel(point.topDriverTag, 20) : '—',
-                          color: '#64748b',
-                        },
-                        {
-                          id: 'zone',
-                          label: 'Зона',
-                          value: ZONE_LABELS[visualZone],
-                          color: styles.stroke,
-                        },
-                      ]}
-                    />
-                  )
-                }}
-              />
+                    const point = payload[0]?.payload as MatrixPoint | undefined
+                    if (!point) {
+                      return null
+                    }
 
-              <Scatter
-                data={matrixData.points}
-                shape={(props: any) => {
-                  const point = props?.payload as MatrixPoint | undefined
+                    const visualZone = zoneByProblemRate(point.problemRate)
+                    const styles = zoneStyles(visualZone)
 
-                  if (!point) {
-                    return <g />
-                  }
-
-                  const visualZone = zoneByProblemRate(point.problemRate)
-                  const styles = zoneStyles(visualZone)
-                  const radius = point.bubbleRadius
-
-                  return (
-                    <g
-                      onClick={() => onPointClick?.(point)}
-                      style={{ cursor: onPointClick ? 'pointer' : 'default' }}
-                    >
-                      <circle
-                        cx={props.cx}
-                        cy={props.cy}
-                        r={radius}
-                        fill={styles.fill}
-                        stroke={styles.stroke}
-                        strokeWidth={1.8}
+                    return (
+                      <BerekeChartTooltip
+                        title={point.label}
+                        subtitle={INSIGHT_TOOLTIP_COPY.bubbleMatrixHealthIndex}
+                        rows={[
+                          {
+                            id: 'health-index',
+                            label: 'Индекс продукта',
+                            value: formatPercent(point.healthIndex),
+                            color: styles.stroke,
+                            strong: true,
+                          },
+                          {
+                            id: 'problem-calls',
+                            label: 'С индикаторами',
+                            value: `${formatCount(point.problemCallsUnique)} из ${formatCount(point.totalCalls)}`,
+                            color: '#dc2626',
+                          },
+                          {
+                            id: 'top-driver',
+                            label: 'Ключевой сигнал',
+                            value: point.topDriverTag ? shortLabel(point.topDriverTag, 20) : '—',
+                            color: '#64748b',
+                          },
+                          {
+                            id: 'zone',
+                            label: 'Зона',
+                            value: ZONE_LABELS[visualZone],
+                            color: styles.stroke,
+                          },
+                        ]}
                       />
-                    </g>
-                  )
-                }}
-              />
-            </ScatterChart>
-          </ResponsiveContainer>
+                    )
+                  }}
+                />
+
+                <Scatter
+                  data={matrixData.points}
+                  shape={(props: any) => {
+                    const point = props?.payload as MatrixPoint | undefined
+
+                    if (!point) {
+                      return <g />
+                    }
+
+                    const visualZone = zoneByProblemRate(point.problemRate)
+                    const styles = zoneStyles(visualZone)
+                    const radius = point.bubbleRadius
+
+                    return (
+                      <g
+                        onClick={() => onPointClick?.(point)}
+                        style={{ cursor: onPointClick ? 'pointer' : 'default' }}
+                      >
+                        <circle
+                          cx={props.cx}
+                          cy={props.cy}
+                          r={radius}
+                          fill={styles.fill}
+                          stroke={styles.stroke}
+                          strokeWidth={1.8}
+                        />
+                      </g>
+                    )
+                  }}
+                />
+              </ScatterChart>
+            </ResponsiveContainer>
+          </div>
         </div>
       </CardContent>
     </Card>
