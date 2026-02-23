@@ -1,4 +1,5 @@
 export type {
+  CallCoverageBucket,
   DetailedAnalyticsModel,
   HealthIndexBreakpoints,
   InsightChannel,
@@ -58,6 +59,8 @@ export {
   type ProductSituationExecutiveGranularity,
 } from '@/features/insight-dashboard/ui/product-situation-toolbar'
 export { ProductSituationBubbleMatrix } from '@/features/insight-dashboard/ui/product-situation-bubble-matrix'
+export { CallCoverageChartCard } from '@/features/insight-dashboard/ui/call-coverage-chart-card'
+export { StackedPortionBarChart } from '@/features/insight-dashboard/ui/stacked-portion-bar-chart'
 export { ProductDetailedAnalyticsView } from '@/features/insight-dashboard/ui/product-detailed-analytics-page'
 
 export {

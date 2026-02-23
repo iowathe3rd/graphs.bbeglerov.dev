@@ -255,7 +255,7 @@ export function ProductSituationBubbleMatrix({
           <div className="grid h-full w-full grid-cols-[32px_minmax(0,1fr)] gap-1 md:grid-cols-[38px_minmax(0,1fr)] md:gap-2">
             <div className="flex items-center justify-center">
               <span className="-rotate-90 whitespace-nowrap text-[10px] text-muted-foreground md:text-[11px]">
-                Зона по доле проблемных обращений
+                Доля обращений с проблемными тегами
               </span>
             </div>
 
@@ -357,13 +357,19 @@ export function ProductSituationBubbleMatrix({
                           },
                           {
                             id: 'problem-calls',
-                            label: 'С индикаторами',
-                            value: `${formatCount(point.problemCallsUnique)} из ${formatCount(point.totalCalls)}`,
+                            label: 'Проблемные обращения',
+                            value: formatCount(point.problemCallsUnique),
                             color: '#dc2626',
                           },
                           {
+                            id: 'total-calls',
+                            label: 'Все обращения',
+                            value: formatCount(point.totalCalls),
+                            color: '#94a3b8',
+                          },
+                          {
                             id: 'top-driver',
-                            label: 'Ключевой сигнал',
+                            label: 'Главная причина',
                             value: point.topDriverTag ? shortLabel(point.topDriverTag, 20) : '—',
                             color: '#64748b',
                           },

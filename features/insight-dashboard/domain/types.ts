@@ -176,10 +176,31 @@ export interface InsightLineCardItem {
   data: MetricDataPoint[]
 }
 
+export interface CallCoverageBucket {
+  bucketKey: string
+  bucketLabel: string
+  n1TotalCalls: number
+  n2CallsWithAnyIndicator: number
+  coveragePercent: number
+}
+
+export type IndicatorChartMode = 'kpi' | 'combined'
+export type IndicatorLineValueMode = 'percent' | 'absolute'
+
+export interface CombinedIndicatorBucket {
+  bucketKey: string
+  bucketLabel: string
+  totalCallsN1: number
+  indicatorCalls: number
+  indicatorRatePercent: number
+}
+
 export interface DetailedAnalyticsModel {
   filteredEvents: InsightEvent[]
   metricsData: Record<string, MetricDataPoint[]>
   chartMetricsData: Record<string, MetricDataPoint[]>
   lineCards: InsightLineCardItem[]
   overlapData: OverlapAnalytics
+  callCoverageSeries: CallCoverageBucket[]
+  combinedIndicatorSeriesByMetric: Record<string, CombinedIndicatorBucket[]>
 }

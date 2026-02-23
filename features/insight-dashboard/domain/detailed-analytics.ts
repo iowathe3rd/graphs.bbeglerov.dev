@@ -1,9 +1,14 @@
-import { DASHBOARD_METRIC_IDS, DEFAULT_DETAILED_FILTERS } from '@/features/insight-dashboard/config/constants'
+import {
+  DASHBOARD_METRIC_IDS,
+  DEFAULT_DETAILED_FILTERS,
+  PRODUCT_SITUATION_TAGS,
+} from '@/features/insight-dashboard/config/constants'
 import {
   bucketMetricSeries,
   isDateInRange,
   normalizeDateRange,
   parseDateKey,
+  toBucketDateKey,
   toDateKey,
 } from '@/features/insight-dashboard/domain/date-bucketing'
 import {
@@ -11,6 +16,8 @@ import {
   buildOverlapSeriesColorMap,
 } from '@/features/insight-dashboard/domain/overlap-analytics'
 import type {
+  CallCoverageBucket,
+  CombinedIndicatorBucket,
   DetailedAnalyticsModel,
   InsightDetailedFilters,
   InsightEvent,
@@ -257,6 +264,122 @@ function round1(value: number): number {
   return Math.round(value * 10) / 10
 }
 
+const INDICATOR_METRIC_IDS = new Set<string>(DASHBOARD_METRIC_IDS)
+const INDICATOR_TAGS = new Set<string>(PRODUCT_SITUATION_TAGS)
+
+function isIndicatorEvent(event: InsightEvent): boolean {
+  return INDICATOR_METRIC_IDS.has(event.metric) || INDICATOR_TAGS.has(event.tag)
+}
+
+function buildCallCoverageSeries(
+  events: InsightEvent[],
+  granularity: OverlapGranularity
+): CallCoverageBucket[] {
+  if (events.length === 0) {
+    return []
+  }
+
+  const totalCallsByBucket = new Map<string, Set<string>>()
+  const indicatorCallsByBucket = new Map<string, Set<string>>()
+
+  for (const event of events) {
+    const bucketKey = toBucketDateKey(event.date, granularity)
+
+    if (!totalCallsByBucket.has(bucketKey)) {
+      totalCallsByBucket.set(bucketKey, new Set<string>())
+    }
+    totalCallsByBucket.get(bucketKey)?.add(event.caseId)
+
+    if (!isIndicatorEvent(event)) {
+      continue
+    }
+
+    if (!indicatorCallsByBucket.has(bucketKey)) {
+      indicatorCallsByBucket.set(bucketKey, new Set<string>())
+    }
+    indicatorCallsByBucket.get(bucketKey)?.add(event.caseId)
+  }
+
+  return Array.from(totalCallsByBucket.entries())
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([bucketKey, totalCallsSet]) => {
+      const n1TotalCalls = totalCallsSet.size
+      const n2Raw = indicatorCallsByBucket.get(bucketKey)?.size ?? 0
+      const n2CallsWithAnyIndicator = Math.min(n2Raw, n1TotalCalls)
+      const coveragePercent =
+        n1TotalCalls > 0 ? round1((n2CallsWithAnyIndicator / n1TotalCalls) * 100) : 0
+
+      return {
+        bucketKey,
+        bucketLabel: bucketKey,
+        n1TotalCalls,
+        n2CallsWithAnyIndicator,
+        coveragePercent,
+      }
+    })
+}
+
+function buildCombinedIndicatorSeriesByMetric(
+  events: InsightEvent[],
+  granularity: OverlapGranularity
+): Record<string, CombinedIndicatorBucket[]> {
+  if (events.length === 0) {
+    return Object.fromEntries(DASHBOARD_METRIC_IDS.map((metricId) => [metricId, []]))
+  }
+
+  const totalCallsByBucket = new Map<string, Set<string>>()
+  const indicatorCallsByMetricBucket = new Map<string, Map<string, Set<string>>>()
+
+  for (const metricId of DASHBOARD_METRIC_IDS) {
+    indicatorCallsByMetricBucket.set(metricId, new Map<string, Set<string>>())
+  }
+
+  for (const event of events) {
+    const bucketKey = toBucketDateKey(event.date, granularity)
+
+    if (!totalCallsByBucket.has(bucketKey)) {
+      totalCallsByBucket.set(bucketKey, new Set<string>())
+    }
+    totalCallsByBucket.get(bucketKey)?.add(event.caseId)
+
+    if (!indicatorCallsByMetricBucket.has(event.metric)) {
+      continue
+    }
+
+    const metricMap = indicatorCallsByMetricBucket.get(event.metric)
+    if (!metricMap?.has(bucketKey)) {
+      metricMap?.set(bucketKey, new Set<string>())
+    }
+    metricMap?.get(bucketKey)?.add(event.caseId)
+  }
+
+  const sortedBucketKeys = Array.from(totalCallsByBucket.keys()).sort((a, b) => a.localeCompare(b))
+
+  return Object.fromEntries(
+    DASHBOARD_METRIC_IDS.map((metricId) => {
+      const metricBucketMap = indicatorCallsByMetricBucket.get(metricId) ?? new Map<string, Set<string>>()
+
+      const series = sortedBucketKeys.map((bucketKey) => {
+        const totalCallsN1 = totalCallsByBucket.get(bucketKey)?.size ?? 0
+        const indicatorCallsRaw = metricBucketMap.get(bucketKey)?.size ?? 0
+        const indicatorCalls = Math.min(indicatorCallsRaw, totalCallsN1)
+        const indicatorRatePercent =
+          totalCallsN1 > 0 ? round1((indicatorCalls / totalCallsN1) * 100) : 0
+
+        return {
+          bucketKey,
+          bucketLabel: bucketKey,
+          totalCallsN1,
+          indicatorCalls,
+          indicatorRatePercent,
+        } satisfies CombinedIndicatorBucket
+      })
+
+      return [metricId, series]
+    })
+  )
+}
+
 function buildMetricSeriesFromEvents(
   events: InsightEvent[],
   dayKeys: string[]
@@ -341,6 +464,12 @@ export function buildDetailedAnalyticsModel(params: {
     overlapMetricIds as string[],
     params.granularity
   )
+  const callCoverageSeries = buildCallCoverageSeries(filteredEvents, params.granularity)
+  const combinedIndicatorSeriesByMetric = Object.fromEntries(
+    Object.entries(buildCombinedIndicatorSeriesByMetric(filteredEvents, params.granularity)).map(
+      ([metricId, series]) => [metricId, series.slice(-42)]
+    )
+  ) as Record<string, CombinedIndicatorBucket[]>
 
   return {
     filteredEvents,
@@ -348,6 +477,8 @@ export function buildDetailedAnalyticsModel(params: {
     chartMetricsData,
     lineCards,
     overlapData,
+    callCoverageSeries,
+    combinedIndicatorSeriesByMetric,
   }
 }
 
