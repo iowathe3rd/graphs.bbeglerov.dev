@@ -13,12 +13,12 @@ import {
   YAxis,
 } from 'recharts'
 
-import {
-  BUBBLE_ZONE_BREAKPOINTS,
-  DEFAULT_PRODUCT_OPTIONS,
-} from '@/features/insight-dashboard/config/constants'
+import { DEFAULT_PRODUCT_OPTIONS } from '@/features/insight-dashboard/config/constants'
 import { INSIGHT_TOOLTIP_COPY } from '@/features/insight-dashboard/config/tooltips'
-import type { ProductBubblePoint } from '@/features/insight-dashboard/domain/types'
+import type {
+  ProductBubblePoint,
+  ProductSituationScoreThresholds,
+} from '@/features/insight-dashboard/domain/types'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { BerekeChartTooltip } from '@/components/charts/bereke-chart-tooltip'
 import { Badge } from '@/components/ui/badge'
@@ -33,6 +33,7 @@ import { cn } from '@/lib/utils'
 
 interface ProductSituationBubbleMatrixProps {
   points: ProductBubblePoint[]
+  scoreThresholds: ProductSituationScoreThresholds
   onPointClick?: (point: ProductBubblePoint) => void
   productOrder?: string[]
   chartHeightClassName?: string
@@ -55,6 +56,16 @@ function formatCount(value: number) {
   return value.toLocaleString('ru-RU')
 }
 
+function formatScore(value: number) {
+  const rounded = Math.round(value * 1000) / 1000
+
+  if (Math.abs(rounded - Math.round(rounded)) < 0.001) {
+    return String(Math.round(rounded))
+  }
+
+  return rounded.toFixed(3).replace(/\.?0+$/, '')
+}
+
 function formatPercent(value: number) {
   const rounded = Math.round(value * 10) / 10
   const isInteger = Math.abs(rounded - Math.round(rounded)) < 0.001
@@ -73,16 +84,19 @@ function shortLabel(label: string, maxLength: number) {
   return `${label.slice(0, Math.max(1, maxLength - 1))}…`
 }
 
-function zoneByProblemRate(problemRate: number): ProductBubblePoint['zone'] {
-  if (problemRate <= BUBBLE_ZONE_BREAKPOINTS.greenMax) {
+function zoneByScore(
+  score: number,
+  thresholds: ProductSituationScoreThresholds
+): ProductBubblePoint['zone'] {
+  if (score <= thresholds.lower) {
     return 'green'
   }
 
-  if (problemRate <= BUBBLE_ZONE_BREAKPOINTS.yellowMax) {
-    return 'yellow'
+  if (score >= thresholds.upper) {
+    return 'red'
   }
 
-  return 'red'
+  return 'yellow'
 }
 
 function zoneStyles(zone: ProductBubblePoint['zone']) {
@@ -109,13 +123,9 @@ function zoneStyles(zone: ProductBubblePoint['zone']) {
   }
 }
 
-const PLOT_Y_MIN = 0
-const PLOT_Y_MAX = BUBBLE_ZONE_BREAKPOINTS.max + 8
-const PLOT_Y_POINT_MIN = 0.6
-const PLOT_Y_POINT_MAX = BUBBLE_ZONE_BREAKPOINTS.max - 0.6
-
 export function ProductSituationBubbleMatrix({
   points,
+  scoreThresholds,
   onPointClick,
   productOrder = [...DEFAULT_PRODUCT_OPTIONS],
   chartHeightClassName,
@@ -137,8 +147,8 @@ export function ProductSituationBubbleMatrix({
           return aOrder - bOrder
         }
 
-        if (a.problemRate !== b.problemRate) {
-          return a.problemRate - b.problemRate
+        if (a.healthIndex !== b.healthIndex) {
+          return a.healthIndex - b.healthIndex
         }
 
         if (a.problemCallsUnique !== b.problemCallsUnique) {
@@ -154,6 +164,23 @@ export function ProductSituationBubbleMatrix({
     const radiusMin = isMobile ? 7 : 8
     const radiusMax = isMobile ? 24 : 32
     const valueRange = Math.max(1, maxProblemCalls - minProblemCalls)
+    const maxScoreValue = ordered.reduce(
+      (max, point) => Math.max(max, point.healthIndex),
+      0
+    )
+    const zoneUpperBound = Math.max(scoreThresholds.upper, maxScoreValue)
+    const yMax = (zoneUpperBound > 0 ? zoneUpperBound : 1) * 1.1
+    const yPointPadding = yMax * 0.015
+    const yPointMin = yPointPadding
+    const yPointMax = Math.max(yPointPadding, yMax - yPointPadding)
+    const yTicks = Array.from(
+      new Set([
+        0,
+        scoreThresholds.lower,
+        scoreThresholds.upper,
+        zoneUpperBound > 0 ? zoneUpperBound : 1,
+      ].map((value) => Math.round(value * 10000) / 10000))
+    ).sort((a, b) => a - b)
 
     const prepared = ordered.map<MatrixPoint>((point, rowIndex) => {
       const normalized = (point.problemCallsUnique - minProblemCalls) / valueRange
@@ -165,8 +192,7 @@ export function ProductSituationBubbleMatrix({
       return {
         ...point,
         x: rowIndex + 1,
-        // Keep bubbles inside plot area when real data sits near 100%.
-        y: clamp(point.problemRate, PLOT_Y_POINT_MIN, PLOT_Y_POINT_MAX),
+        y: clamp(point.healthIndex, yPointMin, yPointMax),
         bubbleRadius,
       }
     })
@@ -179,8 +205,10 @@ export function ProductSituationBubbleMatrix({
       points: prepared,
       xLabelMap,
       xTicks,
+      yMax,
+      yTicks,
     }
-  }, [isMobile, points, productOrder])
+  }, [isMobile, points, productOrder, scoreThresholds.lower, scoreThresholds.upper])
 
   if (loading) {
     return (
@@ -231,15 +259,15 @@ export function ProductSituationBubbleMatrix({
           <div className="flex items-center gap-2 text-[11px]">
             <Badge variant="outline" className="gap-1">
               <span className="inline-block h-2.5 w-2.5 rounded-full bg-emerald-500" />
-              Норма 0–5%
+              Норма ≤ {formatScore(scoreThresholds.lower)}
             </Badge>
             <Badge variant="outline" className="gap-1">
               <span className="inline-block h-2.5 w-2.5 rounded-full bg-amber-500" />
-              Внимание 5–30%
+              Внимание {formatScore(scoreThresholds.lower)}–{formatScore(scoreThresholds.upper)}
             </Badge>
             <Badge variant="outline" className="gap-1">
               <span className="inline-block h-2.5 w-2.5 rounded-full bg-red-500" />
-              Критично 30–100%
+              Критично ≥ {formatScore(scoreThresholds.upper)}
             </Badge>
           </div>
         </div>
@@ -255,7 +283,7 @@ export function ProductSituationBubbleMatrix({
           <div className="grid h-full w-full grid-cols-[32px_minmax(0,1fr)] gap-1 md:grid-cols-[38px_minmax(0,1fr)] md:gap-2">
             <div className="flex items-center justify-center">
               <span className="-rotate-90 whitespace-nowrap text-[10px] text-muted-foreground md:text-[11px]">
-                Доля обращений с проблемными тегами
+                Score продукта (чем выше, тем хуже)
               </span>
             </div>
 
@@ -268,15 +296,19 @@ export function ProductSituationBubbleMatrix({
                   left: isMobile ? 8 : 10,
                 }}
               >
-                <ReferenceArea y1={0} y2={BUBBLE_ZONE_BREAKPOINTS.greenMax} fill="rgba(16, 185, 129, 0.10)" />
                 <ReferenceArea
-                  y1={BUBBLE_ZONE_BREAKPOINTS.greenMax}
-                  y2={BUBBLE_ZONE_BREAKPOINTS.yellowMax}
+                  y1={0}
+                  y2={scoreThresholds.lower}
+                  fill="rgba(16, 185, 129, 0.10)"
+                />
+                <ReferenceArea
+                  y1={scoreThresholds.lower}
+                  y2={scoreThresholds.upper}
                   fill="rgba(245, 158, 11, 0.10)"
                 />
                 <ReferenceArea
-                  y1={BUBBLE_ZONE_BREAKPOINTS.yellowMax}
-                  y2={BUBBLE_ZONE_BREAKPOINTS.max}
+                  y1={scoreThresholds.upper}
+                  y2={matrixData.yMax}
                   fill="rgba(239, 68, 68, 0.10)"
                 />
 
@@ -311,14 +343,9 @@ export function ProductSituationBubbleMatrix({
                 <YAxis
                   type="number"
                   dataKey="y"
-                  domain={[PLOT_Y_MIN, PLOT_Y_MAX]}
-                  ticks={[
-                    0,
-                    BUBBLE_ZONE_BREAKPOINTS.greenMax,
-                    BUBBLE_ZONE_BREAKPOINTS.yellowMax,
-                    BUBBLE_ZONE_BREAKPOINTS.max,
-                  ]}
-                  tickFormatter={(value) => `${Number(value).toFixed(0)}%`}
+                  domain={[0, matrixData.yMax]}
+                  ticks={matrixData.yTicks}
+                  tickFormatter={(value) => formatScore(Number(value))}
                   tickLine={false}
                   axisLine={false}
                   width={isMobile ? 56 : 66}
@@ -340,7 +367,7 @@ export function ProductSituationBubbleMatrix({
                       return null
                     }
 
-                    const visualZone = zoneByProblemRate(point.problemRate)
+                    const visualZone = zoneByScore(point.healthIndex, scoreThresholds)
                     const styles = zoneStyles(visualZone)
 
                     return (
@@ -350,16 +377,22 @@ export function ProductSituationBubbleMatrix({
                         rows={[
                           {
                             id: 'health-index',
-                            label: 'Индекс продукта',
-                            value: formatPercent(point.healthIndex),
+                            label: 'Score продукта',
+                            value: formatScore(point.healthIndex),
                             color: styles.stroke,
                             strong: true,
+                          },
+                          {
+                            id: 'problem-rate',
+                            label: 'Доля проблемных обращений',
+                            value: formatPercent(point.problemRate),
+                            color: '#dc2626',
                           },
                           {
                             id: 'problem-calls',
                             label: 'Проблемные обращения',
                             value: formatCount(point.problemCallsUnique),
-                            color: '#dc2626',
+                            color: '#ef4444',
                           },
                           {
                             id: 'total-calls',
@@ -394,7 +427,7 @@ export function ProductSituationBubbleMatrix({
                       return <g />
                     }
 
-                    const visualZone = zoneByProblemRate(point.problemRate)
+                    const visualZone = zoneByScore(point.healthIndex, scoreThresholds)
                     const styles = zoneStyles(visualZone)
                     const radius = point.bubbleRadius
 

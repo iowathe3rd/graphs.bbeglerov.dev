@@ -1,5 +1,6 @@
 import {
-  BUBBLE_ZONE_BREAKPOINTS,
+  HEALTH_SCORE_CRITICAL_WEIGHT,
+  HEALTH_SCORE_REFERENCE_SHARES,
   PRODUCT_SITUATION_TAGS,
 } from '@/features/insight-dashboard/config/constants'
 import type {
@@ -12,6 +13,7 @@ import type {
   ProductSituationDriverTrend,
   ProductSituationExecutiveSummary,
   ProductSituationExecutiveSummaryPoint,
+  ProductSituationScoreThresholds,
   ProductSituationTag,
   ProductSituationZone,
   ProductSituationZones,
@@ -64,6 +66,16 @@ interface CaseRollup {
   consultationTagCounts: Record<ProductSituationTag, number>
 }
 
+interface ScoreContext {
+  weights: Record<ProductSituationTag, number>
+  thresholds: ProductSituationScoreThresholds
+}
+
+interface ProductBubbleMatrixModel {
+  points: ProductBubblePoint[]
+  scoreThresholds: ProductSituationScoreThresholds
+}
+
 interface RiskMetrics {
   problemRate: number
   weightedNegativeRate: number
@@ -80,12 +92,33 @@ interface RiskMetrics {
   consultationTagRates: Record<ProductSituationTag, number>
 }
 
+const INDICATOR_1_TAG: ProductSituationTag = 'Технические проблемы/сбои'
+const INDICATOR_2_TAG: ProductSituationTag = 'Запрос не решен'
+const INDICATOR_3_TAG: ProductSituationTag = 'Отрицательный продуктовый фидбэк'
+const INDICATOR_4_TAG: ProductSituationTag = 'Угроза ухода/отказа от продуктов банка'
+
 function round1(value: number): number {
   return Math.round(value * 10) / 10
 }
 
-function clamp(value: number, min: number, max: number): number {
-  return Math.max(min, Math.min(max, value))
+function round4(value: number): number {
+  return Math.round(value * 10000) / 10000
+}
+
+function safeDivide(numerator: number, denominator: number): number {
+  if (denominator <= 0) {
+    return 0
+  }
+
+  return numerator / denominator
+}
+
+function toShare(count: number, total: number): number {
+  if (total <= 0) {
+    return 0
+  }
+
+  return count / total
 }
 
 function buildEmptyTagCounts(): Record<ProductSituationTag, number> {
@@ -155,28 +188,100 @@ function median(values: number[]): number {
   return ((sorted[middle - 1] || 0) + (sorted[middle] || 0)) / 2 || 1
 }
 
-function normalizeZones(zones?: Partial<ProductSituationZones>): ProductSituationZones {
-  const max = Math.max(1, zones?.max ?? BUBBLE_ZONE_BREAKPOINTS.max)
-  const greenMax = clamp(zones?.greenMax ?? BUBBLE_ZONE_BREAKPOINTS.greenMax, 0, max)
-  const yellowMax = clamp(zones?.yellowMax ?? BUBBLE_ZONE_BREAKPOINTS.yellowMax, greenMax, max)
+function aggregateTagCounts(rollups: CaseRollup[]): Record<ProductSituationTag, number> {
+  const totalTagCounts = buildEmptyTagCounts()
+
+  for (const rollup of rollups) {
+    for (const tag of PRODUCT_SITUATION_TAGS) {
+      totalTagCounts[tag] += rollup.tagCounts[tag]
+    }
+  }
+
+  return totalTagCounts
+}
+
+function buildScoreWeights(
+  totalTagCounts: Record<ProductSituationTag, number>
+): Record<ProductSituationTag, number> {
+  const baseCount = totalTagCounts[INDICATOR_2_TAG]
+  const weights = buildEmptyTagCounts()
+
+  weights[INDICATOR_1_TAG] = safeDivide(baseCount, totalTagCounts[INDICATOR_1_TAG])
+  weights[INDICATOR_2_TAG] = 1
+  weights[INDICATOR_3_TAG] = safeDivide(baseCount, totalTagCounts[INDICATOR_3_TAG])
+  weights[INDICATOR_4_TAG] = HEALTH_SCORE_CRITICAL_WEIGHT
+
+  return weights
+}
+
+function computeScoreByShares(
+  shares: Record<ProductSituationTag, number>,
+  weights: Record<ProductSituationTag, number>
+): number {
+  let score = 0
+
+  for (const tag of PRODUCT_SITUATION_TAGS) {
+    score += shares[tag] * weights[tag]
+  }
+
+  return score
+}
+
+function computeScoreByTagCounts(
+  tagCounts: Record<ProductSituationTag, number>,
+  totalCalls: number,
+  weights: Record<ProductSituationTag, number>
+): number {
+  if (totalCalls <= 0) {
+    return 0
+  }
+
+  let score = 0
+
+  for (const tag of PRODUCT_SITUATION_TAGS) {
+    score += toShare(tagCounts[tag], totalCalls) * weights[tag]
+  }
+
+  return score
+}
+
+function buildScoreThresholds(
+  weights: Record<ProductSituationTag, number>
+): ProductSituationScoreThresholds {
+  const green = round4(computeScoreByShares(HEALTH_SCORE_REFERENCE_SHARES.green, weights))
+  const red = round4(computeScoreByShares(HEALTH_SCORE_REFERENCE_SHARES.red, weights))
 
   return {
-    greenMax,
-    yellowMax,
-    max,
+    green,
+    red,
+    lower: Math.min(green, red),
+    upper: Math.max(green, red),
   }
 }
 
-function zoneByRisk(value: number, zones: ProductSituationZones): ProductSituationZone {
-  if (value <= zones.greenMax) {
+function buildScoreContext(rollups: CaseRollup[]): ScoreContext {
+  const totalTagCounts = aggregateTagCounts(rollups)
+  const weights = buildScoreWeights(totalTagCounts)
+
+  return {
+    weights,
+    thresholds: buildScoreThresholds(weights),
+  }
+}
+
+function zoneByScore(
+  score: number,
+  thresholds: ProductSituationScoreThresholds
+): ProductSituationZone {
+  if (score <= thresholds.lower) {
     return 'green'
   }
 
-  if (value <= zones.yellowMax) {
-    return 'yellow'
+  if (score >= thresholds.upper) {
+    return 'red'
   }
 
-  return 'red'
+  return 'yellow'
 }
 
 function resolveTag(event: InsightEvent): ProductSituationTag | null {
@@ -294,8 +399,7 @@ function summarizeCases(cases: Map<string, CaseAccumulator>): CaseRollup {
 
 function computeRiskMetrics(
   rollup: CaseRollup,
-  _baselineCalls: number,
-  maxRisk: number
+  scoreContext: ScoreContext
 ): RiskMetrics {
   const problemRate =
     rollup.totalCalls > 0
@@ -303,7 +407,10 @@ function computeRiskMetrics(
       : 0
 
   const tagRates = toTagRates(rollup.tagCounts, rollup.totalCalls)
-  const weightedNegativeRate = problemRate
+  const score = round4(
+    computeScoreByTagCounts(rollup.tagCounts, rollup.totalCalls, scoreContext.weights)
+  )
+  const weightedNegativeRate = score
 
   const consultationTagRates = toTagRates(
     rollup.consultationTagCounts,
@@ -320,14 +427,19 @@ function computeRiskMetrics(
       ? round1((rollup.consultationCleanCalls / rollup.consultationCalls) * 100)
       : 100
 
-  // PO simplification:
-  // health/risk is driven only by share of calls with at least one indicator.
   const currentVolumeWeight = 1
   const confidence = 1
-  const severityRate = problemRate
-  const riskCore = problemRate
-  const riskIndex = round1(clamp(problemRate, 0, maxRisk))
-  const healthIndex = round1(clamp(problemRate, 0, 100))
+  const severityRate = score
+  const riskCore = score
+  const riskIndex = score
+  const healthIndex = score
+  const consultationWeightedNegativeRate = round4(
+    computeScoreByTagCounts(
+      rollup.consultationTagCounts,
+      rollup.consultationCalls,
+      scoreContext.weights
+    )
+  )
 
   return {
     problemRate,
@@ -341,7 +453,7 @@ function computeRiskMetrics(
     tagRates,
     consultationNegativeRate,
     consultationCleanRate,
-    consultationWeightedNegativeRate: consultationNegativeRate,
+    consultationWeightedNegativeRate,
     consultationTagRates,
   }
 }
@@ -401,7 +513,7 @@ function buildSummary(buckets: ProductSituationBucket[]): ProductSituationExecut
     previous: previousPoint,
     delta: previousPoint
       ? {
-          healthIndex: round1(currentPoint.healthIndex - previousPoint.healthIndex),
+          healthIndex: round4(currentPoint.healthIndex - previousPoint.healthIndex),
           problematicCalls: currentPoint.problematicCalls - previousPoint.problematicCalls,
           problematicRate: round1(
             currentPoint.problematicRate - previousPoint.problematicRate
@@ -478,7 +590,6 @@ export function buildHealthIndexMetrics(
 ): ProductSituationAnalytics {
   const granularity = options.granularity
   const topDomainsLimit = options.topDomainsLimit ?? 8
-  const zones = normalizeZones(options.zones)
 
   const bucketMap = new Map<string, BucketAccumulator>()
   const domainMap = new Map<string, DomainAccumulator>()
@@ -518,6 +629,15 @@ export function buildHealthIndexMetrics(
       rollup: summarizeCases(bucket.cases),
     }))
 
+  const orderedDomainRollups = Array.from(domainMap.values()).map((domain) => ({
+    label: domain.label,
+    rollup: summarizeCases(domain.cases),
+  }))
+
+  const scoreContext = buildScoreContext(
+    orderedDomainRollups.map((domain) => domain.rollup)
+  )
+
   const bucketBaselineCalls = median(
     orderedBucketRollups
       .map((bucket) => bucket.rollup.totalCalls)
@@ -525,7 +645,7 @@ export function buildHealthIndexMetrics(
   )
 
   const buckets: ProductSituationBucket[] = orderedBucketRollups.map((bucket) => {
-    const riskMetrics = computeRiskMetrics(bucket.rollup, bucketBaselineCalls, zones.max)
+    const riskMetrics = computeRiskMetrics(bucket.rollup, scoreContext)
 
     return {
       date: bucket.date,
@@ -554,11 +674,6 @@ export function buildHealthIndexMetrics(
     }
   })
 
-  const orderedDomainRollups = Array.from(domainMap.values()).map((domain) => ({
-    label: domain.label,
-    rollup: summarizeCases(domain.cases),
-  }))
-
   const domainBaselineCalls = median(
     orderedDomainRollups
       .map((domain) => domain.rollup.totalCalls)
@@ -567,7 +682,7 @@ export function buildHealthIndexMetrics(
 
   const domains = orderedDomainRollups
     .map<ProductSituationDomainPoint>((domain) => {
-      const riskMetrics = computeRiskMetrics(domain.rollup, domainBaselineCalls, zones.max)
+      const riskMetrics = computeRiskMetrics(domain.rollup, scoreContext)
 
       return {
         id: `domain:${domain.label}`,
@@ -584,7 +699,7 @@ export function buildHealthIndexMetrics(
         riskCore: riskMetrics.riskCore,
         riskIndex: riskMetrics.riskIndex,
         healthIndex: riskMetrics.healthIndex,
-        zone: zoneByRisk(riskMetrics.riskIndex, zones),
+        zone: zoneByScore(riskMetrics.riskIndex, scoreContext.thresholds),
         topDriverTag: topDriverTag(domain.rollup.tagCounts),
         tagCounts: domain.rollup.tagCounts,
         tagRates: riskMetrics.tagRates,
@@ -608,8 +723,36 @@ export function buildHealthIndexMetrics(
     topDomains: domains.slice(0, topDomainsLimit),
     baselineCalls: bucketBaselineCalls,
     domainBaselineCalls,
+    scoreThresholds: scoreContext.thresholds,
     summary: buildSummary(buckets),
     drivers: buildDrivers(buckets),
+  }
+}
+
+export function buildBubbleMatrixModel(
+  events: InsightEvent[],
+  options?: BuildBubbleMatrixPointsOptions
+): ProductBubbleMatrixModel {
+  const analytics = buildHealthIndexMetrics(events, {
+    granularity: 'month',
+    topDomainsLimit: Number.MAX_SAFE_INTEGER,
+    zones: options?.zones,
+  })
+
+  return {
+    points: analytics.domains.map((domain) => ({
+      id: domain.id,
+      productGroup: domain.label,
+      label: domain.label,
+      totalCalls: domain.totalCalls,
+      problemCallsUnique: domain.problemCallsUnique,
+      problemRate: domain.problemRate,
+      healthIndex: domain.healthIndex,
+      riskIndex: domain.riskIndex,
+      zone: domain.zone,
+      topDriverTag: domain.topDriverTag,
+    })),
+    scoreThresholds: analytics.scoreThresholds,
   }
 }
 
@@ -617,25 +760,7 @@ export function buildBubbleMatrixPoints(
   events: InsightEvent[],
   options?: BuildBubbleMatrixPointsOptions
 ): ProductBubblePoint[] {
-  const zones = normalizeZones(options?.zones)
-  const analytics = buildHealthIndexMetrics(events, {
-    granularity: 'month',
-    topDomainsLimit: Number.MAX_SAFE_INTEGER,
-    zones: options?.zones,
-  })
-
-  return analytics.domains.map((domain) => ({
-    id: domain.id,
-    productGroup: domain.label,
-    label: domain.label,
-    totalCalls: domain.totalCalls,
-    problemCallsUnique: domain.problemCallsUnique,
-    problemRate: domain.problemRate,
-    healthIndex: domain.healthIndex,
-    riskIndex: domain.riskIndex,
-    zone: zoneByRisk(domain.problemRate, zones),
-    topDriverTag: domain.topDriverTag,
-  }))
+  return buildBubbleMatrixModel(events, options).points
 }
 
 export function buildProductSituationAnalytics(

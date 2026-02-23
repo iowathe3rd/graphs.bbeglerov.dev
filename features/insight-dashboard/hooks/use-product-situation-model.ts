@@ -2,15 +2,16 @@
 
 import { useEffect, useMemo, useState } from 'react'
 
-import { BUBBLE_ZONE_BREAKPOINTS, DEFAULT_HOME_FILTERS } from '@/features/insight-dashboard/config/constants'
+import { DEFAULT_HOME_FILTERS } from '@/features/insight-dashboard/config/constants'
 import { createLastDaysRange } from '@/features/insight-dashboard/domain/date-bucketing'
 import { buildInsightFilterOptions, ensureOption } from '@/features/insight-dashboard/domain/filter-options'
 import { filterEventsForProductSituation } from '@/features/insight-dashboard/domain/bubble-matrix'
-import { buildBubbleMatrixPoints } from '@/features/insight-dashboard/domain/health-index'
+import { buildBubbleMatrixModel } from '@/features/insight-dashboard/domain/health-index'
 import type {
   InsightEvent,
   InsightFilters,
   ProductBubblePoint,
+  ProductSituationScoreThresholds,
 } from '@/features/insight-dashboard/domain/types'
 
 interface UseProductSituationModelParams {
@@ -31,6 +32,7 @@ interface ProductSituationModel {
   events: InsightEvent[]
   filteredEvents: InsightEvent[]
   bubblePoints: ProductBubblePoint[]
+  bubbleScoreThresholds: ProductSituationScoreThresholds
   loading: boolean
   error: string | null
 }
@@ -85,13 +87,12 @@ export function useProductSituationModel(
     [events, filters]
   )
 
-  const bubblePoints = useMemo(
-    () =>
-      buildBubbleMatrixPoints(filteredEvents, {
-        zones: BUBBLE_ZONE_BREAKPOINTS,
-      }),
+  const bubbleMatrixModel = useMemo(
+    () => buildBubbleMatrixModel(filteredEvents),
     [filteredEvents]
   )
+  const bubblePoints = bubbleMatrixModel.points
+  const bubbleScoreThresholds = bubbleMatrixModel.scoreThresholds
 
   const resetFilters = () => {
     setFilters(createDefaultFilters(defaultWindowDays))
@@ -106,6 +107,7 @@ export function useProductSituationModel(
     events,
     filteredEvents,
     bubblePoints,
+    bubbleScoreThresholds,
     loading: params.loading ?? false,
     error: params.error ?? null,
   }

@@ -18,6 +18,7 @@ export type {
   ProductSituationDomainPoint,
   ProductSituationDriverRow,
   ProductSituationMode,
+  ProductSituationScoreThresholds,
   ProductSituationTag,
   ProductSituationZone,
   ProductSituationZones,
