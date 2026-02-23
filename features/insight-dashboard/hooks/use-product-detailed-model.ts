@@ -16,6 +16,8 @@ import {
 } from '@/features/insight-dashboard/domain/detailed-analytics'
 import { buildInsightFilterOptions, ensureOption } from '@/features/insight-dashboard/domain/filter-options'
 import type {
+  IndicatorChartMode,
+  IndicatorLineValueMode,
   InsightDetailedFilters,
   InsightEvent,
 } from '@/features/insight-dashboard/domain/types'
@@ -62,6 +64,9 @@ export function useProductDetailedModel(
   const [filters, setFilters] = useState<InsightDetailedFilters>(() => DEFAULT_DETAILED_FILTERS)
   const [overlapGranularity, setOverlapGranularity] = useState<OverlapGranularity>(() => 'day')
   const [overlapSelection, setOverlapSelection] = useState<string[]>(() => [])
+  const [indicatorChartMode, setIndicatorChartMode] = useState<IndicatorChartMode>('kpi')
+  const [indicatorLineValueMode, setIndicatorLineValueMode] =
+    useState<IndicatorLineValueMode>('percent')
   const [isMobileFilterSheetOpen, setIsMobileFilterSheetOpen] = useState(false)
   const [isMobileDetailsSheetOpen, setIsMobileDetailsSheetOpen] = useState(false)
   const [isPreferencesLoaded, setIsPreferencesLoaded] = useState(false)
@@ -184,12 +189,18 @@ export function useProductDetailedModel(
     setOverlapGranularity,
     overlapSelection,
     setOverlapSelection,
+    indicatorChartMode,
+    setIndicatorChartMode,
+    indicatorLineValueMode,
+    setIndicatorLineValueMode,
     isMobileFilterSheetOpen,
     setIsMobileFilterSheetOpen,
     isMobileDetailsSheetOpen,
     setIsMobileDetailsSheetOpen,
     lineCards: model.lineCards,
+    combinedIndicatorSeriesByMetric: model.combinedIndicatorSeriesByMetric,
     overlapData: model.overlapData,
+    callCoverageSeries: model.callCoverageSeries,
     overlapSeriesColorMap,
     sectorOptions,
     productOptions,

@@ -33,6 +33,7 @@ import {
   type OverlapGranularity,
   type OverlapZoneConfig,
 } from '@/lib/metrics-data'
+import { INSIGHT_TOOLTIP_COPY } from '@/features/insight-dashboard/config/tooltips'
 
 interface OverlapMultiLineChartProps {
   analytics: OverlapAnalytics
@@ -308,11 +309,7 @@ export function OverlapMultiLineChart({
                     </button>
                   </TooltipTrigger>
                   <TooltipContent className="max-w-[280px] text-xs leading-relaxed">
-                    <p>
-                      З — зелёная зона, Ж — жёлтая зона, К — красная зона.
-                      Цифры показывают, сколько индикаторов попало в каждую
-                      зону на выбранной дате.
-                    </p>
+                    <p>{INSIGHT_TOOLTIP_COPY.overlapZones}</p>
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
@@ -443,7 +440,7 @@ export function OverlapMultiLineChart({
                     return (
                       <BerekeChartTooltip
                         title={tooltipDateLabel(String(label), granularity)}
-                        subtitle={`Зелёная: ${bucket.zoneCounts.green}, Жёлтая: ${bucket.zoneCounts.yellow}, Красная: ${bucket.zoneCounts.red}`}
+                        subtitle={`Низкий риск: ${bucket.zoneCounts.green}, средний: ${bucket.zoneCounts.yellow}, высокий: ${bucket.zoneCounts.red}`}
                         rows={rows.map((row) => ({
                           id: row.label,
                           label: shortLabel(row.label),

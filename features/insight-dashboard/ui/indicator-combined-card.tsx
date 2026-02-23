@@ -1,0 +1,255 @@
+'use client'
+
+import {
+  Bar,
+  CartesianGrid,
+  ComposedChart,
+  Line,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts'
+
+import { BerekeChartTooltip } from '@/components/charts/bereke-chart-tooltip'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import type {
+  CombinedIndicatorBucket,
+  IndicatorLineValueMode,
+} from '@/features/insight-dashboard/domain/types'
+import type { MetricInfo } from '@/lib/metrics-data'
+import { cn } from '@/lib/utils'
+
+interface IndicatorCombinedCardProps {
+  metric: MetricInfo
+  data: CombinedIndicatorBucket[]
+  lineValueMode: IndicatorLineValueMode
+  className?: string
+}
+
+interface PreparedPoint {
+  bucketKey: string
+  bucketLabel: string
+  totalCallsN1: number
+  indicatorCalls: number
+  indicatorRatePercent: number
+  lineValue: number
+}
+
+function formatShortDate(value: string): string {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return value
+  }
+
+  const date = new Date(`${value}T00:00:00.000Z`)
+  if (Number.isNaN(date.getTime())) {
+    return value
+  }
+
+  return date.toLocaleDateString('ru-RU', {
+    day: '2-digit',
+    month: '2-digit',
+    timeZone: 'UTC',
+  })
+}
+
+function formatLongDate(value: string): string {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return value
+  }
+
+  const date = new Date(`${value}T00:00:00.000Z`)
+  if (Number.isNaN(date.getTime())) {
+    return value
+  }
+
+  return date.toLocaleDateString('ru-RU', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    timeZone: 'UTC',
+  })
+}
+
+function formatPercent(value: number): string {
+  return `${value.toFixed(1)}%`
+}
+
+function formatCount(value: number): string {
+  return Math.round(value).toLocaleString('ru-RU')
+}
+
+function colorByRate(rate: number): string {
+  if (rate <= 5) return 'text-emerald-600'
+  if (rate <= 30) return 'text-amber-500'
+  return 'text-red-600'
+}
+
+function formatDelta(data: PreparedPoint[], lineValueMode: IndicatorLineValueMode): {
+  value: string
+  toneClass: string
+} {
+  if (data.length < 2) {
+    return {
+      value: lineValueMode === 'percent' ? '0.0 п.п.' : '0',
+      toneClass: 'text-muted-foreground',
+    }
+  }
+
+  const current = data[data.length - 1]?.lineValue ?? 0
+  const previous = data[data.length - 2]?.lineValue ?? 0
+  const delta = current - previous
+
+  if (lineValueMode === 'percent') {
+    const sign = delta > 0 ? '+' : ''
+    const toneClass = delta > 0 ? 'text-red-600' : delta < 0 ? 'text-emerald-600' : 'text-amber-500'
+    return {
+      value: `${sign}${delta.toFixed(1)} п.п.`,
+      toneClass,
+    }
+  }
+
+  const sign = delta > 0 ? '+' : ''
+  const toneClass = delta > 0 ? 'text-red-600' : delta < 0 ? 'text-emerald-600' : 'text-amber-500'
+  return {
+    value: `${sign}${formatCount(delta)}`,
+    toneClass,
+  }
+}
+
+export function IndicatorCombinedCard({
+  metric,
+  data,
+  lineValueMode,
+  className,
+}: IndicatorCombinedCardProps) {
+  if (!data.length) {
+    return (
+      <Card className={cn('h-full', className)}>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm">{metric.name}</CardTitle>
+        </CardHeader>
+        <CardContent className="text-xs text-muted-foreground">Нет данных</CardContent>
+      </Card>
+    )
+  }
+
+  const preparedData: PreparedPoint[] = data.map((point) => ({
+    ...point,
+    lineValue: lineValueMode === 'percent' ? point.indicatorRatePercent : point.indicatorCalls,
+  }))
+
+  const currentPoint = preparedData[preparedData.length - 1]
+  const currentRate = currentPoint?.indicatorRatePercent ?? 0
+  const currentLineValue = currentPoint?.lineValue ?? 0
+  const delta = formatDelta(preparedData, lineValueMode)
+
+  return (
+    <Card className={cn('flex h-full min-h-0 flex-col', className)}>
+      <CardHeader className="space-y-1 pb-2">
+        <div className="flex items-center justify-between gap-2">
+          <CardTitle className="text-sm">{metric.name}</CardTitle>
+          <span className={cn('text-sm font-semibold', colorByRate(currentRate))}>
+            {lineValueMode === 'percent' ? formatPercent(currentLineValue) : formatCount(currentLineValue)}
+          </span>
+        </div>
+        <p className={cn('text-[11px] font-medium', delta.toneClass)}>
+          {delta.value}
+          <span className="ml-1 text-muted-foreground">к предыдущему периоду</span>
+        </p>
+      </CardHeader>
+
+      <CardContent className="flex-1 pb-3 pt-0">
+        <ResponsiveContainer width="100%" height="100%">
+          <ComposedChart data={preparedData} margin={{ left: 0, right: 4, top: 4, bottom: 0 }}>
+            <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="hsl(var(--border))" />
+            <XAxis
+              dataKey="bucketLabel"
+              tickLine={false}
+              axisLine={false}
+              minTickGap={24}
+              tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+              tickFormatter={(value) => formatShortDate(String(value))}
+            />
+            <YAxis
+              yAxisId="calls"
+              tickLine={false}
+              axisLine={false}
+              width={30}
+              tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+              allowDecimals={false}
+            />
+            {lineValueMode === 'percent' ? (
+              <YAxis
+                yAxisId="line"
+                orientation="right"
+                domain={[0, 100]}
+                tickLine={false}
+                axisLine={false}
+                width={30}
+                tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                tickFormatter={(value) => `${Number(value).toFixed(0)}%`}
+              />
+            ) : null}
+            <Tooltip
+              cursor={{ fill: 'hsl(var(--accent) / 0.2)' }}
+              content={({ active, payload }) => {
+                if (!active || !payload?.length) {
+                  return null
+                }
+
+                const point = payload[0]?.payload as PreparedPoint | undefined
+                if (!point) {
+                  return null
+                }
+
+                return (
+                  <BerekeChartTooltip
+                    title={formatLongDate(point.bucketKey)}
+                    rows={[
+                      {
+                        id: 'total-calls',
+                        label: 'Все звонки',
+                        value: formatCount(point.totalCallsN1),
+                        color: '#94a3b8',
+                      },
+                      {
+                        id: 'indicator-calls',
+                        label: 'Звонки с индикатором',
+                        value: formatCount(point.indicatorCalls),
+                        color: metric.color,
+                      },
+                      {
+                        id: 'indicator-rate',
+                        label: 'Доля индикатора',
+                        value: formatPercent(point.indicatorRatePercent),
+                        color: '#0f172a',
+                        strong: true,
+                      },
+                    ]}
+                  />
+                )
+              }}
+            />
+            <Bar
+              yAxisId="calls"
+              dataKey="totalCallsN1"
+              fill="hsl(var(--muted) / 0.55)"
+              radius={[6, 6, 0, 0]}
+              barSize={20}
+            />
+            <Line
+              yAxisId={lineValueMode === 'percent' ? 'line' : 'calls'}
+              type="linear"
+              dataKey="lineValue"
+              stroke={metric.color}
+              strokeWidth={2}
+              dot={false}
+              activeDot={{ r: 4, stroke: '#fff', strokeWidth: 2, fill: metric.color }}
+            />
+          </ComposedChart>
+        </ResponsiveContainer>
+      </CardContent>
+    </Card>
+  )
+}

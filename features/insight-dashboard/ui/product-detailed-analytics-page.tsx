@@ -13,9 +13,13 @@ import {
 import { DashboardOverlapCard } from '@/components/dashboard-overlap-card'
 import { DashboardOverlapDetailsSheet } from '@/components/dashboard-overlap-details-sheet'
 import { ThemeToggle } from '@/components/theme-toggle'
+import { CallCoverageChartCard } from '@/features/insight-dashboard/ui/call-coverage-chart-card'
+import { IndicatorCombinedCard } from '@/features/insight-dashboard/ui/indicator-combined-card'
+import { MobileCombinedIndicatorCarousel } from '@/features/insight-dashboard/ui/mobile-combined-indicator-carousel'
 import { useProductDetailedModel } from '@/features/insight-dashboard/hooks/use-product-detailed-model'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import type { InsightEvent } from '@/features/insight-dashboard/domain/types'
 import type { OverlapGranularity } from '@/lib/metrics-data'
 
@@ -30,6 +34,13 @@ interface ProductDetailedAnalyticsViewProps {
 }
 
 export function ProductDetailedAnalyticsView(props: ProductDetailedAnalyticsViewProps = {}) {
+  const indicatorGridPositions = [
+    'col-start-1 row-start-1',
+    'col-start-2 row-start-1',
+    'col-start-1 row-start-2',
+    'col-start-2 row-start-2',
+  ] as const
+
   const {
     filters,
     setFilters,
@@ -37,12 +48,18 @@ export function ProductDetailedAnalyticsView(props: ProductDetailedAnalyticsView
     setOverlapGranularity,
     overlapSelection,
     setOverlapSelection,
+    indicatorChartMode,
+    setIndicatorChartMode,
+    indicatorLineValueMode,
+    setIndicatorLineValueMode,
     isMobileFilterSheetOpen,
     setIsMobileFilterSheetOpen,
     isMobileDetailsSheetOpen,
     setIsMobileDetailsSheetOpen,
     lineCards,
+    combinedIndicatorSeriesByMetric,
     overlapData,
+    callCoverageSeries,
     overlapSeriesColorMap,
     sectorOptions,
     productOptions,
@@ -71,6 +88,33 @@ export function ProductDetailedAnalyticsView(props: ProductDetailedAnalyticsView
 
   const handleFiltersChange = (nextFilters: DashboardFilters) => {
     setFilters(nextFilters)
+  }
+
+  const combinedIndicatorItems = lineCards.slice(0, 4).map(({ metric }) => ({
+    metric,
+    data: combinedIndicatorSeriesByMetric[metric.id] ?? [],
+  }))
+
+  const handleIndicatorChartModeChange = (value: string) => {
+    if (value === 'kpi' || value === 'combined') {
+      setIndicatorChartMode(value)
+      return
+    }
+
+    if (!value) {
+      setIndicatorChartMode('kpi')
+    }
+  }
+
+  const handleIndicatorLineValueModeChange = (value: string) => {
+    if (value === 'percent' || value === 'absolute') {
+      setIndicatorLineValueMode(value)
+      return
+    }
+
+    if (!value) {
+      setIndicatorLineValueMode('percent')
+    }
   }
 
   return (
@@ -173,46 +217,186 @@ export function ProductDetailedAnalyticsView(props: ProductDetailedAnalyticsView
                 Показать детали
               </Button>
             </div>
+
+            <div className="h-[280px]">
+              <CallCoverageChartCard data={callCoverageSeries} loading={loading} />
+            </div>
           </div>
 
           <div className="space-y-2">
-            <h2 className="px-1 text-[13px] font-medium text-muted-foreground">
-              Индикаторы
-            </h2>
+            <div className="flex flex-wrap items-end justify-between gap-2 px-1">
+              <h2 className="text-[13px] font-medium text-muted-foreground">Индикаторы</h2>
+              <div className="flex flex-wrap items-center gap-2">
+                <ToggleGroup
+                  type="single"
+                  value={indicatorChartMode}
+                  onValueChange={handleIndicatorChartModeChange}
+                  className="justify-start gap-1"
+                >
+                  <ToggleGroupItem
+                    value="kpi"
+                    variant="outline"
+                    size="sm"
+                    className="h-8 px-2 text-xs"
+                  >
+                    Индикаторы
+                  </ToggleGroupItem>
+                  <ToggleGroupItem
+                    value="combined"
+                    variant="outline"
+                    size="sm"
+                    className="h-8 px-2 text-xs"
+                  >
+                    Комбинированные
+                  </ToggleGroupItem>
+                </ToggleGroup>
+
+                {indicatorChartMode === 'combined' ? (
+                  <ToggleGroup
+                    type="single"
+                    value={indicatorLineValueMode}
+                    onValueChange={handleIndicatorLineValueModeChange}
+                    className="justify-start gap-1"
+                  >
+                    <ToggleGroupItem
+                      value="percent"
+                      variant="outline"
+                      size="sm"
+                      className="h-8 px-2 text-xs"
+                    >
+                      %
+                    </ToggleGroupItem>
+                    <ToggleGroupItem
+                      value="absolute"
+                      variant="outline"
+                      size="sm"
+                      className="h-8 px-2 text-xs"
+                    >
+                      шт
+                    </ToggleGroupItem>
+                  </ToggleGroup>
+                ) : null}
+              </div>
+            </div>
             {loading ? (
               <div className="flex h-[250px] items-center justify-center rounded-xl border border-border/80 bg-card text-xs text-muted-foreground">
                 Загрузка звонков…
               </div>
             ) : (
-              <DashboardMobileKpiCarousel items={lineCards} />
+              <>
+                {indicatorChartMode === 'kpi' ? (
+                  <DashboardMobileKpiCarousel items={lineCards} />
+                ) : (
+                  <MobileCombinedIndicatorCarousel
+                    items={combinedIndicatorItems}
+                    lineValueMode={indicatorLineValueMode}
+                  />
+                )}
+              </>
             )}
           </div>
         </section>
 
         <section className="hidden md:flex md:min-h-0 md:flex-1 md:flex-col md:gap-2">
-          <h2 className="px-1 text-[13px] font-medium text-muted-foreground">
-            Индикаторы
-          </h2>
+          <div className="flex flex-wrap items-end justify-between gap-2 px-1">
+            <h2 className="text-[13px] font-medium text-muted-foreground">Индикаторы</h2>
+            <div className="flex items-center gap-2">
+              <ToggleGroup
+                type="single"
+                value={indicatorChartMode}
+                onValueChange={handleIndicatorChartModeChange}
+                className="justify-start gap-1"
+              >
+                <ToggleGroupItem
+                  value="kpi"
+                  variant="outline"
+                  size="sm"
+                  className="h-8 px-2 text-xs"
+                >
+                  Индикаторы
+                </ToggleGroupItem>
+                <ToggleGroupItem
+                  value="combined"
+                  variant="outline"
+                  size="sm"
+                  className="h-8 px-2 text-xs"
+                >
+                  Комбинированные
+                </ToggleGroupItem>
+              </ToggleGroup>
+
+              {indicatorChartMode === 'combined' ? (
+                <ToggleGroup
+                  type="single"
+                  value={indicatorLineValueMode}
+                  onValueChange={handleIndicatorLineValueModeChange}
+                  className="justify-start gap-1"
+                >
+                  <ToggleGroupItem
+                    value="percent"
+                    variant="outline"
+                    size="sm"
+                    className="h-8 px-2 text-xs"
+                  >
+                    %
+                  </ToggleGroupItem>
+                  <ToggleGroupItem
+                    value="absolute"
+                    variant="outline"
+                    size="sm"
+                    className="h-8 px-2 text-xs"
+                  >
+                    шт
+                  </ToggleGroupItem>
+                </ToggleGroup>
+              ) : null}
+            </div>
+          </div>
           {loading ? (
             <div className="flex md:min-h-0 md:flex-1 items-center justify-center rounded-xl border border-border/80 bg-card text-xs text-muted-foreground">
               Загрузка звонков…
             </div>
           ) : (
-            <div className="grid md:min-h-0 md:flex-1 md:gap-3 md:grid-cols-2 xl:grid-cols-[1.2fr_1fr]">
-              <div className="grid min-h-0 grid-cols-1 gap-3 sm:grid-cols-2 sm:grid-rows-2">
-                {lineCards.map(({ metric, data }) => (
-                  <DashboardLineCard key={metric.id} metric={metric} data={data} />
-                ))}
+            <div className="grid h-full min-h-0 flex-1 grid-cols-[1.2fr_1.2fr_1fr_1fr] grid-rows-2 gap-3">
+              {lineCards.slice(0, 4).map(({ metric, data }, index) => (
+                <div
+                  key={metric.id}
+                  className={indicatorGridPositions[index] ?? ''}
+                >
+                  {indicatorChartMode === 'kpi' ? (
+                    <DashboardLineCard metric={metric} data={data} />
+                  ) : (
+                    <IndicatorCombinedCard
+                      metric={metric}
+                      data={combinedIndicatorSeriesByMetric[metric.id] ?? []}
+                      lineValueMode={indicatorLineValueMode}
+                    />
+                  )}
+                </div>
+              ))}
+
+              <div className="col-start-3 row-start-1 col-span-2 min-h-0">
+                <DashboardOverlapCard
+                  data={overlapData}
+                  granularity={overlapGranularity}
+                  selectedSeries={overlapSelection}
+                  onSelectedSeriesChange={setOverlapSelection}
+                  seriesColorMap={overlapSeriesColorMap}
+                  zones={{ greenMax: 20, yellowMax: 40, max: 100 }}
+                  compact
+                  className="h-full"
+                  contentClassName="h-full min-h-0"
+                />
               </div>
 
-              <DashboardOverlapCard
-                data={overlapData}
-                granularity={overlapGranularity}
-                selectedSeries={overlapSelection}
-                onSelectedSeriesChange={setOverlapSelection}
-                seriesColorMap={overlapSeriesColorMap}
-                zones={{ greenMax: 20, yellowMax: 40, max: 100 }}
-              />
+              <div className="col-start-3 row-start-2 col-span-2 min-h-0">
+                <CallCoverageChartCard
+                  data={callCoverageSeries}
+                  loading={loading}
+                  compact
+                  className="h-full"
+                />
+              </div>
             </div>
           )}
         </section>
