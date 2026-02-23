@@ -13,6 +13,23 @@ export const PRODUCT_TAG_WEIGHTS: Record<ProductSituationTag, number> = {
   'Угроза ухода/отказа от продуктов банка': 0.3,
 }
 
+export const HEALTH_SCORE_CRITICAL_WEIGHT = 50
+
+export const HEALTH_SCORE_REFERENCE_SHARES = {
+  green: {
+    'Технические проблемы/сбои': 0.04,
+    'Запрос не решен': 0.08,
+    'Отрицательный продуктовый фидбэк': 0.04,
+    'Угроза ухода/отказа от продуктов банка': 0.0015,
+  },
+  red: {
+    'Технические проблемы/сбои': 0.12,
+    'Запрос не решен': 0.2,
+    'Отрицательный продуктовый фидбэк': 0.1,
+    'Угроза ухода/отказа от продуктов банка': 0.01,
+  },
+} as const satisfies Record<'green' | 'red', Record<ProductSituationTag, number>>
+
 export const PRODUCT_TAG_COLORS: Record<ProductSituationTag, string> = {
   'Технические проблемы/сбои': '#2563eb',
   'Запрос не решен': '#f97316',

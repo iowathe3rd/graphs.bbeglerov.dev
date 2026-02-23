@@ -29,6 +29,7 @@ export default function Page() {
     sectorOptions,
     productOptions,
     bubblePoints,
+    bubbleScoreThresholds,
     loading,
     error,
   } =
@@ -110,6 +111,7 @@ export default function Page() {
             ) : null}
             <ProductSituationBubbleMatrix
               points={bubblePoints}
+              scoreThresholds={bubbleScoreThresholds}
               productOrder={productOptions}
               onPointClick={handleBubbleClick}
               chartHeightClassName="h-full min-h-[280px]"

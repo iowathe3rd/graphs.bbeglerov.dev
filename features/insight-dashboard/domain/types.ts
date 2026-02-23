@@ -60,6 +60,13 @@ export interface ProductSituationZones {
   max: number
 }
 
+export interface ProductSituationScoreThresholds {
+  green: number
+  red: number
+  lower: number
+  upper: number
+}
+
 export interface HealthIndexBreakpoints {
   greenMin: number
   yellowMin: number
@@ -167,6 +174,7 @@ export interface ProductSituationAnalytics {
   topDomains: ProductSituationDomainPoint[]
   baselineCalls: number
   domainBaselineCalls: number
+  scoreThresholds: ProductSituationScoreThresholds
   summary: ProductSituationExecutiveSummary
   drivers: ProductSituationDriverRow[]
 }
