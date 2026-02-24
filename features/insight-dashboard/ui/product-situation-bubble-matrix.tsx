@@ -1,7 +1,7 @@
 'use client'
 
 import { CircleHelp } from 'lucide-react'
-import { useMemo } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   CartesianGrid,
   ReferenceArea,
@@ -18,6 +18,9 @@ import {
   INSIGHT_HELP_DIALOG_COPY,
   INSIGHT_TOOLTIP_COPY,
 } from '@/features/insight-dashboard/config/tooltips'
+import {
+  formatBucketLabel,
+} from '@/features/insight-dashboard/domain/date-bucketing'
 import type {
   ProductBubblePoint,
   ProductSituationScoreThresholds,
@@ -34,6 +37,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
+import type { OverlapGranularity } from '@/lib/metrics-data'
 import { cn } from '@/lib/utils'
 
 interface ProductSituationBubbleMatrixProps {
@@ -44,6 +48,12 @@ interface ProductSituationBubbleMatrixProps {
   presentation?: 'default' | 'focused'
   chartHeightClassName?: string
   loading?: boolean
+  title?: string
+  xMode?: 'products' | 'periods'
+  xAxisLabel?: string
+  periodGranularity?: OverlapGranularity
+  tooltipEntityLabel?: string
+  showTrajectory?: boolean
 }
 
 interface MatrixPoint extends ProductBubblePoint {
@@ -53,13 +63,9 @@ interface MatrixPoint extends ProductBubblePoint {
 }
 
 const ZONE_LABELS: Record<ProductBubblePoint['zone'], string> = {
-  green: 'Норма',
-  yellow: 'Внимание',
-  red: 'Критично',
-}
-
-function formatCount(value: number) {
-  return value.toLocaleString('ru-RU')
+  green: 'Зеленая',
+  yellow: 'Желтая',
+  red: 'Красная',
 }
 
 function formatScore(value: number) {
@@ -114,7 +120,7 @@ function zoneStyles(zone: ProductBubblePoint['zone']) {
     return {
       fill: 'rgba(16, 185, 129, 0.32)',
       stroke: '#047857',
-      text: 'Норма',
+      text: 'Зеленая',
     }
   }
 
@@ -122,14 +128,14 @@ function zoneStyles(zone: ProductBubblePoint['zone']) {
     return {
       fill: 'rgba(245, 158, 11, 0.32)',
       stroke: '#a16207',
-      text: 'Внимание',
+      text: 'Желтая',
     }
   }
 
   return {
     fill: 'rgba(239, 68, 68, 0.32)',
     stroke: '#b91c1c',
-    text: 'Критично',
+    text: 'Красная',
   }
 }
 
@@ -141,17 +147,59 @@ export function ProductSituationBubbleMatrix({
   presentation = 'default',
   chartHeightClassName,
   loading = false,
+  title,
+  xMode = 'products',
+  xAxisLabel,
+  periodGranularity = 'week',
+  tooltipEntityLabel,
+  showTrajectory = false,
 }: ProductSituationBubbleMatrixProps) {
   const isMobile = useIsMobile()
   const isFocused = presentation === 'focused'
+  const chartHostRef = useRef<HTMLDivElement | null>(null)
+  const [chartSize, setChartSize] = useState({ width: 0, height: 0 })
+
+  useEffect(() => {
+    const node = chartHostRef.current
+    if (!node || typeof ResizeObserver === 'undefined') {
+      return
+    }
+
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0]
+      if (!entry) {
+        return
+      }
+
+      setChartSize({
+        width: entry.contentRect.width,
+        height: entry.contentRect.height,
+      })
+    })
+
+    observer.observe(node)
+    return () => {
+      observer.disconnect()
+    }
+  }, [])
 
   const matrixData = useMemo(() => {
     const productOrderMap = new Map<string, number>(
       productOrder.map((name, index) => [name, index])
     )
+
     const ordered = [...points]
       .filter((point) => point.totalCalls > 0)
       .sort((a, b) => {
+        if (xMode === 'periods') {
+          const aPeriod = a.periodKey ?? ''
+          const bPeriod = b.periodKey ?? ''
+
+          if (aPeriod !== bPeriod) {
+            return aPeriod.localeCompare(bPeriod)
+          }
+        }
+
         const aOrder = productOrderMap.get(a.label) ?? Number.MAX_SAFE_INTEGER
         const bOrder = productOrderMap.get(b.label) ?? Number.MAX_SAFE_INTEGER
 
@@ -175,8 +223,26 @@ export function ProductSituationBubbleMatrix({
     const maxProblemCalls = Math.max(...problemCallsValues)
     const isSinglePoint = ordered.length === 1
     const focusedSinglePoint = isFocused && isSinglePoint
-    const radiusMin = focusedSinglePoint ? (isMobile ? 16 : 20) : isMobile ? 7 : 8
-    const radiusMax = focusedSinglePoint ? (isMobile ? 34 : 44) : isMobile ? 24 : 32
+
+    const plotWidth = chartSize.width > 0 ? chartSize.width : isMobile ? 320 : 820
+    const plotHeight = chartSize.height > 0 ? chartSize.height : isMobile ? 260 : 360
+    const pointsCount = Math.max(1, ordered.length)
+    const pointSlotWidth = plotWidth / pointsCount
+    const adaptiveMax = Math.min(
+      pointSlotWidth * (xMode === 'periods' ? 0.26 : 0.34),
+      plotHeight * (focusedSinglePoint ? 0.24 : 0.17)
+    )
+    const radiusMax = clamp(
+      adaptiveMax,
+      isMobile ? 8 : 10,
+      focusedSinglePoint ? (isMobile ? 34 : 42) : isMobile ? 24 : 30
+    )
+    const radiusMin = clamp(
+      radiusMax * (focusedSinglePoint ? 0.56 : 0.4),
+      isMobile ? 5 : 6,
+      radiusMax
+    )
+
     const valueRange = Math.max(1, maxProblemCalls - minProblemCalls)
     const maxScoreValue = ordered.reduce(
       (max, point) => Math.max(max, point.healthIndex),
@@ -212,9 +278,18 @@ export function ProductSituationBubbleMatrix({
     })
 
     const xLabelMap = new Map<number, string>(
-      prepared.map((point) => [point.x, point.label])
+      prepared.map((point) => {
+        const label =
+          xMode === 'periods' && point.periodKey
+            ? formatBucketLabel(point.periodKey, periodGranularity, 'short')
+            : point.label
+
+        return [point.x, label]
+      })
     )
+
     const xTicks = prepared.map((point) => point.x)
+
     return {
       points: prepared,
       xLabelMap,
@@ -224,13 +299,28 @@ export function ProductSituationBubbleMatrix({
       yMax,
       yTicks,
     }
-  }, [isFocused, isMobile, points, productOrder, scoreThresholds.lower, scoreThresholds.upper])
+  }, [
+    chartSize.height,
+    chartSize.width,
+    isFocused,
+    isMobile,
+    periodGranularity,
+    points,
+    productOrder,
+    scoreThresholds.lower,
+    scoreThresholds.upper,
+    xMode,
+  ])
+
+  const resolvedTitle =
+    title ?? (xMode === 'periods' ? 'Состояние продукта' : 'Состояние продуктов')
+  const resolvedXAxisLabel = xAxisLabel ?? (xMode === 'periods' ? 'Период' : 'Продукты')
 
   if (loading) {
     return (
       <Card className="flex h-full min-h-0 flex-col">
         <CardHeader>
-          <CardTitle className="text-base">Состояние продуктов</CardTitle>
+          <CardTitle className="text-base">{resolvedTitle}</CardTitle>
         </CardHeader>
         <CardContent className="text-sm text-muted-foreground">Загрузка звонков…</CardContent>
       </Card>
@@ -241,7 +331,7 @@ export function ProductSituationBubbleMatrix({
     return (
       <Card className="flex h-full min-h-0 flex-col">
         <CardHeader>
-          <CardTitle className="text-base">Состояние продуктов</CardTitle>
+          <CardTitle className="text-base">{resolvedTitle}</CardTitle>
         </CardHeader>
         <CardContent className="text-sm text-muted-foreground">Нет данных</CardContent>
       </Card>
@@ -258,7 +348,7 @@ export function ProductSituationBubbleMatrix({
       >
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <CardTitle className="text-base">Состояние продуктов</CardTitle>
+            <CardTitle className="text-base">{resolvedTitle}</CardTitle>
             <Dialog>
               <DialogTrigger asChild>
                 <button
@@ -294,23 +384,23 @@ export function ProductSituationBubbleMatrix({
 
           {matrixData.focusedSinglePoint ? (
             <p className="text-[11px] text-muted-foreground">
-              Риски: низкий до {formatBoundaryScore(scoreThresholds.lower)}, средний{' '}
-              {formatBoundaryScore(scoreThresholds.lower)}–{formatBoundaryScore(scoreThresholds.upper)}, высокий от{' '}
+              Зеленая: до {formatBoundaryScore(scoreThresholds.lower)} · Желтая:{' '}
+              {formatBoundaryScore(scoreThresholds.lower)}–{formatBoundaryScore(scoreThresholds.upper)} · Красная: от{' '}
               {formatBoundaryScore(scoreThresholds.upper)}
             </p>
           ) : (
             <div className="flex items-center gap-2 text-[11px]">
               <Badge variant="outline" className="gap-1">
                 <span className="inline-block h-2.5 w-2.5 rounded-full bg-emerald-500" />
-                Низкий риск: до {formatBoundaryScore(scoreThresholds.lower)}
+                Зеленая: до {formatBoundaryScore(scoreThresholds.lower)}
               </Badge>
               <Badge variant="outline" className="gap-1">
                 <span className="inline-block h-2.5 w-2.5 rounded-full bg-amber-500" />
-                Средний риск: {formatBoundaryScore(scoreThresholds.lower)}–{formatBoundaryScore(scoreThresholds.upper)}
+                Желтая: {formatBoundaryScore(scoreThresholds.lower)}–{formatBoundaryScore(scoreThresholds.upper)}
               </Badge>
               <Badge variant="outline" className="gap-1">
                 <span className="inline-block h-2.5 w-2.5 rounded-full bg-red-500" />
-                Высокий риск: от {formatBoundaryScore(scoreThresholds.upper)}
+                Красная: от {formatBoundaryScore(scoreThresholds.upper)}
               </Badge>
             </div>
           )}
@@ -340,171 +430,192 @@ export function ProductSituationBubbleMatrix({
             {!matrixData.focusedSinglePoint ? (
               <div className="flex items-center justify-center">
                 <span className="-rotate-90 whitespace-nowrap text-[10px] text-muted-foreground md:text-[11px]">
-                  Score продукта (чем выше, тем хуже)
+                  Health Index (чем выше, тем хуже)
                 </span>
               </div>
             ) : null}
 
-            <ResponsiveContainer width="100%" height="100%">
-              <ScatterChart
-                margin={{
-                  top: matrixData.focusedSinglePoint ? 10 : 8,
-                  right: matrixData.focusedSinglePoint ? 14 : 10,
-                  bottom: matrixData.focusedSinglePoint ? (isMobile ? 32 : 18) : isMobile ? 62 : 30,
-                  left: matrixData.focusedSinglePoint ? (isMobile ? 4 : 8) : isMobile ? 8 : 10,
-                }}
-              >
-                <ReferenceArea
-                  y1={0}
-                  y2={scoreThresholds.lower}
-                  fill="rgba(16, 185, 129, 0.10)"
-                />
-                <ReferenceArea
-                  y1={scoreThresholds.lower}
-                  y2={scoreThresholds.upper}
-                  fill="rgba(245, 158, 11, 0.10)"
-                />
-                <ReferenceArea
-                  y1={scoreThresholds.upper}
-                  y2={matrixData.yMax}
-                  fill="rgba(239, 68, 68, 0.10)"
-                />
-
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis
-                  type="number"
-                  dataKey="x"
-                  domain={[0.5, matrixData.points.length + 0.5]}
-                  ticks={matrixData.xTicks}
-                  tickFormatter={(value) =>
-                    shortLabel(matrixData.xLabelMap.get(Number(value)) ?? '', isMobile ? 11 : 20)
-                  }
-                  tickLine={false}
-                  axisLine={false}
-                  interval={0}
-                  angle={matrixData.focusedSinglePoint ? 0 : -15}
-                  textAnchor={matrixData.focusedSinglePoint ? 'middle' : 'end'}
-                  height={matrixData.focusedSinglePoint ? (isMobile ? 34 : 24) : isMobile ? 64 : 56}
-                  tick={{ fontSize: isMobile ? 10 : 11, fill: 'hsl(var(--muted-foreground))' }}
-                  label={{
-                    value: matrixData.focusedSinglePoint ? '' : 'Продукты',
-                    position: 'bottom',
-                    offset: matrixData.focusedSinglePoint ? 0 : isMobile ? 10 : 8,
-                    fill: 'hsl(var(--muted-foreground))',
-                    fontSize: isMobile ? 10 : 11,
+            <div ref={chartHostRef} className="h-full min-h-0">
+              <ResponsiveContainer width="100%" height="100%">
+                <ScatterChart
+                  margin={{
+                    top: matrixData.focusedSinglePoint ? 10 : 8,
+                    right: matrixData.focusedSinglePoint ? 14 : 10,
+                    bottom: matrixData.focusedSinglePoint
+                      ? isMobile
+                        ? 32
+                        : 18
+                      : isMobile
+                        ? 62
+                        : 30,
+                    left: matrixData.focusedSinglePoint ? (isMobile ? 4 : 8) : isMobile ? 8 : 10,
                   }}
-                />
+                >
+                  <ReferenceArea y1={0} y2={scoreThresholds.lower} fill="rgba(16, 185, 129, 0.10)" />
+                  <ReferenceArea
+                    y1={scoreThresholds.lower}
+                    y2={scoreThresholds.upper}
+                    fill="rgba(245, 158, 11, 0.10)"
+                  />
+                  <ReferenceArea
+                    y1={scoreThresholds.upper}
+                    y2={matrixData.yMax}
+                    fill="rgba(239, 68, 68, 0.10)"
+                  />
 
-                <YAxis
-                  type="number"
-                  dataKey="y"
-                  domain={[0, matrixData.yMax]}
-                  ticks={matrixData.yTicks}
-                  tickFormatter={(value) => formatScore(Number(value))}
-                  tickLine={false}
-                  axisLine={false}
-                  width={matrixData.focusedSinglePoint ? (isMobile ? 52 : 58) : isMobile ? 56 : 66}
-                  tick={{ fontSize: isMobile ? 10 : 11, fill: 'hsl(var(--muted-foreground))' }}
-                />
-
-                <Tooltip
-                  cursor={{ strokeDasharray: '4 4', stroke: 'hsl(var(--border))' }}
-                  allowEscapeViewBox={{ x: false, y: false }}
-                  offset={10}
-                  wrapperStyle={{ zIndex: 30, pointerEvents: 'none' }}
-                  content={({ active, payload }) => {
-                    if (!active || !payload?.length) {
-                      return null
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis
+                    type="number"
+                    dataKey="x"
+                    domain={[0.5, matrixData.points.length + 0.5]}
+                    ticks={matrixData.xTicks}
+                    tickFormatter={(value) =>
+                      shortLabel(matrixData.xLabelMap.get(Number(value)) ?? '', isMobile ? 12 : 26)
                     }
+                    tickLine={false}
+                    axisLine={false}
+                    interval={0}
+                    angle={matrixData.focusedSinglePoint ? 0 : -15}
+                    textAnchor={matrixData.focusedSinglePoint ? 'middle' : 'end'}
+                    height={matrixData.focusedSinglePoint ? (isMobile ? 34 : 24) : isMobile ? 64 : 56}
+                    tick={{ fontSize: isMobile ? 10 : 11, fill: 'hsl(var(--muted-foreground))' }}
+                    label={{
+                      value: matrixData.focusedSinglePoint ? '' : resolvedXAxisLabel,
+                      position: 'bottom',
+                      offset: matrixData.focusedSinglePoint ? 0 : isMobile ? 10 : 8,
+                      fill: 'hsl(var(--muted-foreground))',
+                      fontSize: isMobile ? 10 : 11,
+                    }}
+                  />
 
-                    const point = payload[0]?.payload as MatrixPoint | undefined
-                    if (!point) {
-                      return null
-                    }
+                  <YAxis
+                    type="number"
+                    dataKey="y"
+                    domain={[0, matrixData.yMax]}
+                    ticks={matrixData.yTicks}
+                    tickFormatter={(value) => formatScore(Number(value))}
+                    tickLine={false}
+                    axisLine={false}
+                    width={matrixData.focusedSinglePoint ? (isMobile ? 52 : 58) : isMobile ? 56 : 66}
+                    tick={{ fontSize: isMobile ? 10 : 11, fill: 'hsl(var(--muted-foreground))' }}
+                  />
 
-                    const visualZone = zoneByScore(point.healthIndex, scoreThresholds)
-                    const styles = zoneStyles(visualZone)
+                  <Tooltip
+                    cursor={{ strokeDasharray: '4 4', stroke: 'hsl(var(--border))' }}
+                    allowEscapeViewBox={{ x: false, y: false }}
+                    offset={10}
+                    wrapperStyle={{ zIndex: 30, pointerEvents: 'none' }}
+                    content={({ active, payload }) => {
+                      if (!active || !payload?.length) {
+                        return null
+                      }
 
-                    return (
-                      <BerekeChartTooltip
-                        title={point.label}
-                        subtitle={INSIGHT_TOOLTIP_COPY.bubbleMatrixHealthIndex}
-                        rows={[
-                          {
-                            id: 'health-index',
-                            label: 'Score продукта',
-                            value: formatScore(point.healthIndex),
-                            color: styles.stroke,
-                            strong: true,
-                          },
-                          {
-                            id: 'problem-rate',
-                            label: 'Доля проблемных обращений',
-                            value: formatPercent(point.problemRate),
-                            color: '#dc2626',
-                          },
-                          {
-                            id: 'problem-calls',
-                            label: 'Проблемные обращения',
-                            value: formatCount(point.problemCallsUnique),
-                            color: '#ef4444',
-                          },
-                          {
-                            id: 'total-calls',
-                            label: 'Все обращения',
-                            value: formatCount(point.totalCalls),
-                            color: '#94a3b8',
-                          },
-                          {
-                            id: 'top-driver',
-                            label: 'Главная причина',
-                            value: point.topDriverTag ? shortLabel(point.topDriverTag, 20) : '—',
-                            color: '#64748b',
-                          },
-                          {
-                            id: 'zone',
-                            label: 'Зона',
-                            value: ZONE_LABELS[visualZone],
-                            color: styles.stroke,
-                          },
-                        ]}
-                      />
-                    )
-                  }}
-                />
+                      const point = payload[0]?.payload as MatrixPoint | undefined
+                      if (!point) {
+                        return null
+                      }
 
-                <Scatter
-                  data={matrixData.points}
-                  shape={(props: any) => {
-                    const point = props?.payload as MatrixPoint | undefined
+                      const visualZone = zoneByScore(point.healthIndex, scoreThresholds)
+                      const styles = zoneStyles(visualZone)
+                      const periodTitle =
+                        xMode === 'periods' && point.periodKey
+                          ? formatBucketLabel(point.periodKey, periodGranularity, 'long')
+                          : point.label
+                      const tooltipTitle =
+                        xMode === 'periods'
+                          ? `${tooltipEntityLabel ?? point.label} · ${periodTitle}`
+                          : point.label
 
-                    if (!point) {
-                      return <g />
-                    }
-
-                    const visualZone = zoneByScore(point.healthIndex, scoreThresholds)
-                    const styles = zoneStyles(visualZone)
-                    const radius = point.bubbleRadius
-
-                    return (
-                      <g
-                        onClick={() => onPointClick?.(point)}
-                        style={{ cursor: onPointClick ? 'pointer' : 'default' }}
-                      >
-                        <circle
-                          cx={props.cx}
-                          cy={props.cy}
-                          r={radius}
-                          fill={styles.fill}
-                          stroke={styles.stroke}
-                          strokeWidth={1.8}
+                      return (
+                        <BerekeChartTooltip
+                          title={tooltipTitle}
+                          subtitle={INSIGHT_TOOLTIP_COPY.bubbleMatrixHealthIndex}
+                          rows={[
+                            {
+                              id: 'health-index',
+                              label: 'Health Index',
+                              value: formatScore(point.healthIndex),
+                              color: styles.stroke,
+                              strong: true,
+                            },
+                            {
+                              id: 'indicator-1-share',
+                              label: 'Тех. проблемы',
+                              value: formatPercent(point.indicator1Share),
+                              color: '#2563eb',
+                            },
+                            {
+                              id: 'indicator-2-share',
+                              label: 'Запрос не решен',
+                              value: formatPercent(point.indicator2Share),
+                              color: '#f97316',
+                            },
+                            {
+                              id: 'indicator-3-share',
+                              label: 'Негативный продуктовый фидбэк',
+                              value: formatPercent(point.indicator3Share),
+                              color: '#0f766e',
+                            },
+                            {
+                              id: 'indicator-4-share',
+                              label: 'Риск ухода',
+                              value: formatPercent(point.indicator4Share),
+                              color: '#dc2626',
+                            },
+                            {
+                              id: 'zone',
+                              label: 'Зона',
+                              value: ZONE_LABELS[visualZone],
+                              color: styles.stroke,
+                            },
+                          ]}
                         />
-                      </g>
-                    )
-                  }}
-                />
-              </ScatterChart>
-            </ResponsiveContainer>
+                      )
+                    }}
+                  />
+
+                  <Scatter
+                    data={matrixData.points}
+                    line={
+                      xMode === 'periods' && showTrajectory && matrixData.points.length > 1
+                        ? {
+                            stroke: 'hsl(var(--muted-foreground))',
+                            strokeWidth: 1.6,
+                            strokeDasharray: '4 3',
+                          }
+                        : false
+                    }
+                    shape={(props: any) => {
+                      const point = props?.payload as MatrixPoint | undefined
+
+                      if (!point) {
+                        return <g />
+                      }
+
+                      const visualZone = zoneByScore(point.healthIndex, scoreThresholds)
+                      const styles = zoneStyles(visualZone)
+                      const radius = point.bubbleRadius
+
+                      return (
+                        <g
+                          onClick={() => onPointClick?.(point)}
+                          style={{ cursor: onPointClick ? 'pointer' : 'default' }}
+                        >
+                          <circle
+                            cx={props.cx}
+                            cy={props.cy}
+                            r={radius}
+                            fill={styles.fill}
+                            stroke={styles.stroke}
+                            strokeWidth={1.8}
+                          />
+                        </g>
+                      )
+                    }}
+                  />
+                </ScatterChart>
+              </ResponsiveContainer>
+            </div>
           </div>
         </div>
       </CardContent>

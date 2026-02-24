@@ -15,15 +15,20 @@ import {
   serializeDashboardPreferences,
 } from '@/features/insight-dashboard/domain/detailed-analytics'
 import { filterEventsForProductSituation } from '@/features/insight-dashboard/domain/bubble-matrix'
+import { normalizeDateRangeByGranularity } from '@/features/insight-dashboard/domain/date-bucketing'
 import { buildInsightFilterOptions, ensureOption } from '@/features/insight-dashboard/domain/filter-options'
-import { buildBubbleMatrixModel } from '@/features/insight-dashboard/domain/health-index'
+import {
+  buildBubbleMatrixModel,
+  buildProductTimelineBubbleModel,
+} from '@/features/insight-dashboard/domain/health-index'
 import type {
   IndicatorChartMode,
   IndicatorLineValueMode,
   InsightDetailedFilters,
   InsightEvent,
 } from '@/features/insight-dashboard/domain/types'
-import { type OverlapGranularity } from '@/lib/metrics-data'
+
+export type DetailedGranularity = 'week' | 'month'
 
 interface UseProductDetailedModelParams {
   events?: InsightEvent[]
@@ -64,7 +69,7 @@ export function useProductDetailedModel(
   )
 
   const [filters, setFilters] = useState<InsightDetailedFilters>(() => DEFAULT_DETAILED_FILTERS)
-  const [overlapGranularity, setOverlapGranularity] = useState<OverlapGranularity>(() => 'day')
+  const [overlapGranularity, setOverlapGranularity] = useState<DetailedGranularity>(() => 'week')
   const [overlapSelection, setOverlapSelection] = useState<string[]>(() => [])
   const [indicatorChartMode, setIndicatorChartMode] = useState<IndicatorChartMode>('kpi')
   const [indicatorLineValueMode, setIndicatorLineValueMode] =
@@ -82,16 +87,19 @@ export function useProductDetailedModel(
     )
 
     const baseFilters = restored?.filters ?? defaultFilters
-    const baseGranularity = restored?.granularity ?? 'day'
+    const baseGranularity = (restored?.granularity ?? 'week') as DetailedGranularity
 
+    const nextGranularity = (queryOverrides?.granularity ?? baseGranularity) as DetailedGranularity
     const nextFilters: InsightDetailedFilters = {
       sector: queryOverrides?.sector ?? baseFilters.sector ?? defaultFilters.sector,
       channel: resolvedChannel,
       productGroup:
         queryOverrides?.productGroup ?? baseFilters.productGroup ?? defaultFilters.productGroup,
-      dateRange: queryOverrides?.dateRange ?? baseFilters.dateRange,
+      dateRange: normalizeDateRangeByGranularity(
+        queryOverrides?.dateRange ?? baseFilters.dateRange,
+        nextGranularity
+      ),
     }
-    const nextGranularity = queryOverrides?.granularity ?? baseGranularity
 
     setFilters(nextFilters)
     setOverlapGranularity(nextGranularity)
@@ -155,29 +163,43 @@ export function useProductDetailedModel(
       }),
     [events, filters, overlapGranularity]
   )
+  const effectiveDateRange = useMemo(
+    () => normalizeDateRangeByGranularity(filters.dateRange, overlapGranularity),
+    [filters.dateRange, overlapGranularity]
+  )
   const scoreMatrixEvents = useMemo(
     () =>
       filterEventsForProductSituation(events, {
         sector: filters.sector,
         productGroup: 'all',
-        dateRange: filters.dateRange,
+        dateRange: effectiveDateRange,
       }),
-    [events, filters.dateRange, filters.sector]
+    [effectiveDateRange, events, filters.sector]
   )
   const detailedBubbleMatrixModel = useMemo(
     () => {
       const globalMatrixModel = buildBubbleMatrixModel(scoreMatrixEvents)
-      const selectedPoint = globalMatrixModel.points.find(
-        (point) =>
-          point.productGroup === filters.productGroup || point.label === filters.productGroup
+      const timelineModel = buildProductTimelineBubbleModel(scoreMatrixEvents, {
+        productGroup: filters.productGroup,
+        granularity: overlapGranularity,
+      })
+      const fallbackPoint = globalMatrixModel.points.find(
+        (point) => point.productGroup === filters.productGroup || point.label === filters.productGroup
       )
 
       return {
-        points: selectedPoint ? [selectedPoint] : [],
+        points:
+          timelineModel.points.length > 0
+            ? timelineModel.points
+            : fallbackPoint
+              ? [fallbackPoint]
+              : [],
         scoreThresholds: globalMatrixModel.scoreThresholds,
+        currentZone:
+          timelineModel.points[timelineModel.points.length - 1]?.zone ?? fallbackPoint?.zone ?? null,
       }
     },
-    [filters.productGroup, scoreMatrixEvents]
+    [filters.productGroup, overlapGranularity, scoreMatrixEvents]
   )
 
   const overlapSeriesColorMap = useMemo(() => buildOverlapSeriesColorMap(), [])
@@ -189,13 +211,13 @@ export function useProductDetailedModel(
 
   const resetFilters = () => {
     setFilters(defaultFilters)
-    setOverlapGranularity('day')
+    setOverlapGranularity('week')
     setOverlapSelection([])
   }
 
   const applyMobileFilters = (
     nextFilters: InsightDetailedFilters,
-    nextGranularity: OverlapGranularity
+    nextGranularity: DetailedGranularity
   ) => {
     setFilters(nextFilters)
     setOverlapGranularity(nextGranularity)
@@ -227,6 +249,7 @@ export function useProductDetailedModel(
     combinedIndicatorSeriesByMetric: model.combinedIndicatorSeriesByMetric,
     detailedBubblePoints: detailedBubbleMatrixModel.points,
     detailedBubbleScoreThresholds: detailedBubbleMatrixModel.scoreThresholds,
+    detailedBubbleCurrentZone: detailedBubbleMatrixModel.currentZone,
     overlapData: model.overlapData,
     callCoverageSeries: model.callCoverageSeries,
     overlapSeriesColorMap,

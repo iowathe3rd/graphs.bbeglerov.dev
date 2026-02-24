@@ -7,6 +7,7 @@ import { RotateCcw } from 'lucide-react'
 
 import {
   DEFAULT_DASHBOARD_FILTERS,
+  type DetailedGranularity,
   FIXED_CHANNEL,
   type DashboardFilters,
 } from '@/components/dashboard-toolbar'
@@ -18,6 +19,11 @@ import type {
   InsightProductGroup,
   InsightSector,
 } from '@/features/insight-dashboard/domain/types'
+import {
+  formatBucketLabel,
+  normalizeDateRangeByGranularity,
+  toDateKey,
+} from '@/features/insight-dashboard/domain/date-bucketing'
 import { Button } from '@/components/ui/button'
 import { Calendar } from '@/components/ui/calendar'
 import {
@@ -34,19 +40,15 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
-import {
-  type OverlapGranularity,
-} from '@/lib/metrics-data'
-
 interface DashboardMobileFilterSheetProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   initialFilters: DashboardFilters
-  initialGranularity: OverlapGranularity
+  initialGranularity: DetailedGranularity
   sectorOptions?: string[]
   productOptions?: string[]
   channelLabel?: string
-  onApply: (filters: DashboardFilters, granularity: OverlapGranularity) => void
+  onApply: (filters: DashboardFilters, granularity: DetailedGranularity) => void
   onResetAndApply: () => void
 }
 
@@ -60,12 +62,34 @@ function cloneFilters(filters: DashboardFilters): DashboardFilters {
   }
 }
 
-function periodLabel(range: DashboardFilters['dateRange']) {
-  const from = range.from
-  const to = range.to
+function periodLabel(
+  range: DashboardFilters['dateRange'],
+  granularity: DetailedGranularity
+) {
+  const normalized = normalizeDateRangeByGranularity(range, granularity)
+  const from = normalized.from
+  const to = normalized.to
 
   if (!from && !to) {
     return 'Все даты'
+  }
+
+  if (from && to && (granularity === 'week' || granularity === 'month')) {
+    const fromKey = toDateKey(from)
+    const toKey = toDateKey(to)
+
+    if (!fromKey || !toKey) {
+      return 'Все даты'
+    }
+
+    const fromLabel = formatBucketLabel(fromKey, granularity)
+    const toLabel = formatBucketLabel(toKey, granularity)
+
+    if (fromLabel === toLabel) {
+      return fromLabel
+    }
+
+    return `${fromLabel} - ${toLabel}`
   }
 
   if (from && to) {
@@ -98,7 +122,7 @@ export function DashboardMobileFilterSheet({
     cloneFilters(initialFilters)
   )
   const [draftGranularity, setDraftGranularity] =
-    useState<OverlapGranularity>(initialGranularity)
+    useState<DetailedGranularity>(initialGranularity)
 
   useEffect(() => {
     if (!open) {
@@ -110,7 +134,13 @@ export function DashboardMobileFilterSheet({
   }, [open, initialFilters, initialGranularity])
 
   const handleApply = () => {
-    onApply(draftFilters, draftGranularity)
+    onApply(
+      {
+        ...draftFilters,
+        dateRange: normalizeDateRangeByGranularity(draftFilters.dateRange, draftGranularity),
+      },
+      draftGranularity
+    )
   }
 
   const handleClearPeriod = () => {
@@ -125,7 +155,7 @@ export function DashboardMobileFilterSheet({
 
   const handleReset = () => {
     setDraftFilters(DEFAULT_DASHBOARD_FILTERS)
-    setDraftGranularity('day')
+    setDraftGranularity('week')
     onResetAndApply()
   }
 
@@ -204,7 +234,7 @@ export function DashboardMobileFilterSheet({
               <div className="overflow-hidden rounded-lg border border-input bg-card">
                 <div className="flex items-center justify-between gap-2 border-b border-border/70 px-3 py-2">
                   <p className="truncate text-xs font-medium text-foreground/85">
-                    {periodLabel(draftFilters.dateRange)}
+                    {periodLabel(draftFilters.dateRange, draftGranularity)}
                   </p>
                   <Button
                     variant="ghost"
@@ -242,14 +272,13 @@ export function DashboardMobileFilterSheet({
               <Select
                 value={draftGranularity}
                 onValueChange={(value) =>
-                  setDraftGranularity(value as OverlapGranularity)
+                  setDraftGranularity(value as DetailedGranularity)
                 }
               >
                 <SelectTrigger className="h-9 text-xs">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="day">День</SelectItem>
                   <SelectItem value="week">Неделя</SelectItem>
                   <SelectItem value="month">Месяц</SelectItem>
                 </SelectContent>

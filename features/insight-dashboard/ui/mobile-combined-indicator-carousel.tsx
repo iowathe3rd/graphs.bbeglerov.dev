@@ -14,7 +14,7 @@ import type {
 } from '@/features/insight-dashboard/domain/types'
 import { IndicatorCombinedCard } from '@/features/insight-dashboard/ui/indicator-combined-card'
 import { cn } from '@/lib/utils'
-import type { MetricInfo } from '@/lib/metrics-data'
+import type { MetricInfo, OverlapGranularity } from '@/lib/metrics-data'
 
 interface MobileCombinedIndicatorCarouselProps {
   items: Array<{
@@ -22,11 +22,13 @@ interface MobileCombinedIndicatorCarouselProps {
     data: CombinedIndicatorBucket[]
   }>
   lineValueMode: IndicatorLineValueMode
+  granularity?: OverlapGranularity
 }
 
 export function MobileCombinedIndicatorCarousel({
   items,
   lineValueMode,
+  granularity = 'day',
 }: MobileCombinedIndicatorCarouselProps) {
   const [api, setApi] = useState<CarouselApi | null>(null)
   const [current, setCurrent] = useState(0)
@@ -71,7 +73,12 @@ export function MobileCombinedIndicatorCarousel({
           {items.map(({ metric, data }) => (
             <CarouselItem key={metric.id} className="basis-[94%] pl-3">
               <div className="h-[240px]">
-                <IndicatorCombinedCard metric={metric} data={data} lineValueMode={lineValueMode} />
+                <IndicatorCombinedCard
+                  metric={metric}
+                  data={data}
+                  lineValueMode={lineValueMode}
+                  granularity={granularity}
+                />
               </div>
             </CarouselItem>
           ))}

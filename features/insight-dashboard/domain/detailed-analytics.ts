@@ -1,12 +1,12 @@
 import {
   DASHBOARD_METRIC_IDS,
   DEFAULT_DETAILED_FILTERS,
-  PRODUCT_SITUATION_TAGS,
 } from '@/features/insight-dashboard/config/constants'
 import {
   bucketMetricSeries,
   isDateInRange,
   normalizeDateRange,
+  normalizeDateRangeByGranularity,
   parseDateKey,
   toBucketDateKey,
   toDateKey,
@@ -29,7 +29,21 @@ import {
   type OverlapGranularity,
 } from '@/lib/metrics-data'
 
-export const DETAILED_GRANULARITY_VALUES: readonly OverlapGranularity[] = ['day', 'week', 'month']
+export const DETAILED_GRANULARITY_VALUES: readonly OverlapGranularity[] = ['week', 'month']
+
+function coerceDetailedGranularity(
+  raw: string | null | undefined
+): OverlapGranularity | null {
+  if (raw === 'day' || raw === 'week') {
+    return 'week'
+  }
+
+  if (raw === 'month') {
+    return 'month'
+  }
+
+  return null
+}
 
 export interface PersistedDashboardPreferences {
   filters: {
@@ -69,9 +83,7 @@ export function parseDashboardPreferences(raw: string | null): {
       parsed.filters.productGroup.trim().length > 0
         ? parsed.filters.productGroup
         : DEFAULT_DETAILED_FILTERS.productGroup
-    const granularity = DETAILED_GRANULARITY_VALUES.includes(parsed?.granularity)
-      ? parsed.granularity
-      : 'day'
+    const granularity = coerceDetailedGranularity(parsed?.granularity) ?? 'week'
 
     return {
       filters: {
@@ -111,9 +123,7 @@ export function parseDashboardQueryParams(
     typeof productGroupRaw === 'string' && productGroupRaw.trim().length > 0
       ? (productGroupRaw as InsightDetailedFilters['productGroup'])
       : null
-  const granularity = DETAILED_GRANULARITY_VALUES.includes(granularityRaw as OverlapGranularity)
-    ? (granularityRaw as OverlapGranularity)
-    : null
+  const granularity = granularityRaw ? coerceDetailedGranularity(granularityRaw) : null
   const from = parseDateKey(fromRaw)
   const to = parseDateKey(toRaw)
 
@@ -167,7 +177,7 @@ export function countActiveMobileFilters(
     count += 1
   }
 
-  if (granularity !== 'day') {
+  if (granularity !== 'week') {
     count += 1
   }
 
@@ -264,13 +274,6 @@ function round1(value: number): number {
   return Math.round(value * 10) / 10
 }
 
-const INDICATOR_METRIC_IDS = new Set<string>(DASHBOARD_METRIC_IDS)
-const INDICATOR_TAGS = new Set<string>(PRODUCT_SITUATION_TAGS)
-
-function isIndicatorEvent(event: InsightEvent): boolean {
-  return INDICATOR_METRIC_IDS.has(event.metric) || INDICATOR_TAGS.has(event.tag)
-}
-
 function buildCallCoverageSeries(
   events: InsightEvent[],
   granularity: OverlapGranularity
@@ -280,7 +283,7 @@ function buildCallCoverageSeries(
   }
 
   const totalCallsByBucket = new Map<string, Set<string>>()
-  const indicatorCallsByBucket = new Map<string, Set<string>>()
+  const consultationCallsByBucket = new Map<string, Set<string>>()
 
   for (const event of events) {
     const bucketKey = toBucketDateKey(event.date, granularity)
@@ -290,31 +293,31 @@ function buildCallCoverageSeries(
     }
     totalCallsByBucket.get(bucketKey)?.add(event.caseId)
 
-    if (!isIndicatorEvent(event)) {
+    if (event.dialogueType !== 'Консультация') {
       continue
     }
 
-    if (!indicatorCallsByBucket.has(bucketKey)) {
-      indicatorCallsByBucket.set(bucketKey, new Set<string>())
+    if (!consultationCallsByBucket.has(bucketKey)) {
+      consultationCallsByBucket.set(bucketKey, new Set<string>())
     }
-    indicatorCallsByBucket.get(bucketKey)?.add(event.caseId)
+    consultationCallsByBucket.get(bucketKey)?.add(event.caseId)
   }
 
   return Array.from(totalCallsByBucket.entries())
     .sort((a, b) => a[0].localeCompare(b[0]))
     .map(([bucketKey, totalCallsSet]) => {
       const n1TotalCalls = totalCallsSet.size
-      const n2Raw = indicatorCallsByBucket.get(bucketKey)?.size ?? 0
-      const n2CallsWithAnyIndicator = Math.min(n2Raw, n1TotalCalls)
-      const coveragePercent =
-        n1TotalCalls > 0 ? round1((n2CallsWithAnyIndicator / n1TotalCalls) * 100) : 0
+      const n2Raw = consultationCallsByBucket.get(bucketKey)?.size ?? 0
+      const n2ConsultationCalls = Math.min(n2Raw, n1TotalCalls)
+      const consultationPercent =
+        n1TotalCalls > 0 ? round1((n2ConsultationCalls / n1TotalCalls) * 100) : 0
 
       return {
         bucketKey,
         bucketLabel: bucketKey,
         n1TotalCalls,
-        n2CallsWithAnyIndicator,
-        coveragePercent,
+        n2ConsultationCalls,
+        consultationPercent,
       }
     })
 }
@@ -435,18 +438,27 @@ export function buildDetailedAnalyticsModel(params: {
   filters: InsightDetailedFilters
   granularity: OverlapGranularity
 }): DetailedAnalyticsModel {
-  const normalizedRange = normalizeDateRange(params.filters.dateRange)
-  const filteredEvents = filterEventsForDetailedAnalytics(params.events, params.filters)
+  const effectiveGranularity = coerceDetailedGranularity(params.granularity) ?? 'week'
+  const normalizedRange = normalizeDateRangeByGranularity(
+    params.filters.dateRange,
+    effectiveGranularity
+  )
+  const effectiveFilters: InsightDetailedFilters = {
+    ...params.filters,
+    dateRange: normalizedRange,
+  }
+
+  const filteredEvents = filterEventsForDetailedAnalytics(params.events, effectiveFilters)
   const dayKeys = resolveSeriesDays(filteredEvents, normalizedRange)
   const metricsData = buildMetricSeriesFromEvents(filteredEvents, dayKeys)
 
   const chartMetricsData: Record<string, { date: string; value: number }[]> =
-    params.granularity === 'day'
+    effectiveGranularity === 'day'
       ? metricsData
       : Object.fromEntries(
           Object.entries(metricsData).map(([metricId, series]) => [
             metricId,
-            bucketMetricSeries(series, params.granularity),
+            bucketMetricSeries(series, effectiveGranularity),
           ])
         )
 
@@ -462,11 +474,11 @@ export function buildDetailedAnalyticsModel(params: {
   const overlapData = buildOverlapAnalyticsModel(
     metricsData,
     overlapMetricIds as string[],
-    params.granularity
+    effectiveGranularity
   )
-  const callCoverageSeries = buildCallCoverageSeries(filteredEvents, params.granularity)
+  const callCoverageSeries = buildCallCoverageSeries(filteredEvents, effectiveGranularity)
   const combinedIndicatorSeriesByMetric = Object.fromEntries(
-    Object.entries(buildCombinedIndicatorSeriesByMetric(filteredEvents, params.granularity)).map(
+    Object.entries(buildCombinedIndicatorSeriesByMetric(filteredEvents, effectiveGranularity)).map(
       ([metricId, series]) => [metricId, series.slice(-42)]
     )
   ) as Record<string, CombinedIndicatorBucket[]>

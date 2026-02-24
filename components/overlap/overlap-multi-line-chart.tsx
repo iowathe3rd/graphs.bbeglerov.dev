@@ -2,8 +2,6 @@
 
 import { useMemo } from 'react'
 import type { SVGProps } from 'react'
-import { format } from 'date-fns'
-import { ru } from 'date-fns/locale'
 import { CircleHelp, RotateCcw } from 'lucide-react'
 import {
   CartesianGrid,
@@ -20,6 +18,7 @@ import { useIsMobile } from '@/hooks/use-mobile'
 import { BerekeChartTooltip } from '@/components/charts/bereke-chart-tooltip'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { formatBucketLabel } from '@/features/insight-dashboard/domain/date-bucketing'
 import {
   Dialog,
   DialogContent,
@@ -112,14 +111,7 @@ function defaultValueFormatter(value: number) {
 }
 
 function defaultBucketLabelFormatter(dateKey: string, granularity: OverlapGranularity) {
-  const date = new Date(`${dateKey}T00:00:00.000Z`)
-  if (Number.isNaN(date.getTime())) return dateKey
-
-  if (granularity === 'day' || granularity === 'week' || granularity === 'month') {
-    return format(date, 'dd.MM', { locale: ru })
-  }
-
-  return dateKey
+  return formatBucketLabel(dateKey, granularity, 'short')
 }
 
 function buildColorMap(labels: string[], seriesColorMap?: Record<string, string>) {
@@ -132,17 +124,7 @@ function buildColorMap(labels: string[], seriesColorMap?: Record<string, string>
 }
 
 function tooltipDateLabel(dateKey: string, granularity: OverlapGranularity) {
-  const date = new Date(`${dateKey}T00:00:00.000Z`)
-
-  if (Number.isNaN(date.getTime())) {
-    return dateKey
-  }
-
-  if (granularity === 'day' || granularity === 'week' || granularity === 'month') {
-    return format(date, 'dd.MM.yyyy', { locale: ru })
-  }
-
-  return dateKey
+  return formatBucketLabel(dateKey, granularity, 'long')
 }
 
 function buildYTicks(step: number, max: number) {
@@ -460,7 +442,7 @@ export function OverlapMultiLineChart({
                     return (
                       <BerekeChartTooltip
                         title={tooltipDateLabel(String(label), granularity)}
-                        subtitle={`Низкий риск: ${bucket.zoneCounts.green}, средний: ${bucket.zoneCounts.yellow}, высокий: ${bucket.zoneCounts.red}. ${INSIGHT_TOOLTIP_COPY.healthIndexFormulaShort}`}
+                        subtitle={`Зеленая: ${bucket.zoneCounts.green}, Желтая: ${bucket.zoneCounts.yellow}, Красная: ${bucket.zoneCounts.red}. ${INSIGHT_TOOLTIP_COPY.healthIndexFormulaShort}`}
                         rows={rows.map((row) => ({
                           id: row.label,
                           label: shortLabel(row.label),

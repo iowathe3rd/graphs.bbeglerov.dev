@@ -39,6 +39,11 @@ interface BuildBubbleMatrixPointsOptions {
   zones?: Partial<ProductSituationZones>
 }
 
+interface BuildProductTimelineBubbleModelOptions {
+  productGroup: string
+  granularity: OverlapGranularity
+}
+
 interface CaseAccumulator {
   isConsultation: boolean
   hasNegative: boolean
@@ -463,6 +468,15 @@ function topDriverTag(tagCounts: Record<ProductSituationTag, number>): string {
   return bestTag
 }
 
+function toIndicatorShares(tagRates: Record<ProductSituationTag, number>) {
+  return {
+    indicator1Share: tagRates[INDICATOR_1_TAG],
+    indicator2Share: tagRates[INDICATOR_2_TAG],
+    indicator3Share: tagRates[INDICATOR_3_TAG],
+    indicator4Share: tagRates[INDICATOR_4_TAG],
+  }
+}
+
 function buildSummary(buckets: ProductSituationBucket[]): ProductSituationExecutiveSummary {
   if (buckets.length === 0) {
     return {
@@ -729,6 +743,7 @@ export function buildBubbleMatrixModel(
       id: domain.id,
       productGroup: domain.label,
       label: domain.label,
+      periodKey: undefined,
       totalCalls: domain.totalCalls,
       problemCallsUnique: domain.problemCallsUnique,
       problemRate: domain.problemRate,
@@ -736,8 +751,103 @@ export function buildBubbleMatrixModel(
       riskIndex: domain.riskIndex,
       zone: domain.zone,
       topDriverTag: domain.topDriverTag,
+      ...toIndicatorShares(domain.tagRates),
     })),
     scoreThresholds: analytics.scoreThresholds,
+  }
+}
+
+function buildDomainRollupsForScoreContext(events: InsightEvent[]): Array<{
+  label: string
+  rollup: CaseRollup
+}> {
+  const domainMap = new Map<string, Map<string, CaseAccumulator>>()
+
+  for (const event of events) {
+    const resolvedTag = resolveTag(event)
+    const caseKey = event.caseId || event.id
+    const domainCases = domainMap.get(event.productGroup) ?? new Map<string, CaseAccumulator>()
+    const domainCase = getOrCreateCaseAccumulator(domainCases, caseKey)
+    updateCaseAccumulator(domainCase, event, resolvedTag)
+    domainMap.set(event.productGroup, domainCases)
+  }
+
+  return Array.from(domainMap.entries()).map(([label, cases]) => ({
+    label,
+    rollup: summarizeCases(cases),
+  }))
+}
+
+function buildProductRollupsByBucket(
+  events: InsightEvent[],
+  granularity: OverlapGranularity
+): Map<string, Map<string, CaseRollup>> {
+  const bucketMap = new Map<string, Map<string, Map<string, CaseAccumulator>>>()
+
+  for (const event of events) {
+    const resolvedTag = resolveTag(event)
+    const caseKey = event.caseId || event.id
+    const bucketDate = toBucketDate(event.date, granularity)
+    const productCasesByBucket = bucketMap.get(bucketDate) ?? new Map<string, Map<string, CaseAccumulator>>()
+    const productCases = productCasesByBucket.get(event.productGroup) ?? new Map<string, CaseAccumulator>()
+    const caseAccumulator = getOrCreateCaseAccumulator(productCases, caseKey)
+
+    updateCaseAccumulator(caseAccumulator, event, resolvedTag)
+    productCasesByBucket.set(event.productGroup, productCases)
+    bucketMap.set(bucketDate, productCasesByBucket)
+  }
+
+  return new Map(
+    Array.from(bucketMap.entries()).map(([bucketDate, productCasesByBucket]) => [
+      bucketDate,
+      new Map(
+        Array.from(productCasesByBucket.entries()).map(([productGroup, cases]) => [
+          productGroup,
+          summarizeCases(cases),
+        ])
+      ),
+    ])
+  )
+}
+
+export function buildProductTimelineBubbleModel(
+  events: InsightEvent[],
+  options: BuildProductTimelineBubbleModelOptions
+): ProductBubbleMatrixModel {
+  const domainRollups = buildDomainRollupsForScoreContext(events)
+  const scoreContext = buildScoreContext(domainRollups.map((item) => item.rollup))
+  const productRollupsByBucket = buildProductRollupsByBucket(events, options.granularity)
+  const points: ProductBubblePoint[] = []
+
+  for (const [bucketDate, productRollups] of Array.from(productRollupsByBucket.entries()).sort((a, b) =>
+    a[0].localeCompare(b[0])
+  )) {
+    const rollup = productRollups.get(options.productGroup)
+    if (!rollup) {
+      continue
+    }
+
+    const riskMetrics = computeRiskMetrics(rollup, scoreContext)
+
+    points.push({
+      id: `timeline:${options.productGroup}:${bucketDate}`,
+      productGroup: options.productGroup,
+      label: options.productGroup,
+      periodKey: bucketDate,
+      totalCalls: rollup.totalCalls,
+      problemCallsUnique: rollup.problemCallsUnique,
+      problemRate: riskMetrics.problemRate,
+      healthIndex: riskMetrics.healthIndex,
+      riskIndex: riskMetrics.riskIndex,
+      zone: zoneByScore(riskMetrics.healthIndex, scoreContext.thresholds),
+      topDriverTag: topDriverTag(rollup.tagCounts),
+      ...toIndicatorShares(riskMetrics.tagRates),
+    })
+  }
+
+  return {
+    points,
+    scoreThresholds: scoreContext.thresholds,
   }
 }
 

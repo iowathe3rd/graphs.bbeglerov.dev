@@ -13,8 +13,10 @@ import {
 } from 'recharts'
 
 import { BerekeChartTooltip } from '@/components/charts/bereke-chart-tooltip'
+import { formatBucketLabel } from '@/features/insight-dashboard/domain/date-bucketing'
 import { cn } from '@/lib/utils'
 import { useIsMobile } from '@/hooks/use-mobile'
+import type { OverlapGranularity } from '@/lib/metrics-data'
 
 interface PreparedDatum<TData extends object> {
   [key: string]: unknown
@@ -40,6 +42,8 @@ interface StackedPortionBarChartProps<TData extends object = Record<string, unkn
   xAxisLabel?: string
   totalLabel?: string
   partLabel?: string
+  coverageLabel?: string
+  granularity?: OverlapGranularity
   className?: string
 }
 
@@ -56,41 +60,12 @@ function toNumber(value: unknown): number {
   return 0
 }
 
-function formatShortDate(value: string): string {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    return value
-  }
-
-  const date = new Date(`${value}T00:00:00.000Z`)
-
-  if (Number.isNaN(date.getTime())) {
-    return value
-  }
-
-  return date.toLocaleDateString('ru-RU', {
-    day: '2-digit',
-    month: '2-digit',
-    timeZone: 'UTC',
-  })
+function formatShortDate(value: string, granularity: OverlapGranularity): string {
+  return formatBucketLabel(value, granularity, 'short')
 }
 
-function formatLongDate(value: string): string {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    return value
-  }
-
-  const date = new Date(`${value}T00:00:00.000Z`)
-
-  if (Number.isNaN(date.getTime())) {
-    return value
-  }
-
-  return date.toLocaleDateString('ru-RU', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    timeZone: 'UTC',
-  })
+function formatLongDate(value: string, granularity: OverlapGranularity): string {
+  return formatBucketLabel(value, granularity, 'long')
 }
 
 function formatCoverage(value: number): string {
@@ -113,6 +88,8 @@ export function StackedPortionBarChart<TData extends object = Record<string, unk
   xAxisLabel = 'Дата',
   totalLabel = 'Все обращения',
   partLabel = 'Обращения с тегами',
+  coverageLabel = 'Доля',
+  granularity = 'day',
   className,
 }: StackedPortionBarChartProps<TData>) {
   const isMobile = useIsMobile()
@@ -164,15 +141,15 @@ export function StackedPortionBarChart<TData extends object = Record<string, unk
             }}
           >
             <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="hsl(var(--border))" />
-            <XAxis
-              dataKey="__xValue"
-              tickLine={false}
-              axisLine={false}
-              minTickGap={isMobile ? 16 : 24}
-              tickFormatter={(value) => formatShortDate(String(value))}
-              tick={{ fontSize: isMobile ? 10 : 11, fill: 'hsl(var(--muted-foreground))' }}
-              label={{
-                value: xAxisLabel,
+                <XAxis
+                  dataKey="__xValue"
+                  tickLine={false}
+                  axisLine={false}
+                  minTickGap={isMobile ? 16 : 24}
+                  tickFormatter={(value) => formatShortDate(String(value), granularity)}
+                  tick={{ fontSize: isMobile ? 10 : 11, fill: 'hsl(var(--muted-foreground))' }}
+                  label={{
+                    value: xAxisLabel,
                 position: 'insideBottom',
                 offset: -2,
                 fill: 'hsl(var(--muted-foreground))',
@@ -199,7 +176,7 @@ export function StackedPortionBarChart<TData extends object = Record<string, unk
 
                 return (
                   <BerekeChartTooltip
-                    title={formatLongDate(point.__xValue)}
+                    title={formatLongDate(point.__xValue, granularity)}
                     rows={[
                       {
                         id: 'total-calls',
@@ -215,7 +192,7 @@ export function StackedPortionBarChart<TData extends object = Record<string, unk
                       },
                       {
                         id: 'coverage',
-                        label: 'Доля с тегами',
+                        label: coverageLabel,
                         value: formatCoverage(point.__coveragePercent),
                         color: '#0f172a',
                         strong: true,

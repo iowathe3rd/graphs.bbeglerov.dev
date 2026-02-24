@@ -73,7 +73,7 @@ export default function Page() {
               </h1>
             </Link>
             <Badge variant="secondary" className="text-[11px]">
-              Состояние продукта
+              Состояние продуктов
             </Badge>
           </div>
 

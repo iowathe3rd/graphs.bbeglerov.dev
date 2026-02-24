@@ -9,6 +9,7 @@ import { DashboardMobileKpiCarousel } from '@/components/dashboard-mobile-kpi-ca
 import { DashboardLineCard } from '@/components/dashboard-line-card'
 import {
   DashboardToolbar,
+  type DetailedGranularity,
   type DashboardFilters,
 } from '@/components/dashboard-toolbar'
 import { ThemeToggle } from '@/components/theme-toggle'
@@ -20,7 +21,6 @@ import { useProductDetailedModel } from '@/features/insight-dashboard/hooks/use-
 import { Badge } from '@/components/ui/badge'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import type { InsightEvent } from '@/features/insight-dashboard/domain/types'
-import type { OverlapGranularity } from '@/lib/metrics-data'
 
 interface ProductDetailedAnalyticsViewProps {
   events?: InsightEvent[]
@@ -55,6 +55,7 @@ export function ProductDetailedAnalyticsView(props: ProductDetailedAnalyticsView
     combinedIndicatorSeriesByMetric,
     detailedBubblePoints,
     detailedBubbleScoreThresholds,
+    detailedBubbleCurrentZone,
     callCoverageSeries,
     sectorOptions,
     productOptions,
@@ -76,7 +77,7 @@ export function ProductDetailedAnalyticsView(props: ProductDetailedAnalyticsView
 
   const handleMobileApply = (
     nextFilters: DashboardFilters,
-    nextGranularity: OverlapGranularity
+    nextGranularity: DetailedGranularity
   ) => {
     applyMobileFilters(nextFilters, nextGranularity)
   }
@@ -112,6 +113,18 @@ export function ProductDetailedAnalyticsView(props: ProductDetailedAnalyticsView
     }
   }
 
+  const zoneText =
+    detailedBubbleCurrentZone === 'green'
+      ? 'Зеленая'
+      : detailedBubbleCurrentZone === 'yellow'
+        ? 'Желтая'
+        : detailedBubbleCurrentZone === 'red'
+          ? 'Красная'
+          : null
+  const detailedBubbleTitle = zoneText
+    ? `Состояние продукта: ${filters.productGroup} (${zoneText} зона)`
+    : `Состояние продукта: ${filters.productGroup}`
+
   return (
     <div className="min-h-dvh bg-background md:h-[100dvh] md:overflow-hidden">
       <header className="border-b border-border/70 bg-card/75 backdrop-blur">
@@ -124,7 +137,7 @@ export function ProductDetailedAnalyticsView(props: ProductDetailedAnalyticsView
               </h1>
             </Link>
             <Badge variant="secondary" className="text-[11px]">
-              Детальная аналитика по продукту
+              Детальная аналитика по периоду
             </Badge>
           </div>
 
@@ -175,7 +188,7 @@ export function ProductDetailedAnalyticsView(props: ProductDetailedAnalyticsView
         <section className="space-y-3 md:hidden">
           <div className="space-y-2">
             <h2 className="px-1 text-[13px] font-medium text-muted-foreground">
-              Состояние выбранного продукта
+              Состояние продукта
             </h2>
             {loading ? (
               <div className="flex h-[420px] items-center justify-center rounded-xl border border-border/80 bg-card text-xs text-muted-foreground">
@@ -189,12 +202,22 @@ export function ProductDetailedAnalyticsView(props: ProductDetailedAnalyticsView
                   productOrder={[filters.productGroup]}
                   presentation="focused"
                   chartHeightClassName="h-full min-h-0"
+                  title={detailedBubbleTitle}
+                  xMode="periods"
+                  xAxisLabel="Период"
+                  periodGranularity={overlapGranularity}
+                  tooltipEntityLabel={filters.productGroup}
+                  showTrajectory
                 />
               </div>
             )}
 
             <div className="h-[280px]">
-              <CallCoverageChartCard data={callCoverageSeries} loading={loading} />
+              <CallCoverageChartCard
+                data={callCoverageSeries}
+                loading={loading}
+                granularity={overlapGranularity}
+              />
             </div>
           </div>
 
@@ -260,11 +283,12 @@ export function ProductDetailedAnalyticsView(props: ProductDetailedAnalyticsView
             ) : (
               <>
                 {indicatorChartMode === 'kpi' ? (
-                  <DashboardMobileKpiCarousel items={lineCards} />
+                  <DashboardMobileKpiCarousel items={lineCards} granularity={overlapGranularity} />
                 ) : (
                   <MobileCombinedIndicatorCarousel
                     items={combinedIndicatorItems}
                     lineValueMode={indicatorLineValueMode}
+                    granularity={overlapGranularity}
                   />
                 )}
               </>
@@ -339,12 +363,17 @@ export function ProductDetailedAnalyticsView(props: ProductDetailedAnalyticsView
                   className={indicatorGridPositions[index] ?? ''}
                 >
                   {indicatorChartMode === 'kpi' ? (
-                    <DashboardLineCard metric={metric} data={data} />
+                    <DashboardLineCard
+                      metric={metric}
+                      data={data}
+                      granularity={overlapGranularity}
+                    />
                   ) : (
                     <IndicatorCombinedCard
                       metric={metric}
                       data={combinedIndicatorSeriesByMetric[metric.id] ?? []}
                       lineValueMode={indicatorLineValueMode}
+                      granularity={overlapGranularity}
                     />
                   )}
                 </div>
@@ -357,6 +386,12 @@ export function ProductDetailedAnalyticsView(props: ProductDetailedAnalyticsView
                   productOrder={[filters.productGroup]}
                   presentation="focused"
                   chartHeightClassName="h-full min-h-0"
+                  title={detailedBubbleTitle}
+                  xMode="periods"
+                  xAxisLabel="Период"
+                  periodGranularity={overlapGranularity}
+                  tooltipEntityLabel={filters.productGroup}
+                  showTrajectory
                 />
               </div>
 
@@ -366,6 +401,7 @@ export function ProductDetailedAnalyticsView(props: ProductDetailedAnalyticsView
                   loading={loading}
                   compact
                   className="h-full"
+                  granularity={overlapGranularity}
                 />
               </div>
             </div>

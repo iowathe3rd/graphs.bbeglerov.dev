@@ -13,11 +13,13 @@ import {
 
 import { BerekeChartTooltip } from '@/components/charts/bereke-chart-tooltip'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { formatBucketLabel } from '@/features/insight-dashboard/domain/date-bucketing'
 import type {
   CombinedIndicatorBucket,
   IndicatorLineValueMode,
 } from '@/features/insight-dashboard/domain/types'
 import type { MetricInfo } from '@/lib/metrics-data'
+import type { OverlapGranularity } from '@/lib/metrics-data'
 import { cn } from '@/lib/utils'
 
 interface IndicatorCombinedCardProps {
@@ -25,6 +27,7 @@ interface IndicatorCombinedCardProps {
   data: CombinedIndicatorBucket[]
   lineValueMode: IndicatorLineValueMode
   className?: string
+  granularity?: OverlapGranularity
 }
 
 interface PreparedPoint {
@@ -36,39 +39,12 @@ interface PreparedPoint {
   lineValue: number
 }
 
-function formatShortDate(value: string): string {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    return value
-  }
-
-  const date = new Date(`${value}T00:00:00.000Z`)
-  if (Number.isNaN(date.getTime())) {
-    return value
-  }
-
-  return date.toLocaleDateString('ru-RU', {
-    day: '2-digit',
-    month: '2-digit',
-    timeZone: 'UTC',
-  })
+function formatShortDate(value: string, granularity: OverlapGranularity): string {
+  return formatBucketLabel(value, granularity, 'short')
 }
 
-function formatLongDate(value: string): string {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    return value
-  }
-
-  const date = new Date(`${value}T00:00:00.000Z`)
-  if (Number.isNaN(date.getTime())) {
-    return value
-  }
-
-  return date.toLocaleDateString('ru-RU', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    timeZone: 'UTC',
-  })
+function formatLongDate(value: string, granularity: OverlapGranularity): string {
+  return formatBucketLabel(value, granularity, 'long')
 }
 
 function formatPercent(value: number): string {
@@ -122,6 +98,7 @@ export function IndicatorCombinedCard({
   data,
   lineValueMode,
   className,
+  granularity = 'day',
 }: IndicatorCombinedCardProps) {
   if (!data.length) {
     return (
@@ -169,7 +146,7 @@ export function IndicatorCombinedCard({
               axisLine={false}
               minTickGap={24}
               tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
-              tickFormatter={(value) => formatShortDate(String(value))}
+              tickFormatter={(value) => formatShortDate(String(value), granularity)}
             />
             <YAxis
               yAxisId="calls"
@@ -205,7 +182,7 @@ export function IndicatorCombinedCard({
 
                 return (
                   <BerekeChartTooltip
-                    title={formatLongDate(point.bucketKey)}
+                    title={formatLongDate(point.bucketKey, granularity)}
                     rows={[
                       {
                         id: 'total-calls',

@@ -6,22 +6,45 @@ import { SlidersHorizontal } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import type { DashboardFilters } from '@/components/dashboard-toolbar'
-import type { OverlapGranularity } from '@/lib/metrics-data'
+import type { DashboardFilters, DetailedGranularity } from '@/components/dashboard-toolbar'
+import {
+  formatBucketLabel,
+  normalizeDateRangeByGranularity,
+  toDateKey,
+} from '@/features/insight-dashboard/domain/date-bucketing'
 
 interface DashboardMobileFilterSummaryProps {
   filters: DashboardFilters
-  granularity: OverlapGranularity
+  granularity: DetailedGranularity
   activeCount: number
   onOpenFilters: () => void
 }
 
-function formatDateRangeLabel(filters: DashboardFilters) {
-  const from = filters.dateRange.from
-  const to = filters.dateRange.to
+function formatDateRangeLabel(
+  filters: DashboardFilters,
+  granularity: DetailedGranularity
+) {
+  const normalized = normalizeDateRangeByGranularity(filters.dateRange, granularity)
+  const from = normalized.from
+  const to = normalized.to
 
   if (!from && !to) {
     return 'Все'
+  }
+
+  if (from && to) {
+    const fromKey = toDateKey(from)
+    const toKey = toDateKey(to)
+    if (fromKey && toKey) {
+      const fromLabel = formatBucketLabel(fromKey, granularity)
+      const toLabel = formatBucketLabel(toKey, granularity)
+
+      if (fromLabel === toLabel) {
+        return fromLabel
+      }
+
+      return `${fromLabel} - ${toLabel}`
+    }
   }
 
   if (from && to) {
@@ -39,16 +62,12 @@ function formatDateRangeLabel(filters: DashboardFilters) {
   return format(oneDay, 'dd MMM', { locale: ru })
 }
 
-function granularityLabel(granularity: OverlapGranularity) {
+function granularityLabel(granularity: DetailedGranularity) {
   if (granularity === 'week') {
     return 'Неделя'
   }
 
-  if (granularity === 'month') {
-    return 'Месяц'
-  }
-
-  return 'День'
+  return 'Месяц'
 }
 
 export function DashboardMobileFilterSummary({
@@ -80,7 +99,7 @@ export function DashboardMobileFilterSummary({
           Продукт: {filters.productGroup}
         </Badge>
         <Badge variant="outline" className="shrink-0 text-[11px]">
-          Период: {formatDateRangeLabel(filters)}
+          Период: {formatDateRangeLabel(filters, granularity)}
         </Badge>
         <Badge variant="outline" className="shrink-0 text-[11px]">
           Группировка: {granularityLabel(granularity)}

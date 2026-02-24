@@ -11,13 +11,16 @@ import {
 } from '@/components/ui/carousel'
 import { cn } from '@/lib/utils'
 import type { MetricDataPoint, MetricInfo } from '@/lib/metrics-data'
+import type { OverlapGranularity } from '@/lib/metrics-data'
 
 interface DashboardMobileKpiCarouselProps {
   items: Array<{ metric: MetricInfo; data: MetricDataPoint[] }>
+  granularity?: OverlapGranularity
 }
 
 export function DashboardMobileKpiCarousel({
   items,
+  granularity = 'day',
 }: DashboardMobileKpiCarouselProps) {
   const [api, setApi] = useState<CarouselApi | null>(null)
   const [current, setCurrent] = useState(0)
@@ -62,7 +65,7 @@ export function DashboardMobileKpiCarousel({
           {items.map(({ metric, data }) => (
             <CarouselItem key={metric.id} className="basis-[94%] pl-3">
               <div className="h-[240px]">
-                <DashboardLineCard metric={metric} data={data} />
+                <DashboardLineCard metric={metric} data={data} granularity={granularity} />
               </div>
             </CarouselItem>
           ))}

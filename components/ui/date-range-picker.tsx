@@ -8,19 +8,55 @@ import type { DateRange } from 'react-day-picker'
 import { Calendar } from '@/components/ui/calendar'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import {
+  formatBucketLabel,
+  normalizeDateRangeByGranularity,
+  toDateKey,
+} from '@/features/insight-dashboard/domain/date-bucketing'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { cn } from '@/lib/utils'
+
+type DateRangePickerGranularity = 'day' | 'week' | 'month'
 
 interface DateRangePickerProps {
   date: DateRange | undefined
   onDateChange: (date: DateRange | undefined) => void
   className?: string
   placeholder?: string
+  granularity?: DateRangePickerGranularity
 }
 
-function formatRangeLabel(date: DateRange | undefined) {
+function formatRangeLabel(
+  date: DateRange | undefined,
+  granularity: DateRangePickerGranularity
+) {
   if (!date?.from) {
     return null
+  }
+
+  if (granularity === 'week' || granularity === 'month') {
+    const normalized = normalizeDateRangeByGranularity(
+      {
+        from: date.from,
+        to: date.to,
+      },
+      granularity
+    )
+    const fromKey = toDateKey(normalized.from)
+    const toKey = toDateKey(normalized.to)
+
+    if (!fromKey || !toKey) {
+      return null
+    }
+
+    const fromLabel = formatBucketLabel(fromKey, granularity)
+    const toLabel = formatBucketLabel(toKey, granularity)
+
+    if (fromLabel === toLabel) {
+      return fromLabel
+    }
+
+    return `${fromLabel} - ${toLabel}`
   }
 
   if (date.to) {
@@ -39,9 +75,10 @@ export function DateRangePicker({
   onDateChange,
   className,
   placeholder = 'Выберите период',
+  granularity = 'day',
 }: DateRangePickerProps) {
   const isMobile = useIsMobile()
-  const label = formatRangeLabel(date)
+  const label = formatRangeLabel(date, granularity)
 
   return (
     <Popover>

@@ -23,18 +23,27 @@ export function normalizeDateRange(range: InsightDateRange): InsightDateRange {
   return range
 }
 
+function toUtcTimestamp(date: Date): number {
+  return Date.UTC(date.getFullYear(), date.getMonth(), date.getDate())
+}
+
+function toUtcMidnightDate(date: Date): Date {
+  return new Date(toUtcTimestamp(date))
+}
+
 export function isDateInRange(date: string, from?: Date, to?: Date): boolean {
-  const current = new Date(`${date}T00:00:00.000Z`)
-
-  if (Number.isNaN(current.getTime())) {
+  const parsed = parseDateKey(date)
+  if (!parsed) {
     return false
   }
 
-  if (from && current < from) {
+  const currentTs = toUtcTimestamp(parsed)
+
+  if (from && currentTs < toUtcTimestamp(from)) {
     return false
   }
 
-  if (to && current > to) {
+  if (to && currentTs > toUtcTimestamp(to)) {
     return false
   }
 
@@ -115,6 +124,168 @@ export function toBucketDateKey(dateKey: string, granularity: InsightGranularity
   }
 
   return dateKey
+}
+
+export function startOfIsoWeek(date: Date): Date {
+  const result = toUtcMidnightDate(date)
+  const day = (result.getUTCDay() + 6) % 7
+  result.setUTCDate(result.getUTCDate() - day)
+  return result
+}
+
+export function endOfIsoWeek(date: Date): Date {
+  const result = startOfIsoWeek(date)
+  result.setUTCDate(result.getUTCDate() + 6)
+  return result
+}
+
+export function startOfMonthDate(date: Date): Date {
+  const result = toUtcMidnightDate(date)
+  result.setUTCDate(1)
+  return result
+}
+
+export function endOfMonthDate(date: Date): Date {
+  const result = startOfMonthDate(date)
+  result.setUTCMonth(result.getUTCMonth() + 1)
+  result.setUTCDate(0)
+  return result
+}
+
+export function normalizeDateRangeByGranularity(
+  range: InsightDateRange,
+  granularity: InsightGranularity
+): InsightDateRange {
+  const normalized = normalizeDateRange(range)
+  const from = normalized.from
+  const to = normalized.to
+
+  if (!from && !to) {
+    return normalized
+  }
+
+  const resolvedFrom = from ?? to
+  const resolvedTo = to ?? from
+
+  if (!resolvedFrom || !resolvedTo) {
+    return normalized
+  }
+
+  if (granularity === 'week') {
+    return {
+      from: startOfIsoWeek(resolvedFrom),
+      to: endOfIsoWeek(resolvedTo),
+    }
+  }
+
+  if (granularity === 'month') {
+    return {
+      from: startOfMonthDate(resolvedFrom),
+      to: endOfMonthDate(resolvedTo),
+    }
+  }
+
+  return {
+    from: toUtcMidnightDate(resolvedFrom),
+    to: toUtcMidnightDate(resolvedTo),
+  }
+}
+
+function formatRuShort(date: Date): string {
+  return date
+    .toLocaleDateString('ru-RU', {
+      day: '2-digit',
+      month: 'short',
+      timeZone: 'UTC',
+    })
+    .replace('.', '')
+}
+
+function formatRuLong(date: Date): string {
+  return date
+    .toLocaleDateString('ru-RU', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      timeZone: 'UTC',
+    })
+    .replace(' г.', '')
+}
+
+function isoWeekInfoFromDate(date: Date): {
+  week: number
+  year: number
+  start: Date
+  end: Date
+} {
+  const start = startOfIsoWeek(date)
+  const end = endOfIsoWeek(date)
+  const anchor = new Date(start)
+  anchor.setUTCDate(anchor.getUTCDate() + 3)
+  const weekYear = anchor.getUTCFullYear()
+  const yearStart = new Date(Date.UTC(weekYear, 0, 1))
+  const yearStartDay = (yearStart.getUTCDay() + 6) % 7
+  yearStart.setUTCDate(yearStart.getUTCDate() - yearStartDay)
+  const diffDays = Math.round((start.getTime() - yearStart.getTime()) / 86400000)
+  const week = Math.floor(diffDays / 7) + 1
+
+  return {
+    week,
+    year: weekYear,
+    start,
+    end,
+  }
+}
+
+export function formatBucketLabel(
+  dateKey: string,
+  granularity: InsightGranularity,
+  mode: 'short' | 'long' = 'short'
+): string {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
+    return dateKey
+  }
+
+  const date = new Date(`${dateKey}T00:00:00.000Z`)
+  if (Number.isNaN(date.getTime())) {
+    return dateKey
+  }
+
+  if (granularity === 'week') {
+    const info = isoWeekInfoFromDate(date)
+    const weekToken = `W${String(info.week).padStart(2, '0')}`
+    const startLabel = mode === 'short' ? formatRuShort(info.start) : formatRuLong(info.start)
+    const endLabel = mode === 'short' ? formatRuShort(info.end) : formatRuLong(info.end)
+
+    return `${weekToken} (${startLabel}–${endLabel})`
+  }
+
+  if (granularity === 'month') {
+    const monthLabel = date
+      .toLocaleDateString('ru-RU', {
+        month: 'short',
+        year: 'numeric',
+        timeZone: 'UTC',
+      })
+      .replace(' г.', '')
+
+    return monthLabel
+  }
+
+  if (mode === 'long') {
+    return date.toLocaleDateString('ru-RU', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      timeZone: 'UTC',
+    })
+  }
+
+  return date.toLocaleDateString('ru-RU', {
+    day: '2-digit',
+    month: '2-digit',
+    timeZone: 'UTC',
+  })
 }
 
 export function bucketMetricSeries(

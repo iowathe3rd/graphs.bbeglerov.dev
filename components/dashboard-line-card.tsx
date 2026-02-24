@@ -5,11 +5,14 @@ import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'rec
 
 import { BerekeChartTooltip } from '@/components/charts/bereke-chart-tooltip'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { formatBucketLabel } from '@/features/insight-dashboard/domain/date-bucketing'
 import type { MetricDataPoint, MetricInfo } from '@/lib/metrics-data'
+import type { OverlapGranularity } from '@/lib/metrics-data'
 
 interface DashboardLineCardProps {
   metric: MetricInfo
   data: MetricDataPoint[]
+  granularity?: OverlapGranularity
 }
 
 function metricValue(value: number, unit: string) {
@@ -28,9 +31,20 @@ function metricSemanticTone(metric: MetricInfo, value: number) {
   return 'text-red-600'
 }
 
-function trendComparisonLabel(data: MetricDataPoint[]) {
+function trendComparisonLabel(
+  data: MetricDataPoint[],
+  granularity: OverlapGranularity
+) {
   if (data.length < 2) {
     return 'от предыдущего периода'
+  }
+
+  if (granularity === 'month') {
+    return 'от прошлого месяца'
+  }
+
+  if (granularity === 'week') {
+    return 'от прошлой недели'
   }
 
   const lastDate = new Date(data[data.length - 1]?.date)
@@ -61,36 +75,19 @@ function trendSemanticTone(metric: MetricInfo, deltaPercent: number) {
   return isPositiveImpact ? 'text-emerald-600' : 'text-red-600'
 }
 
-function formatShortDate(dateKey: string) {
-  const date = new Date(`${dateKey}T00:00:00.000Z`)
-
-  if (Number.isNaN(date.getTime())) {
-    return dateKey
-  }
-
-  return date.toLocaleDateString('ru-RU', {
-    day: '2-digit',
-    month: '2-digit',
-    timeZone: 'UTC',
-  })
+function formatShortDate(dateKey: string, granularity: OverlapGranularity) {
+  return formatBucketLabel(dateKey, granularity, 'short')
 }
 
-function formatFullDate(dateKey: string) {
-  const date = new Date(`${dateKey}T00:00:00.000Z`)
-
-  if (Number.isNaN(date.getTime())) {
-    return dateKey
-  }
-
-  return date.toLocaleDateString('ru-RU', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    timeZone: 'UTC',
-  })
+function formatFullDate(dateKey: string, granularity: OverlapGranularity) {
+  return formatBucketLabel(dateKey, granularity, 'long')
 }
 
-export function DashboardLineCard({ metric, data }: DashboardLineCardProps) {
+export function DashboardLineCard({
+  metric,
+  data,
+  granularity = 'day',
+}: DashboardLineCardProps) {
   if (!data.length) {
     return (
       <Card className="h-full">
@@ -110,7 +107,7 @@ export function DashboardLineCard({ metric, data }: DashboardLineCardProps) {
   const TrendIcon = deltaPercent >= 0 ? TrendingUp : TrendingDown
   const currentTone = metricSemanticTone(metric, current)
   const trendTone = trendSemanticTone(metric, deltaPercent)
-  const trendComparison = trendComparisonLabel(data)
+  const trendComparison = trendComparisonLabel(data, granularity)
   const chartData =
     data.length === 1
       ? (() => {
@@ -158,7 +155,7 @@ export function DashboardLineCard({ metric, data }: DashboardLineCardProps) {
               tickLine={false}
               axisLine={false}
               tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
-              tickFormatter={(value) => formatShortDate(String(value))}
+              tickFormatter={(value) => formatShortDate(String(value), granularity)}
               minTickGap={26}
             />
             <YAxis hide domain={['dataMin - 5', 'dataMax + 5']} />
@@ -170,7 +167,7 @@ export function DashboardLineCard({ metric, data }: DashboardLineCardProps) {
 
                 return (
                   <BerekeChartTooltip
-                    title={formatFullDate(String(label))}
+                    title={formatFullDate(String(label), granularity)}
                     rows={[
                       {
                         id: metric.id,

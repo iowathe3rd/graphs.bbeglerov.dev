@@ -3,6 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import type { CallCoverageBucket } from '@/features/insight-dashboard/domain/types'
 import { StackedPortionBarChart } from '@/features/insight-dashboard/ui/stacked-portion-bar-chart'
+import type { OverlapGranularity } from '@/lib/metrics-data'
 import { cn } from '@/lib/utils'
 
 interface CallCoverageChartCardProps {
@@ -10,6 +11,7 @@ interface CallCoverageChartCardProps {
   loading?: boolean
   compact?: boolean
   className?: string
+  granularity?: OverlapGranularity
 }
 
 export function CallCoverageChartCard({
@@ -17,13 +19,14 @@ export function CallCoverageChartCard({
   loading = false,
   compact = false,
   className,
+  granularity = 'week',
 }: CallCoverageChartCardProps) {
   return (
     <Card className={cn('flex h-full flex-col', compact ? 'min-h-0' : 'min-h-[260px]', className)}>
       <CardHeader className="pb-2">
-        <CardTitle className="text-sm">Обращения с проблемными тегами</CardTitle>
+        <CardTitle className="text-sm">Консультационные обращения</CardTitle>
         <p className="text-[11px] text-muted-foreground">
-          Серый столбец — все обращения, оранжевый — обращения, где есть хотя бы один тег.
+          Серый столбец — все обращения, оранжевый — консультационные обращения.
         </p>
       </CardHeader>
 
@@ -37,11 +40,13 @@ export function CallCoverageChartCard({
             data={data}
             xKey="bucketLabel"
             totalKey="n1TotalCalls"
-            partKey="n2CallsWithAnyIndicator"
+            partKey="n2ConsultationCalls"
             height={190}
-            xAxisLabel="Дата"
+            xAxisLabel="Период"
             totalLabel="Все обращения"
-            partLabel="Проблемные обращения"
+            partLabel="Консультационные обращения"
+            coverageLabel="Доля консультаций"
+            granularity={granularity}
             valueFormatter={(value) => Math.round(value).toLocaleString('ru-RU')}
           />
         )}

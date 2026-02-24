@@ -30,7 +30,7 @@ export const HEALTH_SCORE_REFERENCE_SHARES = {
   },
 } as const satisfies Record<'green' | 'red', Record<ProductSituationTag, number>>
 
-// Fixed score thresholds from methodology workbook (sheet "Лист4").
+// Fixed Health Index thresholds from methodology workbook (sheet "Лист4").
 export const HEALTH_SCORE_ZONE_THRESHOLDS = {
   green: 2.117172161172161,
   red: 4.734344322344322,

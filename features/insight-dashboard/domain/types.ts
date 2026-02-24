@@ -129,6 +129,7 @@ export interface ProductBubblePoint {
   id: string
   productGroup: InsightProductGroup
   label: string
+  periodKey?: string
   totalCalls: number
   problemCallsUnique: number
   problemRate: number
@@ -136,6 +137,10 @@ export interface ProductBubblePoint {
   riskIndex: number
   zone: ProductSituationZone
   topDriverTag: string
+  indicator1Share: number
+  indicator2Share: number
+  indicator3Share: number
+  indicator4Share: number
 }
 
 export interface ProductSituationExecutiveSummaryPoint {
@@ -188,8 +193,8 @@ export interface CallCoverageBucket {
   bucketKey: string
   bucketLabel: string
   n1TotalCalls: number
-  n2CallsWithAnyIndicator: number
-  coveragePercent: number
+  n2ConsultationCalls: number
+  consultationPercent: number
 }
 
 export type IndicatorChartMode = 'kpi' | 'combined'

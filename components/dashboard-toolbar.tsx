@@ -6,6 +6,7 @@ import {
   DEFAULT_PRODUCT_OPTIONS,
   DEFAULT_SECTOR_OPTIONS,
 } from '@/features/insight-dashboard/config/constants'
+import { normalizeDateRangeByGranularity } from '@/features/insight-dashboard/domain/date-bucketing'
 import type {
   InsightProductGroup,
   InsightSector,
@@ -19,7 +20,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { type OverlapGranularity } from '@/lib/metrics-data'
+
+export type DetailedGranularity = 'week' | 'month'
 
 export const FIXED_CHANNEL = 'Колл-центр' as const
 
@@ -35,11 +37,11 @@ export interface DashboardFilters {
 
 interface DashboardToolbarProps {
   filters: DashboardFilters
-  granularity: OverlapGranularity
+  granularity: DetailedGranularity
   sectorOptions?: string[]
   productOptions?: string[]
   onFiltersChange: (filters: DashboardFilters) => void
-  onGranularityChange: (granularity: OverlapGranularity) => void
+  onGranularityChange: (granularity: DetailedGranularity) => void
   onReset: () => void
 }
 
@@ -122,14 +124,18 @@ export function DashboardToolbar({
           <DateRangePicker
             date={filters.dateRange}
             placeholder="Все"
+            granularity={granularity}
             className="h-8 md:h-7"
             onDateChange={(date) =>
               onFiltersChange({
                 ...filters,
-                dateRange: {
-                  from: date?.from,
-                  to: date?.to,
-                },
+                dateRange: normalizeDateRangeByGranularity(
+                  {
+                    from: date?.from,
+                    to: date?.to,
+                  },
+                  granularity
+                ),
               })
             }
           />
@@ -140,14 +146,13 @@ export function DashboardToolbar({
           <Select
             value={granularity}
             onValueChange={(value) =>
-              onGranularityChange(value as OverlapGranularity)
+              onGranularityChange(value as DetailedGranularity)
             }
           >
             <SelectTrigger className="h-8 text-xs md:h-7">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="day">День</SelectItem>
               <SelectItem value="week">Неделя</SelectItem>
               <SelectItem value="month">Месяц</SelectItem>
             </SelectContent>
