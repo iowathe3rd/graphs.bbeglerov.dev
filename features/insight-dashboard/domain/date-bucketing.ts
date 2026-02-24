@@ -31,12 +31,6 @@ function toUtcMidnightDate(date: Date): Date {
   return new Date(toUtcTimestamp(date))
 }
 
-function addUtcDays(date: Date, days: number): Date {
-  const result = new Date(date)
-  result.setUTCDate(result.getUTCDate() + days)
-  return result
-}
-
 export function isDateInRange(date: string, from?: Date, to?: Date): boolean {
   const parsed = parseDateKey(date)
   if (!parsed) {
@@ -177,25 +171,28 @@ export function normalizeDateRangeByGranularity(
     return normalized
   }
 
-  if (normalized.from && normalized.to) {
-    const fromMidnight = toUtcMidnightDate(resolvedFrom)
-    const toMidnight = toUtcMidnightDate(resolvedTo)
-    return fromMidnight <= toMidnight
-      ? { from: fromMidnight, to: toMidnight }
-      : { from: toMidnight, to: fromMidnight }
-  }
+  const fromMidnight = toUtcMidnightDate(resolvedFrom)
+  const toMidnight = toUtcMidnightDate(resolvedTo)
+  const orderedFrom = fromMidnight <= toMidnight ? fromMidnight : toMidnight
+  const orderedTo = fromMidnight <= toMidnight ? toMidnight : fromMidnight
 
   if (granularity === 'week') {
-    return buildPeriodRangeFromAnchor(resolvedFrom, 'week')
+    return {
+      from: startOfIsoWeek(orderedFrom),
+      to: endOfIsoWeek(orderedTo),
+    }
   }
 
   if (granularity === 'month') {
-    return buildPeriodRangeFromAnchor(resolvedFrom, 'month')
+    return {
+      from: startOfMonthDate(orderedFrom),
+      to: endOfMonthDate(orderedTo),
+    }
   }
 
   return {
-    from: toUtcMidnightDate(resolvedFrom),
-    to: toUtcMidnightDate(resolvedTo),
+    from: orderedFrom,
+    to: orderedTo,
   }
 }
 
@@ -203,28 +200,27 @@ export function buildPeriodRangeFromAnchor(
   anchor: Date,
   granularity: InsightGranularity
 ): InsightDateRange {
-  const from = toUtcMidnightDate(anchor)
+  const normalizedAnchor = toUtcMidnightDate(anchor)
 
   if (granularity === 'week') {
+    const from = startOfIsoWeek(normalizedAnchor)
     return {
       from,
-      to: addUtcDays(from, 6),
+      to: endOfIsoWeek(from),
     }
   }
 
   if (granularity === 'month') {
-    const to = new Date(from)
-    to.setUTCMonth(to.getUTCMonth() + 1)
-    to.setUTCDate(to.getUTCDate() - 1)
+    const from = startOfMonthDate(normalizedAnchor)
     return {
       from,
-      to,
+      to: endOfMonthDate(from),
     }
   }
 
   return {
-    from,
-    to: from,
+    from: normalizedAnchor,
+    to: normalizedAnchor,
   }
 }
 

@@ -138,6 +138,8 @@ export function DateRangePicker({
           <Calendar
             initialFocus
             mode="range"
+            locale={ru}
+            weekStartsOn={1}
             defaultMonth={committedRange?.from ?? date?.from}
             selected={displayedRange}
             onSelect={(nextRange) => {
