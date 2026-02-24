@@ -1,6 +1,6 @@
 import {
   HEALTH_SCORE_CRITICAL_WEIGHT,
-  HEALTH_SCORE_REFERENCE_SHARES,
+  HEALTH_SCORE_ZONE_THRESHOLDS,
   PRODUCT_SITUATION_TAGS,
 } from '@/features/insight-dashboard/config/constants'
 import type {
@@ -214,19 +214,6 @@ function buildScoreWeights(
   return weights
 }
 
-function computeScoreByShares(
-  shares: Record<ProductSituationTag, number>,
-  weights: Record<ProductSituationTag, number>
-): number {
-  let score = 0
-
-  for (const tag of PRODUCT_SITUATION_TAGS) {
-    score += shares[tag] * weights[tag]
-  }
-
-  return score
-}
-
 function computeScoreByTagCounts(
   tagCounts: Record<ProductSituationTag, number>,
   totalCalls: number,
@@ -245,11 +232,9 @@ function computeScoreByTagCounts(
   return score
 }
 
-function buildScoreThresholds(
-  weights: Record<ProductSituationTag, number>
-): ProductSituationScoreThresholds {
-  const green = round4(computeScoreByShares(HEALTH_SCORE_REFERENCE_SHARES.green, weights))
-  const red = round4(computeScoreByShares(HEALTH_SCORE_REFERENCE_SHARES.red, weights))
+function buildScoreThresholds(): ProductSituationScoreThresholds {
+  const green = round4(HEALTH_SCORE_ZONE_THRESHOLDS.green)
+  const red = round4(HEALTH_SCORE_ZONE_THRESHOLDS.red)
 
   return {
     green,
@@ -265,7 +250,7 @@ function buildScoreContext(rollups: CaseRollup[]): ScoreContext {
 
   return {
     weights,
-    thresholds: buildScoreThresholds(weights),
+    thresholds: buildScoreThresholds(),
   }
 }
 
