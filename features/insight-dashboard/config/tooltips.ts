@@ -1,3 +1,13 @@
+import {
+  HEALTH_SCORE_CRITICAL_WEIGHT,
+  HEALTH_SCORE_REFERENCE_SHARES,
+  HEALTH_SCORE_ZONE_THRESHOLDS,
+} from '@/features/insight-dashboard/config/constants'
+import type {
+  ProductSituationScoreThresholds,
+  ProductSituationTag,
+} from '@/features/insight-dashboard/domain/types'
+
 export interface InsightHelpDialogSectionCopy {
   title: string
   points: readonly string[]
@@ -9,143 +19,318 @@ export interface InsightHelpDialogCopy {
   sections: readonly InsightHelpDialogSectionCopy[]
 }
 
+const INDICATOR_ORDER: readonly ProductSituationTag[] = [
+  'Технические проблемы/сбои',
+  'Запрос не решен',
+  'Отрицательный продуктовый фидбэк',
+  'Угроза ухода/отказа от продуктов банка',
+]
+
+const INDICATOR_LABELS: Record<ProductSituationTag, string> = {
+  'Технические проблемы/сбои': 'Техническая проблема/сбои',
+  'Запрос не решен': 'Запрос не решен',
+  'Отрицательный продуктовый фидбэк': 'Отрицательный продуктовый фидбэк',
+  'Угроза ухода/отказа от продуктов банка': 'Угроза ухода/отказа',
+}
+
+function formatScore(value: number): string {
+  const rounded = Math.round(value * 1000) / 1000
+  if (Math.abs(rounded - Math.round(rounded)) < 0.001) {
+    return String(Math.round(rounded))
+  }
+
+  return rounded.toFixed(3).replace(/\.?0+$/, '')
+}
+
+function formatPercent(share: number): string {
+  const percent = share * 100
+  const rounded = Math.round(percent * 10) / 10
+  if (Math.abs(rounded - Math.round(rounded)) < 0.001) {
+    return `${Math.round(rounded)}%`
+  }
+
+  return `${rounded.toFixed(1).replace(/\.0$/, '')}%`
+}
+
+function resolveThresholds(
+  scoreThresholds?: Partial<ProductSituationScoreThresholds>
+): ProductSituationScoreThresholds {
+  const fallbackGreen = HEALTH_SCORE_ZONE_THRESHOLDS.green
+  const fallbackRed = HEALTH_SCORE_ZONE_THRESHOLDS.red
+  const green = scoreThresholds?.green ?? scoreThresholds?.lower ?? fallbackGreen
+  const red = scoreThresholds?.red ?? scoreThresholds?.upper ?? fallbackRed
+  const lower = Math.min(green, red)
+  const upper = Math.max(green, red)
+
+  return {
+    green,
+    red,
+    lower,
+    upper,
+  }
+}
+
+function buildGreenNormativePoints(): string[] {
+  return INDICATOR_ORDER.map((tag) => `${INDICATOR_LABELS[tag]} ≤ ${formatPercent(HEALTH_SCORE_REFERENCE_SHARES.green[tag])}.`)
+}
+
+function buildRedNormativePoints(): string[] {
+  return INDICATOR_ORDER.map((tag) => `${INDICATOR_LABELS[tag]} ≥ ${formatPercent(HEALTH_SCORE_REFERENCE_SHARES.red[tag])}.`)
+}
+
+function buildZoneInterpretationPoints(thresholds: ProductSituationScoreThresholds): string[] {
+  return [
+    `Зеленая зона: Health Index ≤ ${formatScore(thresholds.lower)}.`,
+    `Желтая зона: Health Index ${formatScore(thresholds.lower)}–${formatScore(thresholds.upper)}.`,
+    `Красная зона: Health Index ≥ ${formatScore(thresholds.upper)}.`,
+  ]
+}
+
+const DOC_POINTS = {
+  dashboardPurpose:
+    'Цель данного дашборда— расчет единой взвешенной метрики «Оценка продукта» на основе данных по обращениям клиентов для того, чтобы сформировать единую температурную карту, объективно сравнить продукты между собой и сразу увидеть, какой из них чувствует себя хуже других.',
+  dashboardPrinciple:
+    'Основной принцип расчета: чем выше итоговое значение метрики «Оценка продукта», тем хуже ситуация.',
+  dashboardProblemSignal:
+    'Так как этот показатель складывается исключительно из проблемных обращений клиентов, его высокое значение сигнализирует о том, что необходимо устранить причину этих негативных индикаторов.',
+  formula:
+    '«Оценка продукта» рассчитывается как сумма произведений: доля каждого индикатора × весовой коэффициент соответствующего индикатора.',
+  shareDefinition:
+    'Доля каждого индикатора— это рассчитанная как процент обращений по данному индикатору от общего количества обращений по конкретному продукту.',
+  weightDefinition:
+    'Весовой коэффициент индикатора — это математический множитель, который определяет степень влияния конкретного индикатора на итоговую «Оценку продукта».',
+  zoneColoring:
+    'По итогам расчета продукт окрашивается в соответствующий цвет на температурной карте (Зеленая, Желтая или Красная зона).',
+  scoreBounds:
+    'Балльные границы — это аналитически заданные пороговые значения метрики «Оценка продукта».',
+  scoreBoundsMeaning:
+    'Они представляют собой фиксированные пороги, которые определяют, в какую цветовую зону попадет продукт, и показывают, насколько его текущее состояние соответствует принятым стандартам.',
+  zoneClassification: 'Состояние продукта классифицируется по трем зонам:',
+  greenNormatives:
+    'Целевые нормативы для Зеленой зоны: максимально допустимая доля индикаторов от общего числа обращений по конкретному продукту составляет:',
+  redNormatives:
+    'Критические нормативы для Красной зоны: критическая доля индикаторов от общего числа обращений по конкретному продукту составляет:',
+  yellowNormatives:
+    'Промежуточные значения для Желтой зоны: формируются автоматически как интервал между зеленой и красной зонами. Продукт попадает сюда, если доля индикаторов превысила целевую норму, но еще не достигла критического уровня.',
+  bubbleSizeA: 'Размер пузыря пропорционален числу обращений.',
+  bubbleSizeB: 'Размер шара отражает общее количество всех обращений.',
+} as const
+
+export function buildHealthIndexHelpDialogCopy(
+  scoreThresholds?: Partial<ProductSituationScoreThresholds>
+): InsightHelpDialogCopy {
+  const thresholds = resolveThresholds(scoreThresholds)
+
+  return {
+    title: 'Health Index («Оценка продукта»)',
+    description:
+      'Дашборд формирует температурную карту с помощью метрики «Оценка продукта», которая рассчитывается на базе обращений клиентов.',
+    sections: [
+      {
+        title: 'Цель дашборда',
+        points: [
+          DOC_POINTS.dashboardPurpose,
+          DOC_POINTS.dashboardPrinciple,
+          DOC_POINTS.dashboardProblemSignal,
+        ],
+      },
+      {
+        title: 'Формула расчета',
+        points: [
+          DOC_POINTS.formula,
+          DOC_POINTS.shareDefinition,
+          DOC_POINTS.weightDefinition,
+          DOC_POINTS.zoneColoring,
+          `Скоры остаются по текущей конфигурации проекта (критический вес индикатора = ${HEALTH_SCORE_CRITICAL_WEIGHT}).`,
+        ],
+      },
+      {
+        title: 'Балльные границы и зоны',
+        points: [
+          DOC_POINTS.scoreBounds,
+          DOC_POINTS.scoreBoundsMeaning,
+          DOC_POINTS.zoneClassification,
+          ...buildZoneInterpretationPoints(thresholds),
+        ],
+      },
+      {
+        title: 'Нормативы долей индикаторов',
+        points: [
+          DOC_POINTS.greenNormatives,
+          ...buildGreenNormativePoints(),
+          DOC_POINTS.redNormatives,
+          ...buildRedNormativePoints(),
+          DOC_POINTS.yellowNormatives,
+        ],
+      },
+      {
+        title: 'Размер пузыря',
+        points: [
+          DOC_POINTS.bubbleSizeA,
+          DOC_POINTS.bubbleSizeB,
+        ],
+      },
+    ],
+  }
+}
+
+export function buildOverlapHelpDialogCopy(
+  scoreThresholds?: Partial<ProductSituationScoreThresholds>
+): InsightHelpDialogCopy {
+  const thresholds = resolveThresholds(scoreThresholds)
+
+  return {
+    title: 'Температурная карта',
+    description:
+      'Дашборд формирует температурную карту с помощью метрики «Оценка продукта», которая рассчитывается на базе обращений клиентов.',
+    sections: [
+      {
+        title: 'Смысл метрики',
+        points: [
+          'Это позволяет объективно сравнивать продукты: чем выше значение метрики, тем хуже их состояние и тем быстрее нужно устранять причины негативных индикаторов.',
+          DOC_POINTS.formula,
+          DOC_POINTS.shareDefinition,
+          DOC_POINTS.weightDefinition,
+          DOC_POINTS.zoneColoring,
+        ],
+      },
+      {
+        title: 'Балльные границы и зоны',
+        points: [
+          DOC_POINTS.scoreBounds,
+          DOC_POINTS.scoreBoundsMeaning,
+          DOC_POINTS.zoneClassification,
+          ...buildZoneInterpretationPoints(thresholds),
+          DOC_POINTS.yellowNormatives,
+        ],
+      },
+      {
+        title: 'Нормативы индикаторов',
+        points: [
+          DOC_POINTS.greenNormatives,
+          ...buildGreenNormativePoints(),
+          DOC_POINTS.redNormatives,
+          ...buildRedNormativePoints(),
+        ],
+      },
+    ],
+  }
+}
+
+function buildStandardZoneSection(
+  scoreThresholds?: Partial<ProductSituationScoreThresholds>
+): InsightHelpDialogSectionCopy {
+  const thresholds = resolveThresholds(scoreThresholds)
+
+  return {
+    title: 'Балльные границы и зоны',
+    points: [
+      DOC_POINTS.scoreBounds,
+      DOC_POINTS.scoreBoundsMeaning,
+      DOC_POINTS.zoneClassification,
+      ...buildZoneInterpretationPoints(thresholds),
+      DOC_POINTS.yellowNormatives,
+    ],
+  }
+}
+
+export function buildKpiIndicatorHelpDialogCopy(
+  scoreThresholds?: Partial<ProductSituationScoreThresholds>
+): InsightHelpDialogCopy {
+  return {
+    title: 'Оценка продукта',
+    description:
+      'Дашборд формирует температурную карту с помощью метрики «Оценка продукта», которая рассчитывается на базе обращений клиентов.',
+    sections: [
+      {
+        title: 'Формула расчета',
+        points: [
+          DOC_POINTS.formula,
+          DOC_POINTS.shareDefinition,
+          DOC_POINTS.weightDefinition,
+          DOC_POINTS.zoneColoring,
+        ],
+      },
+      {
+        title: 'Нормативы долей индикаторов',
+        points: [
+          DOC_POINTS.greenNormatives,
+          ...buildGreenNormativePoints(),
+          DOC_POINTS.redNormatives,
+          ...buildRedNormativePoints(),
+        ],
+      },
+      buildStandardZoneSection(scoreThresholds),
+    ],
+  }
+}
+
+export function buildCombinedIndicatorHelpDialogCopy(
+  scoreThresholds?: Partial<ProductSituationScoreThresholds>
+): InsightHelpDialogCopy {
+  return {
+    title: 'Оценка продукта',
+    description:
+      'Дашборд формирует температурную карту с помощью метрики «Оценка продукта», которая рассчитывается на базе обращений клиентов.',
+    sections: [
+      {
+        title: 'Смысл метрики',
+        points: [
+          'Это позволяет объективно сравнивать продукты: чем выше значение метрики, тем хуже их состояние и тем быстрее нужно устранять причины негативных индикаторов.',
+          DOC_POINTS.formula,
+          DOC_POINTS.shareDefinition,
+          DOC_POINTS.weightDefinition,
+        ],
+      },
+      {
+        title: 'Нормативы долей индикаторов',
+        points: [
+          DOC_POINTS.greenNormatives,
+          ...buildGreenNormativePoints(),
+          DOC_POINTS.redNormatives,
+          ...buildRedNormativePoints(),
+        ],
+      },
+      buildStandardZoneSection(scoreThresholds),
+    ],
+  }
+}
+
+export function buildConsultationCoverageHelpDialogCopy(
+  scoreThresholds?: Partial<ProductSituationScoreThresholds>
+): InsightHelpDialogCopy {
+  return {
+    title: 'Оценка продукта',
+    description:
+      'Дашборд формирует температурную карту с помощью метрики «Оценка продукта», которая рассчитывается на базе обращений клиентов.',
+    sections: [
+      {
+        title: 'Формула расчета',
+        points: [
+          DOC_POINTS.formula,
+          DOC_POINTS.shareDefinition,
+          DOC_POINTS.weightDefinition,
+          DOC_POINTS.zoneColoring,
+        ],
+      },
+      {
+        title: 'Нормативы долей индикаторов',
+        points: [
+          DOC_POINTS.greenNormatives,
+          ...buildGreenNormativePoints(),
+          DOC_POINTS.redNormatives,
+          ...buildRedNormativePoints(),
+        ],
+      },
+      buildStandardZoneSection(scoreThresholds),
+    ],
+  }
+}
+
 export const INSIGHT_HELP_DIALOG_COPY = {
-  healthIndex: {
-    title: 'Как рассчитывается Health Index',
-    description:
-      'Коротко: индекс показывает состояние продукта по звонкам и 4 индикаторам. Чем выше индекс, тем выше приоритет улучшений.',
-    sections: [
-      {
-        title: '1) Какие данные берутся',
-        points: [
-          'Для продукта считаются все обращения и количество обращений с каждым из 4 индикаторов.',
-          'В одном обращении может быть несколько индикаторов, поэтому их суммы могут быть больше общего числа обращений.',
-        ],
-      },
-      {
-        title: '2) Как считаются доли',
-        points: [
-          'Для каждого индикатора считается доля: обращения с индикатором / все обращения продукта.',
-          'Если обращений нет, доли равны 0.',
-        ],
-      },
-      {
-        title: '3) Как задаются веса',
-        points: [
-          'Индикатор 2 — базовый (вес 1).',
-          'Индикаторы 1 и 3 масштабируются относительно индикатора 2: чем реже индикатор в системе, тем выше вес.',
-          'Индикатор 4 критичный и имеет фиксированный вес 50.',
-        ],
-      },
-      {
-        title: '4) Как получается Health Index',
-        points: ['Health Index = сумма по 4 индикаторам: доля индикатора × его вес.'],
-      },
-      {
-        title: '5) Как читать зоны',
-        points: [
-          'Зеленая: индекс до 2.117.',
-          'Желтая: индекс от 2.117 до 4.734.',
-          'Красная: индекс от 4.734 и выше.',
-        ],
-      },
-    ],
-  },
-  overlap: {
-    title: 'Как читать карту и связь с Health Index',
-    description:
-      'Карта и Health Index дополняют друг друга: карта показывает динамику долей, Health Index — итоговое состояние.',
-    sections: [
-      {
-        title: 'Что показывает карта',
-        points: [
-          'По оси Y — процентные значения индикаторов по периодам.',
-          'Цветовые зоны на карте: Зеленая, Желтая, Красная.',
-        ],
-      },
-      {
-        title: 'Как это связано с Health Index',
-        points: [
-          'Health Index не процент, а итоговая взвешенная оценка.',
-          'Индекс растет, если растут доли индикаторов и/или вклад критичных индикаторов.',
-          'Интерпретация зон Health Index: Зеленая до 2.117, Желтая 2.117–4.734, Красная от 4.734.',
-        ],
-      },
-    ],
-  },
-  kpiIndicator: {
-    title: 'Как читать индикатор',
-    description:
-      'Карточка показывает текущий уровень индикатора и его изменение к прошлому периоду.',
-    sections: [
-      {
-        title: 'Что в карточке',
-        points: [
-          'В правом верхнем углу — текущее значение индикатора.',
-          'Под заголовком — изменение к прошлому периоду.',
-          'На графике видно динамику по выбранному периоду.',
-        ],
-      },
-      {
-        title: 'Как это влияет на Health Index',
-        points: [
-          'Рост доли негативного индикатора повышает Health Index.',
-          'Снижение доли индикатора уменьшает риск.',
-        ],
-      },
-      {
-        title: 'Интерпретация зон Health Index',
-        points: [
-          'Зеленая: до 2.117.',
-          'Желтая: от 2.117 до 4.734.',
-          'Красная: от 4.734 и выше.',
-        ],
-      },
-    ],
-  },
-  combinedIndicator: {
-    title: 'Как читать комбинированный индикатор',
-    description:
-      'Столбцы показывают объем звонков, линия — долю или абсолют индикатора в зависимости от режима.',
-    sections: [
-      {
-        title: 'Что показывают элементы',
-        points: [
-          'Серый столбец — все звонки (N1).',
-          'Линия — значение индикатора: в %, либо в абсолюте.',
-          'В tooltip по точке видно N1, звонки с индикатором и долю индикатора.',
-        ],
-      },
-      {
-        title: 'Интерпретация зон Health Index',
-        points: [
-          'Зеленая: до 2.117.',
-          'Желтая: от 2.117 до 4.734.',
-          'Красная: от 4.734 и выше.',
-        ],
-      },
-    ],
-  },
-  consultationCoverage: {
-    title: 'Как читать консультационные обращения',
-    description:
-      'График показывает долю консультационных обращений в общем потоке звонков.',
-    sections: [
-      {
-        title: 'Что считается',
-        points: [
-          'N1 — все обращения за период.',
-          'N2 — консультационные обращения за период.',
-          'Доля консультаций = N2 / N1.',
-        ],
-      },
-      {
-        title: 'Интерпретация зон Health Index',
-        points: [
-          'Этот график не делит значения на зоны напрямую, но влияет на итоговый Health Index через индикаторы.',
-          'Зеленая: до 2.117. Желтая: 2.117–4.734. Красная: от 4.734.',
-        ],
-      },
-    ],
-  },
+  healthIndex: buildHealthIndexHelpDialogCopy(),
+  overlap: buildOverlapHelpDialogCopy(),
+  kpiIndicator: buildKpiIndicatorHelpDialogCopy(),
+  combinedIndicator: buildCombinedIndicatorHelpDialogCopy(),
+  consultationCoverage: buildConsultationCoverageHelpDialogCopy(),
 } as const

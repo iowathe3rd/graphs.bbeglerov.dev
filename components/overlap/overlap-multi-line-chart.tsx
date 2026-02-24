@@ -27,7 +27,7 @@ import {
   type OverlapZoneConfig,
 } from '@/lib/metrics-data'
 import {
-  INSIGHT_HELP_DIALOG_COPY,
+  buildOverlapHelpDialogCopy,
 } from '@/features/insight-dashboard/config/tooltips'
 import { InsightHelpDialogButton } from '@/features/insight-dashboard/ui/insight-help-dialog-button'
 
@@ -277,7 +277,7 @@ export function OverlapMultiLineChart({
             <span className="inline-flex items-center gap-1.5">
               {title}
               <InsightHelpDialogButton
-                copy={INSIGHT_HELP_DIALOG_COPY.overlap}
+                copy={buildOverlapHelpDialogCopy()}
                 ariaLabel="Как читать температурную карту и Health Index"
                 triggerClassName="h-4 w-4 border-0"
               />

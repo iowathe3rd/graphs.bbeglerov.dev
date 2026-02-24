@@ -14,7 +14,7 @@ import {
 
 import { DEFAULT_PRODUCT_OPTIONS } from '@/features/insight-dashboard/config/constants'
 import {
-  INSIGHT_HELP_DIALOG_COPY,
+  buildHealthIndexHelpDialogCopy,
 } from '@/features/insight-dashboard/config/tooltips'
 import {
   formatBucketLabel,
@@ -345,7 +345,7 @@ export function ProductSituationBubbleMatrix({
           <div className="flex items-center gap-2">
             <CardTitle className="text-base">{resolvedTitle}</CardTitle>
             <InsightHelpDialogButton
-              copy={INSIGHT_HELP_DIALOG_COPY.healthIndex}
+              copy={buildHealthIndexHelpDialogCopy(scoreThresholds)}
               ariaLabel="Как рассчитывается Health Index"
             />
           </div>

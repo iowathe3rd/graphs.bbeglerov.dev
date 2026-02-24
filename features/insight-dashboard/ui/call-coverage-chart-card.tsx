@@ -1,7 +1,7 @@
 'use client'
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { INSIGHT_HELP_DIALOG_COPY } from '@/features/insight-dashboard/config/tooltips'
+import { buildConsultationCoverageHelpDialogCopy } from '@/features/insight-dashboard/config/tooltips'
 import type { CallCoverageBucket } from '@/features/insight-dashboard/domain/types'
 import { InsightHelpDialogButton } from '@/features/insight-dashboard/ui/insight-help-dialog-button'
 import { StackedPortionBarChart } from '@/features/insight-dashboard/ui/stacked-portion-bar-chart'
@@ -29,7 +29,7 @@ export function CallCoverageChartCard({
         <div className="flex items-center gap-1.5">
           <CardTitle className="text-sm">Консультационные обращения</CardTitle>
           <InsightHelpDialogButton
-            copy={INSIGHT_HELP_DIALOG_COPY.consultationCoverage}
+            copy={buildConsultationCoverageHelpDialogCopy()}
             ariaLabel="Как читать график консультационных обращений"
             triggerClassName="h-4 w-4 border-0"
           />

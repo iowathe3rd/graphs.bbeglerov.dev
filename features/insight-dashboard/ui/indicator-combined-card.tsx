@@ -13,7 +13,7 @@ import {
 
 import { BerekeChartTooltip } from '@/components/charts/bereke-chart-tooltip'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { INSIGHT_HELP_DIALOG_COPY } from '@/features/insight-dashboard/config/tooltips'
+import { buildCombinedIndicatorHelpDialogCopy } from '@/features/insight-dashboard/config/tooltips'
 import { formatBucketLabel } from '@/features/insight-dashboard/domain/date-bucketing'
 import type {
   CombinedIndicatorBucket,
@@ -122,16 +122,7 @@ export function IndicatorCombinedCard({
   const currentRate = currentPoint?.indicatorRatePercent ?? 0
   const currentLineValue = currentPoint?.lineValue ?? 0
   const delta = formatDelta(preparedData, lineValueMode)
-  const metricHelpCopy = {
-    ...INSIGHT_HELP_DIALOG_COPY.combinedIndicator,
-    sections: [
-      {
-        title: 'Что измеряет этот индикатор',
-        points: [metric.description],
-      },
-      ...INSIGHT_HELP_DIALOG_COPY.combinedIndicator.sections,
-    ],
-  } as const
+  const metricHelpCopy = buildCombinedIndicatorHelpDialogCopy()
 
   return (
     <Card className={cn('flex h-full min-h-0 flex-col', className)}>

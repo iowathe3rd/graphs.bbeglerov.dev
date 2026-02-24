@@ -5,7 +5,7 @@ import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'rec
 
 import { BerekeChartTooltip } from '@/components/charts/bereke-chart-tooltip'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { INSIGHT_HELP_DIALOG_COPY } from '@/features/insight-dashboard/config/tooltips'
+import { buildKpiIndicatorHelpDialogCopy } from '@/features/insight-dashboard/config/tooltips'
 import { formatBucketLabel } from '@/features/insight-dashboard/domain/date-bucketing'
 import { InsightHelpDialogButton } from '@/features/insight-dashboard/ui/insight-help-dialog-button'
 import type { MetricDataPoint, MetricInfo } from '@/lib/metrics-data'
@@ -110,16 +110,7 @@ export function DashboardLineCard({
   const currentTone = metricSemanticTone(metric, current)
   const trendTone = trendSemanticTone(metric, deltaPercent)
   const trendComparison = trendComparisonLabel(data, granularity)
-  const metricHelpCopy = {
-    ...INSIGHT_HELP_DIALOG_COPY.kpiIndicator,
-    sections: [
-      {
-        title: 'Что измеряет этот индикатор',
-        points: [metric.description],
-      },
-      ...INSIGHT_HELP_DIALOG_COPY.kpiIndicator.sections,
-    ],
-  } as const
+  const metricHelpCopy = buildKpiIndicatorHelpDialogCopy()
   const chartData =
     data.length === 1
       ? (() => {
