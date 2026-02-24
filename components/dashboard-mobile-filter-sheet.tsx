@@ -20,6 +20,7 @@ import type {
   InsightSector,
 } from '@/features/insight-dashboard/domain/types'
 import {
+  buildPeriodRangeFromAnchor,
   formatBucketLabel,
   normalizeDateRangeByGranularity,
   toDateKey,
@@ -123,6 +124,7 @@ export function DashboardMobileFilterSheet({
   )
   const [draftGranularity, setDraftGranularity] =
     useState<DetailedGranularity>(initialGranularity)
+  const [hoveredDay, setHoveredDay] = useState<Date | undefined>(undefined)
 
   useEffect(() => {
     if (!open) {
@@ -156,8 +158,19 @@ export function DashboardMobileFilterSheet({
   const handleReset = () => {
     setDraftFilters(DEFAULT_DASHBOARD_FILTERS)
     setDraftGranularity('week')
+    setHoveredDay(undefined)
     onResetAndApply()
   }
+
+  const committedRange = normalizeDateRangeByGranularity(
+    draftFilters.dateRange,
+    draftGranularity
+  )
+  const previewRange =
+    hoveredDay
+      ? buildPeriodRangeFromAnchor(hoveredDay, draftGranularity)
+      : null
+  const displayedRange = previewRange ?? committedRange
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -251,17 +264,30 @@ export function DashboardMobileFilterSheet({
                 <Calendar
                   mode="range"
                   numberOfMonths={1}
-                  selected={draftFilters.dateRange}
-                  defaultMonth={draftFilters.dateRange.from}
-                  onSelect={(date) =>
+                  selected={{
+                    from: displayedRange.from,
+                    to: displayedRange.to,
+                  }}
+                  defaultMonth={committedRange.from ?? draftFilters.dateRange.from}
+                  onSelect={(date) => {
+                    if (!date?.from || !date.to) {
+                      return
+                    }
+                  }}
+                  onDayClick={(day) => {
+                    const periodRange = buildPeriodRangeFromAnchor(day, draftGranularity)
                     setDraftFilters({
                       ...draftFilters,
                       dateRange: {
-                        from: date?.from,
-                        to: date?.to,
+                        from: periodRange.from,
+                        to: periodRange.to,
                       },
                     })
-                  }
+                  }}
+                  onDayMouseEnter={(day) => {
+                    setHoveredDay(day)
+                  }}
+                  onMonthChange={() => setHoveredDay(undefined)}
                   className="mx-auto w-fit p-2"
                 />
               </div>
@@ -271,9 +297,18 @@ export function DashboardMobileFilterSheet({
               <p className="text-[11px] text-muted-foreground">Группировка</p>
               <Select
                 value={draftGranularity}
-                onValueChange={(value) =>
-                  setDraftGranularity(value as DetailedGranularity)
-                }
+                onValueChange={(value) => {
+                  const nextGranularity = value as DetailedGranularity
+                  setDraftGranularity(nextGranularity)
+                  setHoveredDay(undefined)
+                  setDraftFilters({
+                    ...draftFilters,
+                    dateRange: normalizeDateRangeByGranularity(
+                      draftFilters.dateRange,
+                      nextGranularity
+                    ),
+                  })
+                }}
               >
                 <SelectTrigger className="h-9 text-xs">
                   <SelectValue />

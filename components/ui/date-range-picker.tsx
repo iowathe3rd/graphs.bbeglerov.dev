@@ -4,11 +4,13 @@ import { format } from 'date-fns'
 import { ru } from 'date-fns/locale'
 import { CalendarIcon } from 'lucide-react'
 import type { DateRange } from 'react-day-picker'
+import { useMemo, useState } from 'react'
 
 import { Calendar } from '@/components/ui/calendar'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import {
+  buildPeriodRangeFromAnchor,
   formatBucketLabel,
   normalizeDateRangeByGranularity,
   toDateKey,
@@ -78,10 +80,43 @@ export function DateRangePicker({
   granularity = 'day',
 }: DateRangePickerProps) {
   const isMobile = useIsMobile()
+  const [hoveredDay, setHoveredDay] = useState<Date | undefined>(undefined)
   const label = formatRangeLabel(date, granularity)
+  const committedRange = useMemo<DateRange | undefined>(() => {
+    const normalized = normalizeDateRangeByGranularity(
+      {
+        from: date?.from,
+        to: date?.to,
+      },
+      granularity
+    )
+
+    return {
+      from: normalized.from,
+      to: normalized.to,
+    }
+  }, [date?.from, date?.to, granularity])
+  const previewRange = useMemo<DateRange | undefined>(() => {
+    if (!hoveredDay || granularity === 'day') {
+      return undefined
+    }
+
+    const period = buildPeriodRangeFromAnchor(hoveredDay, granularity)
+    return {
+      from: period.from,
+      to: period.to,
+    }
+  }, [granularity, hoveredDay])
+  const displayedRange = previewRange ?? committedRange
 
   return (
-    <Popover>
+    <Popover
+      onOpenChange={(open) => {
+        if (!open) {
+          setHoveredDay(undefined)
+        }
+      }}
+    >
       <PopoverTrigger asChild>
         <Button
           variant="outline"
@@ -99,14 +134,38 @@ export function DateRangePicker({
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-auto max-w-[calc(100vw-1rem)] p-0" align="start">
-        <Calendar
-          initialFocus
-          mode="range"
-          defaultMonth={date?.from}
-          selected={date}
-          onSelect={onDateChange}
-          numberOfMonths={isMobile ? 1 : 2}
-        />
+        <div onMouseLeave={() => setHoveredDay(undefined)}>
+          <Calendar
+            initialFocus
+            mode="range"
+            defaultMonth={committedRange?.from ?? date?.from}
+            selected={displayedRange}
+            onSelect={(nextRange) => {
+              if (granularity === 'day') {
+                onDateChange(nextRange)
+              }
+            }}
+            onDayClick={(day) => {
+              if (granularity === 'day') {
+                return
+              }
+
+              const nextRange = buildPeriodRangeFromAnchor(day, granularity)
+              onDateChange({
+                from: nextRange.from,
+                to: nextRange.to,
+              })
+            }}
+            onDayMouseEnter={(day) => {
+              if (granularity === 'day') {
+                return
+              }
+
+              setHoveredDay(day)
+            }}
+            numberOfMonths={isMobile ? 1 : 2}
+          />
+        </div>
       </PopoverContent>
     </Popover>
   )

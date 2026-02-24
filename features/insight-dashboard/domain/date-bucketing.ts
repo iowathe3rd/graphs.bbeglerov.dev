@@ -31,6 +31,12 @@ function toUtcMidnightDate(date: Date): Date {
   return new Date(toUtcTimestamp(date))
 }
 
+function addUtcDays(date: Date, days: number): Date {
+  const result = new Date(date)
+  result.setUTCDate(result.getUTCDate() + days)
+  return result
+}
+
 export function isDateInRange(date: string, from?: Date, to?: Date): boolean {
   const parsed = parseDateKey(date)
   if (!parsed) {
@@ -171,23 +177,54 @@ export function normalizeDateRangeByGranularity(
     return normalized
   }
 
+  if (normalized.from && normalized.to) {
+    const fromMidnight = toUtcMidnightDate(resolvedFrom)
+    const toMidnight = toUtcMidnightDate(resolvedTo)
+    return fromMidnight <= toMidnight
+      ? { from: fromMidnight, to: toMidnight }
+      : { from: toMidnight, to: fromMidnight }
+  }
+
   if (granularity === 'week') {
-    return {
-      from: startOfIsoWeek(resolvedFrom),
-      to: endOfIsoWeek(resolvedTo),
-    }
+    return buildPeriodRangeFromAnchor(resolvedFrom, 'week')
   }
 
   if (granularity === 'month') {
-    return {
-      from: startOfMonthDate(resolvedFrom),
-      to: endOfMonthDate(resolvedTo),
-    }
+    return buildPeriodRangeFromAnchor(resolvedFrom, 'month')
   }
 
   return {
     from: toUtcMidnightDate(resolvedFrom),
     to: toUtcMidnightDate(resolvedTo),
+  }
+}
+
+export function buildPeriodRangeFromAnchor(
+  anchor: Date,
+  granularity: InsightGranularity
+): InsightDateRange {
+  const from = toUtcMidnightDate(anchor)
+
+  if (granularity === 'week') {
+    return {
+      from,
+      to: addUtcDays(from, 6),
+    }
+  }
+
+  if (granularity === 'month') {
+    const to = new Date(from)
+    to.setUTCMonth(to.getUTCMonth() + 1)
+    to.setUTCDate(to.getUTCDate() - 1)
+    return {
+      from,
+      to,
+    }
+  }
+
+  return {
+    from,
+    to: from,
   }
 }
 
