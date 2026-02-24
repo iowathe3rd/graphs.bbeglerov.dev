@@ -1,6 +1,5 @@
 'use client'
 
-import { CircleHelp } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   CartesianGrid,
@@ -16,7 +15,6 @@ import {
 import { DEFAULT_PRODUCT_OPTIONS } from '@/features/insight-dashboard/config/constants'
 import {
   INSIGHT_HELP_DIALOG_COPY,
-  INSIGHT_TOOLTIP_COPY,
 } from '@/features/insight-dashboard/config/tooltips'
 import {
   formatBucketLabel,
@@ -29,16 +27,9 @@ import { useIsMobile } from '@/hooks/use-mobile'
 import { BerekeChartTooltip } from '@/components/charts/bereke-chart-tooltip'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog'
 import type { OverlapGranularity } from '@/lib/metrics-data'
 import { cn } from '@/lib/utils'
+import { InsightHelpDialogButton } from '@/features/insight-dashboard/ui/insight-help-dialog-button'
 
 interface ProductSituationBubbleMatrixProps {
   points: ProductBubblePoint[]
@@ -226,19 +217,23 @@ export function ProductSituationBubbleMatrix({
 
     const plotWidth = chartSize.width > 0 ? chartSize.width : isMobile ? 320 : 820
     const plotHeight = chartSize.height > 0 ? chartSize.height : isMobile ? 260 : 360
+    const minPlotSide = Math.min(plotWidth, plotHeight)
     const pointsCount = Math.max(1, ordered.length)
     const pointSlotWidth = plotWidth / pointsCount
+    const focusedRadiusCap = xMode === 'periods' ? (isMobile ? 18 : 22) : isMobile ? 20 : 24
+    const defaultRadiusCap = isMobile ? 24 : 30
     const adaptiveMax = Math.min(
-      pointSlotWidth * (xMode === 'periods' ? 0.26 : 0.34),
-      plotHeight * (focusedSinglePoint ? 0.24 : 0.17)
+      pointSlotWidth * (xMode === 'periods' ? 0.18 : 0.3),
+      plotHeight * (focusedSinglePoint ? 0.11 : 0.17),
+      minPlotSide * (focusedSinglePoint ? 0.13 : 0.18)
     )
     const radiusMax = clamp(
       adaptiveMax,
-      isMobile ? 8 : 10,
-      focusedSinglePoint ? (isMobile ? 34 : 42) : isMobile ? 24 : 30
+      isMobile ? 7 : 8,
+      focusedSinglePoint ? focusedRadiusCap : defaultRadiusCap
     )
     const radiusMin = clamp(
-      radiusMax * (focusedSinglePoint ? 0.56 : 0.4),
+      radiusMax * (focusedSinglePoint ? 0.55 : 0.38),
       isMobile ? 5 : 6,
       radiusMax
     )
@@ -266,7 +261,7 @@ export function ProductSituationBubbleMatrix({
       const normalized = (point.problemCallsUnique - minProblemCalls) / valueRange
       const bubbleRadius =
         maxProblemCalls === minProblemCalls
-          ? (radiusMin + radiusMax) / 2
+          ? radiusMin + (radiusMax - radiusMin) * (focusedSinglePoint ? 0.62 : 0.5)
           : radiusMin + normalized * (radiusMax - radiusMin)
 
       return {
@@ -349,37 +344,10 @@ export function ProductSituationBubbleMatrix({
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <CardTitle className="text-base">{resolvedTitle}</CardTitle>
-            <Dialog>
-              <DialogTrigger asChild>
-                <button
-                  type="button"
-                  className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-border/70 text-muted-foreground transition-colors hover:text-foreground"
-                  aria-label="Как рассчитывается Health Index"
-                >
-                  <CircleHelp className="h-3.5 w-3.5" />
-                </button>
-              </DialogTrigger>
-              <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
-                <DialogHeader>
-                  <DialogTitle>{INSIGHT_HELP_DIALOG_COPY.healthIndex.title}</DialogTitle>
-                  <DialogDescription>
-                    {INSIGHT_HELP_DIALOG_COPY.healthIndex.description}
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-3 text-sm leading-6">
-                  {INSIGHT_HELP_DIALOG_COPY.healthIndex.sections.map((section) => (
-                    <section key={section.title} className="rounded-md border border-border/70 p-3">
-                      <h4 className="text-sm font-semibold">{section.title}</h4>
-                      <ul className="mt-1 list-disc space-y-1 pl-5 text-muted-foreground">
-                        {section.points.map((point) => (
-                          <li key={point}>{point}</li>
-                        ))}
-                      </ul>
-                    </section>
-                  ))}
-                </div>
-              </DialogContent>
-            </Dialog>
+            <InsightHelpDialogButton
+              copy={INSIGHT_HELP_DIALOG_COPY.healthIndex}
+              ariaLabel="Как рассчитывается Health Index"
+            />
           </div>
 
           {matrixData.focusedSinglePoint ? (
@@ -529,7 +497,6 @@ export function ProductSituationBubbleMatrix({
                       return (
                         <BerekeChartTooltip
                           title={tooltipTitle}
-                          subtitle={INSIGHT_TOOLTIP_COPY.bubbleMatrixHealthIndex}
                           rows={[
                             {
                               id: 'health-index',

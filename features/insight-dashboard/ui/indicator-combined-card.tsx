@@ -13,11 +13,13 @@ import {
 
 import { BerekeChartTooltip } from '@/components/charts/bereke-chart-tooltip'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { INSIGHT_HELP_DIALOG_COPY } from '@/features/insight-dashboard/config/tooltips'
 import { formatBucketLabel } from '@/features/insight-dashboard/domain/date-bucketing'
 import type {
   CombinedIndicatorBucket,
   IndicatorLineValueMode,
 } from '@/features/insight-dashboard/domain/types'
+import { InsightHelpDialogButton } from '@/features/insight-dashboard/ui/insight-help-dialog-button'
 import type { MetricInfo } from '@/lib/metrics-data'
 import type { OverlapGranularity } from '@/lib/metrics-data'
 import { cn } from '@/lib/utils'
@@ -120,12 +122,29 @@ export function IndicatorCombinedCard({
   const currentRate = currentPoint?.indicatorRatePercent ?? 0
   const currentLineValue = currentPoint?.lineValue ?? 0
   const delta = formatDelta(preparedData, lineValueMode)
+  const metricHelpCopy = {
+    ...INSIGHT_HELP_DIALOG_COPY.combinedIndicator,
+    sections: [
+      {
+        title: 'Что измеряет этот индикатор',
+        points: [metric.description],
+      },
+      ...INSIGHT_HELP_DIALOG_COPY.combinedIndicator.sections,
+    ],
+  } as const
 
   return (
     <Card className={cn('flex h-full min-h-0 flex-col', className)}>
       <CardHeader className="space-y-1 pb-2">
         <div className="flex items-center justify-between gap-2">
-          <CardTitle className="text-sm">{metric.name}</CardTitle>
+          <div className="flex items-center gap-1.5">
+            <CardTitle className="text-sm">{metric.name}</CardTitle>
+            <InsightHelpDialogButton
+              copy={metricHelpCopy}
+              ariaLabel={`Как читать комбинированный график ${metric.name}`}
+              triggerClassName="h-4 w-4 border-0"
+            />
+          </div>
           <span className={cn('text-sm font-semibold', colorByRate(currentRate))}>
             {lineValueMode === 'percent' ? formatPercent(currentLineValue) : formatCount(currentLineValue)}
           </span>

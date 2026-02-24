@@ -75,6 +75,6 @@ export {
   PRODUCT_TAG_WEIGHTS,
 } from '@/features/insight-dashboard/config/constants'
 
-export { INSIGHT_TOOLTIP_COPY } from '@/features/insight-dashboard/config/tooltips'
+export { INSIGHT_HELP_DIALOG_COPY } from '@/features/insight-dashboard/config/tooltips'
 export { parseCallsCsv } from '@/features/insight-dashboard/domain/calls-csv'
 export { parseCallsWorkbook } from '@/features/insight-dashboard/domain/calls-xlsx'
