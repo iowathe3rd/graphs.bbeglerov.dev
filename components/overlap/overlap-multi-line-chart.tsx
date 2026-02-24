@@ -21,11 +21,13 @@ import { BerekeChartTooltip } from '@/components/charts/bereke-chart-tooltip'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog'
 import {
   buildOverlapBuckets,
   type OverlapAnalytics,
@@ -33,7 +35,10 @@ import {
   type OverlapGranularity,
   type OverlapZoneConfig,
 } from '@/lib/metrics-data'
-import { INSIGHT_TOOLTIP_COPY } from '@/features/insight-dashboard/config/tooltips'
+import {
+  INSIGHT_HELP_DIALOG_COPY,
+  INSIGHT_TOOLTIP_COPY,
+} from '@/features/insight-dashboard/config/tooltips'
 
 interface OverlapMultiLineChartProps {
   analytics: OverlapAnalytics
@@ -297,22 +302,37 @@ export function OverlapMultiLineChart({
           <h3 className="text-[15px] font-semibold tracking-tight text-foreground/95">
             <span className="inline-flex items-center gap-1.5">
               {title}
-              <TooltipProvider delayDuration={150}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button
-                      type="button"
-                      className="inline-flex h-4 w-4 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
-                      aria-label="Расшифровка зон температурной карты"
-                    >
-                      <CircleHelp className="h-3.5 w-3.5" />
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent className="max-w-[280px] text-xs leading-relaxed">
-                    <p>{INSIGHT_TOOLTIP_COPY.overlapZones}</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              <Dialog>
+                <DialogTrigger asChild>
+                  <button
+                    type="button"
+                    className="inline-flex h-4 w-4 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
+                    aria-label="Как читать температурную карту и Health Index"
+                  >
+                    <CircleHelp className="h-3.5 w-3.5" />
+                  </button>
+                </DialogTrigger>
+                <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
+                  <DialogHeader>
+                    <DialogTitle>{INSIGHT_HELP_DIALOG_COPY.overlap.title}</DialogTitle>
+                    <DialogDescription>
+                      {INSIGHT_HELP_DIALOG_COPY.overlap.description}
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-3 text-sm leading-6">
+                    {INSIGHT_HELP_DIALOG_COPY.overlap.sections.map((section) => (
+                      <section key={section.title} className="rounded-md border border-border/70 p-3">
+                        <h4 className="text-sm font-semibold">{section.title}</h4>
+                        <ul className="mt-1 list-disc space-y-1 pl-5 text-muted-foreground">
+                          {section.points.map((point) => (
+                            <li key={point}>{point}</li>
+                          ))}
+                        </ul>
+                      </section>
+                    ))}
+                  </div>
+                </DialogContent>
+              </Dialog>
             </span>
           </h3>
         </div>
@@ -440,7 +460,7 @@ export function OverlapMultiLineChart({
                     return (
                       <BerekeChartTooltip
                         title={tooltipDateLabel(String(label), granularity)}
-                        subtitle={`Низкий риск: ${bucket.zoneCounts.green}, средний: ${bucket.zoneCounts.yellow}, высокий: ${bucket.zoneCounts.red}`}
+                        subtitle={`Низкий риск: ${bucket.zoneCounts.green}, средний: ${bucket.zoneCounts.yellow}, высокий: ${bucket.zoneCounts.red}. ${INSIGHT_TOOLTIP_COPY.healthIndexFormulaShort}`}
                         rows={rows.map((row) => ({
                           id: row.label,
                           label: shortLabel(row.label),

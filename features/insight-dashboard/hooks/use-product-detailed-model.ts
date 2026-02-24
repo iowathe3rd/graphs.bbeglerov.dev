@@ -14,7 +14,9 @@ import {
   parseDashboardQueryParams,
   serializeDashboardPreferences,
 } from '@/features/insight-dashboard/domain/detailed-analytics'
+import { filterEventsForProductSituation } from '@/features/insight-dashboard/domain/bubble-matrix'
 import { buildInsightFilterOptions, ensureOption } from '@/features/insight-dashboard/domain/filter-options'
+import { buildBubbleMatrixModel } from '@/features/insight-dashboard/domain/health-index'
 import type {
   IndicatorChartMode,
   IndicatorLineValueMode,
@@ -153,6 +155,30 @@ export function useProductDetailedModel(
       }),
     [events, filters, overlapGranularity]
   )
+  const scoreMatrixEvents = useMemo(
+    () =>
+      filterEventsForProductSituation(events, {
+        sector: filters.sector,
+        productGroup: 'all',
+        dateRange: filters.dateRange,
+      }),
+    [events, filters.dateRange, filters.sector]
+  )
+  const detailedBubbleMatrixModel = useMemo(
+    () => {
+      const globalMatrixModel = buildBubbleMatrixModel(scoreMatrixEvents)
+      const selectedPoint = globalMatrixModel.points.find(
+        (point) =>
+          point.productGroup === filters.productGroup || point.label === filters.productGroup
+      )
+
+      return {
+        points: selectedPoint ? [selectedPoint] : [],
+        scoreThresholds: globalMatrixModel.scoreThresholds,
+      }
+    },
+    [filters.productGroup, scoreMatrixEvents]
+  )
 
   const overlapSeriesColorMap = useMemo(() => buildOverlapSeriesColorMap(), [])
 
@@ -199,6 +225,8 @@ export function useProductDetailedModel(
     setIsMobileDetailsSheetOpen,
     lineCards: model.lineCards,
     combinedIndicatorSeriesByMetric: model.combinedIndicatorSeriesByMetric,
+    detailedBubblePoints: detailedBubbleMatrixModel.points,
+    detailedBubbleScoreThresholds: detailedBubbleMatrixModel.scoreThresholds,
     overlapData: model.overlapData,
     callCoverageSeries: model.callCoverageSeries,
     overlapSeriesColorMap,

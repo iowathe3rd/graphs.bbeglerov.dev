@@ -1,6 +1,7 @@
 'use client'
 
 import Image from 'next/image'
+import Link from 'next/link'
 
 import { DashboardMobileFilterSheet } from '@/components/dashboard-mobile-filter-sheet'
 import { DashboardMobileFilterSummary } from '@/components/dashboard-mobile-filter-summary'
@@ -10,15 +11,13 @@ import {
   DashboardToolbar,
   type DashboardFilters,
 } from '@/components/dashboard-toolbar'
-import { DashboardOverlapCard } from '@/components/dashboard-overlap-card'
-import { DashboardOverlapDetailsSheet } from '@/components/dashboard-overlap-details-sheet'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { CallCoverageChartCard } from '@/features/insight-dashboard/ui/call-coverage-chart-card'
 import { IndicatorCombinedCard } from '@/features/insight-dashboard/ui/indicator-combined-card'
 import { MobileCombinedIndicatorCarousel } from '@/features/insight-dashboard/ui/mobile-combined-indicator-carousel'
+import { ProductSituationBubbleMatrix } from '@/features/insight-dashboard/ui/product-situation-bubble-matrix'
 import { useProductDetailedModel } from '@/features/insight-dashboard/hooks/use-product-detailed-model'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import type { InsightEvent } from '@/features/insight-dashboard/domain/types'
 import type { OverlapGranularity } from '@/lib/metrics-data'
@@ -46,21 +45,17 @@ export function ProductDetailedAnalyticsView(props: ProductDetailedAnalyticsView
     setFilters,
     overlapGranularity,
     setOverlapGranularity,
-    overlapSelection,
-    setOverlapSelection,
     indicatorChartMode,
     setIndicatorChartMode,
     indicatorLineValueMode,
     setIndicatorLineValueMode,
     isMobileFilterSheetOpen,
     setIsMobileFilterSheetOpen,
-    isMobileDetailsSheetOpen,
-    setIsMobileDetailsSheetOpen,
     lineCards,
     combinedIndicatorSeriesByMetric,
-    overlapData,
+    detailedBubblePoints,
+    detailedBubbleScoreThresholds,
     callCoverageSeries,
-    overlapSeriesColorMap,
     sectorOptions,
     productOptions,
     mobileActiveFiltersCount,
@@ -122,10 +117,12 @@ export function ProductDetailedAnalyticsView(props: ProductDetailedAnalyticsView
       <header className="border-b border-border/70 bg-card/75 backdrop-blur">
         <div className="mx-auto flex h-16 w-full max-w-[1600px] items-center justify-between gap-3 px-4 md:px-6">
           <div className="flex min-w-0 items-center gap-3">
-            <Image src="/logo.png" alt="Logo" width={40} height={40} />
-            <h1 className="font-display text-[20px] font-semibold tracking-tight">
-              Insight Service
-            </h1>
+            <Link href="/" className="flex min-w-0 items-center gap-3">
+              <Image src="/logo.png" alt="Logo" width={40} height={40} />
+              <h1 className="font-display text-[20px] font-semibold tracking-tight">
+                Insight Service
+              </h1>
+            </Link>
             <Badge variant="secondary" className="text-[11px]">
               Детальная аналитика по продукту
             </Badge>
@@ -163,17 +160,6 @@ export function ProductDetailedAnalyticsView(props: ProductDetailedAnalyticsView
           onResetAndApply={resetMobileFilters}
         />
 
-        <DashboardOverlapDetailsSheet
-          open={isMobileDetailsSheetOpen}
-          onOpenChange={setIsMobileDetailsSheetOpen}
-          data={overlapData}
-          granularity={overlapGranularity}
-          selectedSeries={overlapSelection}
-          onSelectedSeriesChange={setOverlapSelection}
-          seriesColorMap={overlapSeriesColorMap}
-          zones={{ greenMax: 20, yellowMax: 40, max: 100 }}
-        />
-
         <div className="hidden md:block">
           <DashboardToolbar
             filters={filters as DashboardFilters}
@@ -189,7 +175,7 @@ export function ProductDetailedAnalyticsView(props: ProductDetailedAnalyticsView
         <section className="space-y-3 md:hidden">
           <div className="space-y-2">
             <h2 className="px-1 text-[13px] font-medium text-muted-foreground">
-              Температурная карта
+              Состояние выбранного продукта
             </h2>
             {loading ? (
               <div className="flex h-[420px] items-center justify-center rounded-xl border border-border/80 bg-card text-xs text-muted-foreground">
@@ -197,26 +183,15 @@ export function ProductDetailedAnalyticsView(props: ProductDetailedAnalyticsView
               </div>
             ) : (
               <div className="h-[420px]">
-                <DashboardOverlapCard
-                  data={overlapData}
-                  granularity={overlapGranularity}
-                  selectedSeries={overlapSelection}
-                  onSelectedSeriesChange={setOverlapSelection}
-                  seriesColorMap={overlapSeriesColorMap}
-                  zones={{ greenMax: 20, yellowMax: 40, max: 100 }}
+                <ProductSituationBubbleMatrix
+                  points={detailedBubblePoints}
+                  scoreThresholds={detailedBubbleScoreThresholds}
+                  productOrder={[filters.productGroup]}
+                  presentation="focused"
+                  chartHeightClassName="h-full min-h-0"
                 />
               </div>
             )}
-            <div className="px-1">
-              <Button
-                variant="outline"
-                className="h-9 w-full text-xs"
-                onClick={() => setIsMobileDetailsSheetOpen(true)}
-                disabled={loading}
-              >
-                Показать детали
-              </Button>
-            </div>
 
             <div className="h-[280px]">
               <CallCoverageChartCard data={callCoverageSeries} loading={loading} />
@@ -376,16 +351,12 @@ export function ProductDetailedAnalyticsView(props: ProductDetailedAnalyticsView
               ))}
 
               <div className="col-start-3 row-start-1 col-span-2 min-h-0">
-                <DashboardOverlapCard
-                  data={overlapData}
-                  granularity={overlapGranularity}
-                  selectedSeries={overlapSelection}
-                  onSelectedSeriesChange={setOverlapSelection}
-                  seriesColorMap={overlapSeriesColorMap}
-                  zones={{ greenMax: 20, yellowMax: 40, max: 100 }}
-                  compact
-                  className="h-full"
-                  contentClassName="h-full min-h-0"
+                <ProductSituationBubbleMatrix
+                  points={detailedBubblePoints}
+                  scoreThresholds={detailedBubbleScoreThresholds}
+                  productOrder={[filters.productGroup]}
+                  presentation="focused"
+                  chartHeightClassName="h-full min-h-0"
                 />
               </div>
 

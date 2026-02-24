@@ -14,7 +14,10 @@ import {
 } from 'recharts'
 
 import { DEFAULT_PRODUCT_OPTIONS } from '@/features/insight-dashboard/config/constants'
-import { INSIGHT_TOOLTIP_COPY } from '@/features/insight-dashboard/config/tooltips'
+import {
+  INSIGHT_HELP_DIALOG_COPY,
+  INSIGHT_TOOLTIP_COPY,
+} from '@/features/insight-dashboard/config/tooltips'
 import type {
   ProductBubblePoint,
   ProductSituationScoreThresholds,
@@ -24,11 +27,13 @@ import { BerekeChartTooltip } from '@/components/charts/bereke-chart-tooltip'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
-  Tooltip as HelpTooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 
 interface ProductSituationBubbleMatrixProps {
@@ -36,6 +41,7 @@ interface ProductSituationBubbleMatrixProps {
   scoreThresholds: ProductSituationScoreThresholds
   onPointClick?: (point: ProductBubblePoint) => void
   productOrder?: string[]
+  presentation?: 'default' | 'focused'
   chartHeightClassName?: string
   loading?: boolean
 }
@@ -64,6 +70,10 @@ function formatScore(value: number) {
   }
 
   return rounded.toFixed(3).replace(/\.?0+$/, '')
+}
+
+function formatBoundaryScore(value: number) {
+  return (Math.round(value * 10) / 10).toFixed(1)
 }
 
 function formatPercent(value: number) {
@@ -128,10 +138,12 @@ export function ProductSituationBubbleMatrix({
   scoreThresholds,
   onPointClick,
   productOrder = [...DEFAULT_PRODUCT_OPTIONS],
+  presentation = 'default',
   chartHeightClassName,
   loading = false,
 }: ProductSituationBubbleMatrixProps) {
   const isMobile = useIsMobile()
+  const isFocused = presentation === 'focused'
 
   const matrixData = useMemo(() => {
     const productOrderMap = new Map<string, number>(
@@ -161,8 +173,10 @@ export function ProductSituationBubbleMatrix({
     const problemCallsValues = ordered.map((point) => point.problemCallsUnique)
     const minProblemCalls = Math.min(...problemCallsValues)
     const maxProblemCalls = Math.max(...problemCallsValues)
-    const radiusMin = isMobile ? 7 : 8
-    const radiusMax = isMobile ? 24 : 32
+    const isSinglePoint = ordered.length === 1
+    const focusedSinglePoint = isFocused && isSinglePoint
+    const radiusMin = focusedSinglePoint ? (isMobile ? 16 : 20) : isMobile ? 7 : 8
+    const radiusMax = focusedSinglePoint ? (isMobile ? 34 : 44) : isMobile ? 24 : 32
     const valueRange = Math.max(1, maxProblemCalls - minProblemCalls)
     const maxScoreValue = ordered.reduce(
       (max, point) => Math.max(max, point.healthIndex),
@@ -205,10 +219,12 @@ export function ProductSituationBubbleMatrix({
       points: prepared,
       xLabelMap,
       xTicks,
+      isSinglePoint,
+      focusedSinglePoint,
       yMax,
       yTicks,
     }
-  }, [isMobile, points, productOrder, scoreThresholds.lower, scoreThresholds.upper])
+  }, [isFocused, isMobile, points, productOrder, scoreThresholds.lower, scoreThresholds.upper])
 
   if (loading) {
     return (
@@ -234,66 +250,108 @@ export function ProductSituationBubbleMatrix({
 
   return (
     <Card className="flex h-full min-h-0 flex-col">
-      <CardHeader className="space-y-2 pb-2">
+      <CardHeader
+        className={cn(
+          'space-y-2 pb-2',
+          isFocused ? 'space-y-1.5 px-3 pb-1 pt-3 md:px-3 md:pb-1 md:pt-3' : null
+        )}
+      >
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <CardTitle className="text-base">Состояние продуктов</CardTitle>
-            <TooltipProvider>
-              <HelpTooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    type="button"
-                    className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-border/70 text-muted-foreground transition-colors hover:text-foreground"
-                    aria-label="Как читать график"
-                  >
-                    <CircleHelp className="h-3.5 w-3.5" />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent className="max-w-[280px] text-xs leading-5">
-                  {INSIGHT_TOOLTIP_COPY.bubbleMatrixHelp}
-                </TooltipContent>
-              </HelpTooltip>
-            </TooltipProvider>
+            <Dialog>
+              <DialogTrigger asChild>
+                <button
+                  type="button"
+                  className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-border/70 text-muted-foreground transition-colors hover:text-foreground"
+                  aria-label="Как рассчитывается Health Index"
+                >
+                  <CircleHelp className="h-3.5 w-3.5" />
+                </button>
+              </DialogTrigger>
+              <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle>{INSIGHT_HELP_DIALOG_COPY.healthIndex.title}</DialogTitle>
+                  <DialogDescription>
+                    {INSIGHT_HELP_DIALOG_COPY.healthIndex.description}
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-3 text-sm leading-6">
+                  {INSIGHT_HELP_DIALOG_COPY.healthIndex.sections.map((section) => (
+                    <section key={section.title} className="rounded-md border border-border/70 p-3">
+                      <h4 className="text-sm font-semibold">{section.title}</h4>
+                      <ul className="mt-1 list-disc space-y-1 pl-5 text-muted-foreground">
+                        {section.points.map((point) => (
+                          <li key={point}>{point}</li>
+                        ))}
+                      </ul>
+                    </section>
+                  ))}
+                </div>
+              </DialogContent>
+            </Dialog>
           </div>
 
-          <div className="flex items-center gap-2 text-[11px]">
-            <Badge variant="outline" className="gap-1">
-              <span className="inline-block h-2.5 w-2.5 rounded-full bg-emerald-500" />
-              Норма ≤ {formatScore(scoreThresholds.lower)}
-            </Badge>
-            <Badge variant="outline" className="gap-1">
-              <span className="inline-block h-2.5 w-2.5 rounded-full bg-amber-500" />
-              Внимание {formatScore(scoreThresholds.lower)}–{formatScore(scoreThresholds.upper)}
-            </Badge>
-            <Badge variant="outline" className="gap-1">
-              <span className="inline-block h-2.5 w-2.5 rounded-full bg-red-500" />
-              Критично ≥ {formatScore(scoreThresholds.upper)}
-            </Badge>
-          </div>
+          {matrixData.focusedSinglePoint ? (
+            <p className="text-[11px] text-muted-foreground">
+              Риски: низкий до {formatBoundaryScore(scoreThresholds.lower)}, средний{' '}
+              {formatBoundaryScore(scoreThresholds.lower)}–{formatBoundaryScore(scoreThresholds.upper)}, высокий от{' '}
+              {formatBoundaryScore(scoreThresholds.upper)}
+            </p>
+          ) : (
+            <div className="flex items-center gap-2 text-[11px]">
+              <Badge variant="outline" className="gap-1">
+                <span className="inline-block h-2.5 w-2.5 rounded-full bg-emerald-500" />
+                Низкий риск: до {formatBoundaryScore(scoreThresholds.lower)}
+              </Badge>
+              <Badge variant="outline" className="gap-1">
+                <span className="inline-block h-2.5 w-2.5 rounded-full bg-amber-500" />
+                Средний риск: {formatBoundaryScore(scoreThresholds.lower)}–{formatBoundaryScore(scoreThresholds.upper)}
+              </Badge>
+              <Badge variant="outline" className="gap-1">
+                <span className="inline-block h-2.5 w-2.5 rounded-full bg-red-500" />
+                Высокий риск: от {formatBoundaryScore(scoreThresholds.upper)}
+              </Badge>
+            </div>
+          )}
         </div>
       </CardHeader>
 
-      <CardContent className="flex-1 min-h-0">
+      <CardContent
+        className={cn(
+          'flex-1 min-h-0',
+          isFocused ? 'px-2 pb-2 md:px-2 md:pb-2' : null
+        )}
+      >
         <div
           className={cn(
             'h-[62dvh] min-h-[320px] w-full md:h-full md:min-h-0',
             chartHeightClassName
           )}
         >
-          <div className="grid h-full w-full grid-cols-[32px_minmax(0,1fr)] gap-1 md:grid-cols-[38px_minmax(0,1fr)] md:gap-2">
-            <div className="flex items-center justify-center">
-              <span className="-rotate-90 whitespace-nowrap text-[10px] text-muted-foreground md:text-[11px]">
-                Score продукта (чем выше, тем хуже)
-              </span>
-            </div>
+          <div
+            className={cn(
+              'grid h-full w-full gap-1 md:gap-2',
+              matrixData.focusedSinglePoint
+                ? 'grid-cols-1'
+                : 'grid-cols-[32px_minmax(0,1fr)] md:grid-cols-[38px_minmax(0,1fr)]'
+            )}
+          >
+            {!matrixData.focusedSinglePoint ? (
+              <div className="flex items-center justify-center">
+                <span className="-rotate-90 whitespace-nowrap text-[10px] text-muted-foreground md:text-[11px]">
+                  Score продукта (чем выше, тем хуже)
+                </span>
+              </div>
+            ) : null}
 
             <ResponsiveContainer width="100%" height="100%">
               <ScatterChart
                 margin={{
-                  top: 8,
-                  right: 10,
-                  bottom: isMobile ? 62 : 30,
-                  left: isMobile ? 8 : 10,
+                  top: matrixData.focusedSinglePoint ? 10 : 8,
+                  right: matrixData.focusedSinglePoint ? 14 : 10,
+                  bottom: matrixData.focusedSinglePoint ? (isMobile ? 32 : 18) : isMobile ? 62 : 30,
+                  left: matrixData.focusedSinglePoint ? (isMobile ? 4 : 8) : isMobile ? 8 : 10,
                 }}
               >
                 <ReferenceArea
@@ -319,22 +377,19 @@ export function ProductSituationBubbleMatrix({
                   domain={[0.5, matrixData.points.length + 0.5]}
                   ticks={matrixData.xTicks}
                   tickFormatter={(value) =>
-                    shortLabel(
-                      matrixData.xLabelMap.get(Number(value)) ?? '',
-                      isMobile ? 11 : 16
-                    )
+                    shortLabel(matrixData.xLabelMap.get(Number(value)) ?? '', isMobile ? 11 : 20)
                   }
                   tickLine={false}
                   axisLine={false}
                   interval={0}
-                  angle={-15}
-                  textAnchor="end"
-                  height={isMobile ? 64 : 56}
+                  angle={matrixData.focusedSinglePoint ? 0 : -15}
+                  textAnchor={matrixData.focusedSinglePoint ? 'middle' : 'end'}
+                  height={matrixData.focusedSinglePoint ? (isMobile ? 34 : 24) : isMobile ? 64 : 56}
                   tick={{ fontSize: isMobile ? 10 : 11, fill: 'hsl(var(--muted-foreground))' }}
                   label={{
-                    value: 'Продукты',
+                    value: matrixData.focusedSinglePoint ? '' : 'Продукты',
                     position: 'bottom',
-                    offset: isMobile ? 10 : 8,
+                    offset: matrixData.focusedSinglePoint ? 0 : isMobile ? 10 : 8,
                     fill: 'hsl(var(--muted-foreground))',
                     fontSize: isMobile ? 10 : 11,
                   }}
@@ -348,7 +403,7 @@ export function ProductSituationBubbleMatrix({
                   tickFormatter={(value) => formatScore(Number(value))}
                   tickLine={false}
                   axisLine={false}
-                  width={isMobile ? 56 : 66}
+                  width={matrixData.focusedSinglePoint ? (isMobile ? 52 : 58) : isMobile ? 56 : 66}
                   tick={{ fontSize: isMobile ? 10 : 11, fill: 'hsl(var(--muted-foreground))' }}
                 />
 

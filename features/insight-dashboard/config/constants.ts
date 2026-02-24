@@ -30,6 +30,12 @@ export const HEALTH_SCORE_REFERENCE_SHARES = {
   },
 } as const satisfies Record<'green' | 'red', Record<ProductSituationTag, number>>
 
+// Fixed score thresholds from methodology workbook (sheet "Лист4").
+export const HEALTH_SCORE_ZONE_THRESHOLDS = {
+  green: 2.117172161172161,
+  red: 4.734344322344322,
+} as const
+
 export const PRODUCT_TAG_COLORS: Record<ProductSituationTag, string> = {
   'Технические проблемы/сбои': '#2563eb',
   'Запрос не решен': '#f97316',

@@ -66,10 +66,12 @@ export default function Page() {
       <header className="border-b border-border/70 bg-card/80 backdrop-blur">
         <div className="mx-auto flex h-16 w-full max-w-[1600px] items-center justify-between gap-3 px-4 md:px-6">
           <div className="flex min-w-0 items-center gap-3">
-            <Image src="/logo.png" alt="Logo" width={40} height={40} />
-            <h1 className="font-display text-[20px] font-semibold tracking-tight">
-              Insight Service
-            </h1>
+            <Link href="/" className="flex min-w-0 items-center gap-3">
+              <Image src="/logo.png" alt="Logo" width={40} height={40} />
+              <h1 className="font-display text-[20px] font-semibold tracking-tight">
+                Insight Service
+              </h1>
+            </Link>
             <Badge variant="secondary" className="text-[11px]">
               Состояние продукта
             </Badge>
