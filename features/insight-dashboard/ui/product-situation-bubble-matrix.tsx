@@ -408,7 +408,9 @@ export function ProductSituationBubbleMatrix({
               'grid h-full w-full gap-1 md:gap-2',
               matrixData.focusedSinglePoint
                 ? 'grid-cols-1'
-                : 'grid-cols-[32px_minmax(0,1fr)] md:grid-cols-[38px_minmax(0,1fr)]'
+                : isMainProductsView
+                  ? 'grid-cols-[42px_minmax(0,1fr)] md:grid-cols-[52px_minmax(0,1fr)]'
+                  : 'grid-cols-[32px_minmax(0,1fr)] md:grid-cols-[38px_minmax(0,1fr)]'
             )}
           >
             {!matrixData.focusedSinglePoint ? (
@@ -416,7 +418,7 @@ export function ProductSituationBubbleMatrix({
                 <span
                   className={cn(
                     '-rotate-90 whitespace-nowrap text-[10px] text-muted-foreground md:text-[11px]',
-                    isMainProductsView ? 'font-semibold' : null
+                    isMainProductsView ? 'text-[12px] font-bold md:text-sm' : null
                   )}
                 >
                   Оценка неудовлетворенности продуктом (чем выше, тем хуже)
@@ -473,8 +475,8 @@ export function ProductSituationBubbleMatrix({
                       position: 'bottom',
                       offset: matrixData.focusedSinglePoint ? 0 : isMobile ? 10 : 8,
                       fill: 'hsl(var(--muted-foreground))',
-                      fontSize: isMobile ? 10 : 11,
-                      fontWeight: isMainProductsView ? 600 : 400,
+                      fontSize: isMainProductsView ? (isMobile ? 12 : 14) : isMobile ? 10 : 11,
+                      fontWeight: isMainProductsView ? 700 : 400,
                     }}
                   />
 
