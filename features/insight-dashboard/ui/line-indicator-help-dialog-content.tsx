@@ -43,18 +43,20 @@ export function LineIndicatorHelpDialogContent({ metricId }: LineIndicatorHelpDi
         </div>
 
         <div className="rounded-md border border-border/70 bg-muted/30 p-2.5">
-          <p className="font-medium text-foreground">Когда тег ставится</p>
+          <p className="font-medium text-foreground">Описание индикатора</p>
           <p className="mt-1">{copy.appliesWhen}</p>
         </div>
 
-        <div className="rounded-md border border-border/70 bg-muted/30 p-2.5">
-          <p className="font-medium text-foreground">Тег НЕ ставится, если:</p>
-          <ul className="mt-1 list-disc space-y-1 pl-5">
-            {copy.notAppliedWhen.map((row) => (
-              <li key={row}>{row}</li>
-            ))}
-          </ul>
-        </div>
+        {copy.notAppliedWhen.length > 0 ? (
+          <div className="rounded-md border border-border/70 bg-muted/30 p-2.5">
+            <p className="font-medium text-foreground">Тег НЕ ставится, если:</p>
+            <ul className="mt-1 list-disc space-y-1 pl-5">
+              {copy.notAppliedWhen.map((row) => (
+                <li key={row}>{row}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
       </div>
     </section>
   )
