@@ -13,13 +13,17 @@ import {
 
 import { BerekeChartTooltip } from '@/components/charts/bereke-chart-tooltip'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { buildCombinedIndicatorHelpDialogCopy } from '@/features/insight-dashboard/config/tooltips'
 import { formatBucketLabel } from '@/features/insight-dashboard/domain/date-bucketing'
+import {
+  CHART_CARD_CAPTION_CLASS,
+  CHART_CARD_CONTENT_CLASS,
+  CHART_CARD_HEADER_CLASS,
+  CHART_CARD_TITLE_CLASS,
+} from '@/features/insight-dashboard/ui/chart-card-tokens'
 import type {
   CombinedIndicatorBucket,
   IndicatorLineValueMode,
 } from '@/features/insight-dashboard/domain/types'
-import { InsightHelpDialogButton } from '@/features/insight-dashboard/ui/insight-help-dialog-button'
 import type { MetricInfo } from '@/lib/metrics-data'
 import type { OverlapGranularity } from '@/lib/metrics-data'
 import { cn } from '@/lib/utils'
@@ -105,10 +109,12 @@ export function IndicatorCombinedCard({
   if (!data.length) {
     return (
       <Card className={cn('h-full', className)}>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm">{metric.name}</CardTitle>
+        <CardHeader className={CHART_CARD_HEADER_CLASS}>
+          <CardTitle className={CHART_CARD_TITLE_CLASS}>{metric.name}</CardTitle>
         </CardHeader>
-        <CardContent className="text-xs text-muted-foreground">Нет данных</CardContent>
+        <CardContent className={CHART_CARD_CONTENT_CLASS}>
+          <p className={CHART_CARD_CAPTION_CLASS}>Нет данных</p>
+        </CardContent>
       </Card>
     )
   }
@@ -122,31 +128,25 @@ export function IndicatorCombinedCard({
   const currentRate = currentPoint?.indicatorRatePercent ?? 0
   const currentLineValue = currentPoint?.lineValue ?? 0
   const delta = formatDelta(preparedData, lineValueMode)
-  const metricHelpCopy = buildCombinedIndicatorHelpDialogCopy(metric.id)
 
   return (
-    <Card className={cn('flex h-full min-h-0 flex-col', className)}>
-      <CardHeader className="space-y-1 pb-2">
+    <Card className={cn('flex h-full min-h-0 flex-col overflow-hidden', className)}>
+      <CardHeader className={CHART_CARD_HEADER_CLASS}>
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-1.5">
-            <CardTitle className="text-sm">{metric.name}</CardTitle>
-            <InsightHelpDialogButton
-              copy={metricHelpCopy}
-              ariaLabel={`Как интерпретировать индикатор: ${metric.name}`}
-              triggerClassName="h-4 w-4 border-0"
-            />
+            <CardTitle className={CHART_CARD_TITLE_CLASS}>{metric.name}</CardTitle>
           </div>
           <span className={cn('text-sm font-semibold', colorByRate(currentRate))}>
             {lineValueMode === 'percent' ? formatPercent(currentLineValue) : formatCount(currentLineValue)}
           </span>
         </div>
-        <p className={cn('text-[11px] font-medium', delta.toneClass)}>
+        <p className={cn('text-[11px] leading-4', delta.toneClass)}>
           {delta.value}
           <span className="ml-1 text-muted-foreground">к предыдущему периоду</span>
         </p>
       </CardHeader>
 
-      <CardContent className="flex-1 pb-3 pt-0">
+      <CardContent className={CHART_CARD_CONTENT_CLASS}>
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={preparedData} margin={{ left: 0, right: 4, top: 4, bottom: 0 }}>
             <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="hsl(var(--border))" />

@@ -21,6 +21,7 @@ import { useProductDetailedModel } from '@/features/insight-dashboard/hooks/use-
 import { Badge } from '@/components/ui/badge'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import type { InsightEvent } from '@/features/insight-dashboard/domain/types'
+import { cn } from '@/lib/utils'
 
 interface ProductDetailedAnalyticsViewProps {
   events?: InsightEvent[]
@@ -236,7 +237,7 @@ export function ProductDetailedAnalyticsView(props: ProductDetailedAnalyticsView
                     value="kpi"
                     variant="outline"
                     size="sm"
-                    className="h-8 px-2 text-xs"
+                    className="h-7 px-1.5 text-[11px]"
                   >
                     Индикаторы
                   </ToggleGroupItem>
@@ -244,7 +245,7 @@ export function ProductDetailedAnalyticsView(props: ProductDetailedAnalyticsView
                     value="combined"
                     variant="outline"
                     size="sm"
-                    className="h-8 px-2 text-xs"
+                    className="h-7 px-1.5 text-[11px]"
                   >
                     Комбинированные
                   </ToggleGroupItem>
@@ -297,7 +298,7 @@ export function ProductDetailedAnalyticsView(props: ProductDetailedAnalyticsView
           </div>
         </section>
 
-        <section className="hidden md:flex md:min-h-0 md:flex-1 md:flex-col md:gap-2">
+        <section className="hidden overflow-x-clip md:flex md:min-h-0 md:flex-1 md:flex-col md:gap-2">
           <div className="flex flex-wrap items-end justify-between gap-2 px-1">
             <h2 className="text-[13px] font-medium text-muted-foreground">Индикаторы</h2>
             <div className="flex items-center gap-2">
@@ -311,7 +312,7 @@ export function ProductDetailedAnalyticsView(props: ProductDetailedAnalyticsView
                   value="kpi"
                   variant="outline"
                   size="sm"
-                  className="h-8 px-2 text-xs"
+                  className="h-7 px-1.5 text-[11px]"
                 >
                   Индикаторы
                 </ToggleGroupItem>
@@ -319,7 +320,7 @@ export function ProductDetailedAnalyticsView(props: ProductDetailedAnalyticsView
                   value="combined"
                   variant="outline"
                   size="sm"
-                  className="h-8 px-2 text-xs"
+                  className="h-7 px-1.5 text-[11px]"
                 >
                   Комбинированные
                 </ToggleGroupItem>
@@ -357,11 +358,11 @@ export function ProductDetailedAnalyticsView(props: ProductDetailedAnalyticsView
               Загрузка звонков…
             </div>
           ) : (
-            <div className="grid h-full min-h-0 flex-1 grid-cols-[1.2fr_1.2fr_1fr_1fr] grid-rows-2 gap-3">
+            <div className="grid h-full min-h-0 flex-1 grid-cols-[minmax(0,1.2fr)_minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1fr)] grid-rows-2 gap-3">
               {lineCards.slice(0, 4).map(({ metric, data }, index) => (
                 <div
                   key={metric.id}
-                  className={indicatorGridPositions[index] ?? ''}
+                  className={cn('min-w-0', indicatorGridPositions[index] ?? '')}
                 >
                   {indicatorChartMode === 'kpi' ? (
                     <DashboardLineCard
@@ -380,7 +381,7 @@ export function ProductDetailedAnalyticsView(props: ProductDetailedAnalyticsView
                 </div>
               ))}
 
-              <div className="col-start-3 row-start-1 col-span-2 min-h-0">
+              <div className="col-start-3 row-start-1 col-span-2 min-h-0 min-w-0">
                 <ProductSituationBubbleMatrix
                   points={detailedBubblePoints}
                   scoreThresholds={detailedBubbleScoreThresholds}
@@ -397,7 +398,7 @@ export function ProductDetailedAnalyticsView(props: ProductDetailedAnalyticsView
                 />
               </div>
 
-              <div className="col-start-3 row-start-2 col-span-2 min-h-0">
+              <div className="col-start-3 row-start-2 col-span-2 min-h-0 min-w-0">
                 <CallCoverageChartCard
                   data={callCoverageSeries}
                   loading={loading}

@@ -5,9 +5,13 @@ import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'rec
 
 import { BerekeChartTooltip } from '@/components/charts/bereke-chart-tooltip'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { buildKpiIndicatorHelpDialogCopy } from '@/features/insight-dashboard/config/tooltips'
 import { formatBucketLabel } from '@/features/insight-dashboard/domain/date-bucketing'
-import { InsightHelpDialogButton } from '@/features/insight-dashboard/ui/insight-help-dialog-button'
+import {
+  CHART_CARD_CAPTION_CLASS,
+  CHART_CARD_CONTENT_CLASS,
+  CHART_CARD_HEADER_CLASS,
+  CHART_CARD_TITLE_CLASS,
+} from '@/features/insight-dashboard/ui/chart-card-tokens'
 import type { MetricDataPoint, MetricInfo } from '@/lib/metrics-data'
 import type { OverlapGranularity } from '@/lib/metrics-data'
 
@@ -93,10 +97,12 @@ export function DashboardLineCard({
   if (!data.length) {
     return (
       <Card className="h-full">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm">{metric.name}</CardTitle>
+        <CardHeader className={CHART_CARD_HEADER_CLASS}>
+          <CardTitle className={CHART_CARD_TITLE_CLASS}>{metric.name}</CardTitle>
         </CardHeader>
-        <CardContent className="text-xs text-muted-foreground">Нет данных</CardContent>
+        <CardContent className={CHART_CARD_CONTENT_CLASS}>
+          <p className={CHART_CARD_CAPTION_CLASS}>Нет данных</p>
+        </CardContent>
       </Card>
     )
   }
@@ -110,7 +116,6 @@ export function DashboardLineCard({
   const currentTone = metricSemanticTone(metric, current)
   const trendTone = trendSemanticTone(metric, deltaPercent)
   const trendComparison = trendComparisonLabel(data, granularity)
-  const metricHelpCopy = buildKpiIndicatorHelpDialogCopy(metric.id)
   const chartData =
     data.length === 1
       ? (() => {
@@ -137,27 +142,22 @@ export function DashboardLineCard({
       : data
 
   return (
-    <Card className="flex h-full min-h-0 flex-col">
-      <CardHeader className="space-y-1 pb-2">
+    <Card className="flex h-full min-h-0 flex-col overflow-hidden">
+      <CardHeader className={CHART_CARD_HEADER_CLASS}>
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-1.5">
-            <CardTitle className="text-sm">{metric.name}</CardTitle>
-            <InsightHelpDialogButton
-              copy={metricHelpCopy}
-              ariaLabel={`Как интерпретировать индикатор: ${metric.name}`}
-              triggerClassName="h-4 w-4 border-0"
-            />
+            <CardTitle className={CHART_CARD_TITLE_CLASS}>{metric.name}</CardTitle>
           </div>
           <span className={`text-sm font-semibold ${currentTone}`}>{metricValue(current, metric.unit)}</span>
         </div>
-        <p className={`inline-flex items-center gap-1 text-[11px] font-medium ${trendTone}`}>
+        <p className={`inline-flex items-center gap-1 text-[11px] leading-4 ${trendTone}`}>
           <TrendIcon className="h-3 w-3" />
           {trendPrefix}
           {deltaPercent.toFixed(1)}%
           <span className="text-muted-foreground">{trendComparison}</span>
         </p>
       </CardHeader>
-      <CardContent className="flex-1 pb-3 pt-0">
+      <CardContent className={CHART_CARD_CONTENT_CLASS}>
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={chartData} margin={{ left: 0, right: 4, top: 2, bottom: 0 }}>
             <XAxis

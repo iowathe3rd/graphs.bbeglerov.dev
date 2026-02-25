@@ -36,6 +36,7 @@ interface StackedPortionBarChartProps<TData extends object = Record<string, unkn
   title?: string
   description?: string
   height?: number
+  compact?: boolean
   valueFormatter?: (value: number) => string
   onBarClick?: (item: TData) => void
   emptyMessage?: string
@@ -81,7 +82,8 @@ export function StackedPortionBarChart<TData extends object = Record<string, unk
   partKey,
   title,
   description,
-  height = 220,
+  height,
+  compact = false,
   valueFormatter = (value) => value.toLocaleString('ru-RU'),
   onBarClick,
   emptyMessage = 'Нет данных',
@@ -115,6 +117,9 @@ export function StackedPortionBarChart<TData extends object = Record<string, unk
     })
   }, [data, partKey, totalKey, xKey])
 
+  const resolvedMinHeight = height ?? (compact ? (isMobile ? 120 : 136) : isMobile ? 160 : 220)
+  const showTopValueLabels = !compact && !isMobile
+
   if (preparedData.length === 0) {
     return (
       <div className="flex h-full min-h-[180px] items-center justify-center text-xs text-muted-foreground">
@@ -128,7 +133,7 @@ export function StackedPortionBarChart<TData extends object = Record<string, unk
       {title ? <p className="text-sm font-semibold text-foreground">{title}</p> : null}
       {description ? <p className="mt-1 text-[11px] text-muted-foreground">{description}</p> : null}
 
-      <div className="mt-2 flex-1 min-h-0" style={{ minHeight: height }}>
+      <div className="mt-1.5 flex-1 min-h-0" style={{ minHeight: resolvedMinHeight }}>
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
             data={preparedData}
@@ -205,7 +210,7 @@ export function StackedPortionBarChart<TData extends object = Record<string, unk
             <Bar
               dataKey="__totalValue"
               radius={[6, 6, 0, 0]}
-              barSize={isMobile ? 18 : 24}
+              barSize={compact ? (isMobile ? 14 : 18) : isMobile ? 18 : 24}
               fill="hsl(var(--muted) / 0.55)"
               shape={(props: any) => {
                 const point = props?.payload as PreparedDatum<TData> | undefined
@@ -250,32 +255,34 @@ export function StackedPortionBarChart<TData extends object = Record<string, unk
                 )
               }}
             >
-              <LabelList
-                dataKey="__totalValue"
-                content={(props: any) => {
-                  const point = props?.payload as PreparedDatum<TData> | undefined
-                  if (!point || typeof props?.x !== 'number' || typeof props?.width !== 'number') {
-                    return null
-                  }
+              {showTopValueLabels ? (
+                <LabelList
+                  dataKey="__totalValue"
+                  content={(props: any) => {
+                    const point = props?.payload as PreparedDatum<TData> | undefined
+                    if (!point || typeof props?.x !== 'number' || typeof props?.width !== 'number') {
+                      return null
+                    }
 
-                  const x = props.x + props.width / 2
-                  const yBase = typeof props?.y === 'number' ? props.y : 0
-                  const y = yBase > 16 ? yBase - 6 : yBase + 12
-                  const label = `${valueFormatter(point.__partRawValue)}/${valueFormatter(point.__totalValue)}`
+                    const x = props.x + props.width / 2
+                    const yBase = typeof props?.y === 'number' ? props.y : 0
+                    const y = yBase > 16 ? yBase - 6 : yBase + 12
+                    const label = `${valueFormatter(point.__partRawValue)}/${valueFormatter(point.__totalValue)}`
 
-                  return (
-                    <text
-                      x={x}
-                      y={y}
-                      textAnchor="middle"
-                      fontSize={isMobile ? 9 : 10}
-                      fill="hsl(var(--foreground))"
-                    >
-                      {label}
-                    </text>
-                  )
-                }}
-              />
+                    return (
+                      <text
+                        x={x}
+                        y={y}
+                        textAnchor="middle"
+                        fontSize={isMobile ? 9 : 10}
+                        fill="hsl(var(--foreground))"
+                      >
+                        {label}
+                      </text>
+                    )
+                  }}
+                />
+              ) : null}
             </Bar>
           </BarChart>
         </ResponsiveContainer>

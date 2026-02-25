@@ -18,6 +18,7 @@ import { useIsMobile } from '@/hooks/use-mobile'
 import { BerekeChartTooltip } from '@/components/charts/bereke-chart-tooltip'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { CHART_CARD_TITLE_CLASS } from '@/features/insight-dashboard/ui/chart-card-tokens'
 import { formatBucketLabel } from '@/features/insight-dashboard/domain/date-bucketing'
 import {
   buildOverlapBuckets,
@@ -270,10 +271,10 @@ export function OverlapMultiLineChart({
   const showSelectionControls = !isMobile || selectedSeries.length > 0
 
   return (
-    <div className="flex h-full min-h-0 flex-col px-3 pb-3 pt-3 sm:px-4 sm:pt-4 md:px-6 md:pt-6">
+    <div className="flex h-full min-h-0 flex-col px-4 pb-3 pt-3">
       <div className="space-y-1 pb-1 md:space-y-2 md:pb-2">
         <div className="flex items-center justify-between gap-2">
-          <h3 className="text-[15px] font-semibold tracking-tight text-foreground/95">
+          <h3 className={`${CHART_CARD_TITLE_CLASS} text-foreground/95`}>
             <span className="inline-flex items-center gap-1.5">
               {title}
               <InsightHelpDialogButton

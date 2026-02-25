@@ -3,6 +3,14 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { buildConsultationCoverageHelpDialogCopy } from '@/features/insight-dashboard/config/tooltips'
 import type { CallCoverageBucket } from '@/features/insight-dashboard/domain/types'
+import {
+  CHART_CARD_CAPTION_CLASS,
+  CHART_CARD_CONTENT_CLASS,
+  CHART_CARD_CONTENT_COMPACT_CLASS,
+  CHART_CARD_HEADER_CLASS,
+  CHART_CARD_HEADER_COMPACT_CLASS,
+  CHART_CARD_TITLE_CLASS,
+} from '@/features/insight-dashboard/ui/chart-card-tokens'
 import { InsightHelpDialogButton } from '@/features/insight-dashboard/ui/insight-help-dialog-button'
 import { StackedPortionBarChart } from '@/features/insight-dashboard/ui/stacked-portion-bar-chart'
 import type { OverlapGranularity } from '@/lib/metrics-data'
@@ -24,22 +32,28 @@ export function CallCoverageChartCard({
   granularity = 'week',
 }: CallCoverageChartCardProps) {
   return (
-    <Card className={cn('flex h-full flex-col', compact ? 'min-h-0' : 'min-h-[260px]', className)}>
-      <CardHeader className="pb-2">
+    <Card
+      className={cn(
+        'flex h-full flex-col overflow-hidden',
+        compact ? 'min-h-0' : 'min-h-[260px]',
+        className
+      )}
+    >
+      <CardHeader className={compact ? CHART_CARD_HEADER_COMPACT_CLASS : CHART_CARD_HEADER_CLASS}>
         <div className="flex items-center gap-1.5">
-          <CardTitle className="text-sm">Консультационные обращения</CardTitle>
+          <CardTitle className={CHART_CARD_TITLE_CLASS}>Консультационные обращения</CardTitle>
           <InsightHelpDialogButton
             copy={buildConsultationCoverageHelpDialogCopy()}
             ariaLabel="Как читать график консультационных обращений"
             triggerClassName="h-4 w-4 border-0"
           />
         </div>
-        <p className="text-[11px] text-muted-foreground">
+        <p className={CHART_CARD_CAPTION_CLASS}>
           Серый столбец — все обращения, оранжевый — консультационные обращения.
         </p>
       </CardHeader>
 
-      <CardContent className="flex-1 pb-3 pt-0">
+      <CardContent className={compact ? CHART_CARD_CONTENT_COMPACT_CLASS : CHART_CARD_CONTENT_CLASS}>
         {loading ? (
           <div className="flex h-full min-h-[180px] items-center justify-center text-xs text-muted-foreground">
             Загрузка звонков…
@@ -50,7 +64,7 @@ export function CallCoverageChartCard({
             xKey="bucketLabel"
             totalKey="n1TotalCalls"
             partKey="n2ConsultationCalls"
-            height={190}
+            compact={compact}
             xAxisLabel="Период"
             totalLabel="Все обращения"
             partLabel="Консультационные обращения"

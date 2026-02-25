@@ -35,7 +35,7 @@ export function DashboardOverlapCard({
   return (
     <Card
       className={cn(
-        'flex h-full flex-col',
+        'flex h-full flex-col overflow-hidden',
         compact ? 'min-h-0' : 'min-h-[320px]',
         className
       )}

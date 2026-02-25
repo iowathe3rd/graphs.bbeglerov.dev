@@ -32,6 +32,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import type { OverlapGranularity } from '@/lib/metrics-data'
 import { cn } from '@/lib/utils'
 import { InsightHelpDialogButton } from '@/features/insight-dashboard/ui/insight-help-dialog-button'
+import {
+  CHART_CARD_CAPTION_CLASS,
+  CHART_CARD_CONTENT_CLASS,
+  CHART_CARD_CONTENT_COMPACT_CLASS,
+  CHART_CARD_HEADER_CLASS,
+  CHART_CARD_HEADER_COMPACT_CLASS,
+  CHART_CARD_TITLE_CLASS,
+} from '@/features/insight-dashboard/ui/chart-card-tokens'
 
 interface ProductSituationBubbleMatrixProps {
   points: ProductBubblePoint[]
@@ -314,6 +322,7 @@ export function ProductSituationBubbleMatrix({
   const resolvedTitle =
     title ?? (xMode === 'periods' ? 'Состояние продукта' : 'Состояние продуктов')
   const resolvedXAxisLabel = xAxisLabel ?? (xMode === 'periods' ? 'Период' : 'Продукты')
+  const isMainProductsView = presentation === 'default' && xMode === 'products'
   const helpDialogCopy =
     helpDialogVariant === 'product-dissatisfaction-score-detailed'
       ? buildDetailedProductDissatisfactionHelpDialogCopy()
@@ -321,37 +330,36 @@ export function ProductSituationBubbleMatrix({
 
   if (loading) {
     return (
-      <Card className="flex h-full min-h-0 flex-col">
-        <CardHeader>
-          <CardTitle className="text-base">{resolvedTitle}</CardTitle>
+      <Card className="flex h-full min-h-0 flex-col overflow-hidden">
+        <CardHeader className={isFocused ? CHART_CARD_HEADER_COMPACT_CLASS : CHART_CARD_HEADER_CLASS}>
+          <CardTitle className={CHART_CARD_TITLE_CLASS}>{resolvedTitle}</CardTitle>
         </CardHeader>
-        <CardContent className="text-sm text-muted-foreground">Загрузка звонков…</CardContent>
+        <CardContent className={isFocused ? CHART_CARD_CONTENT_COMPACT_CLASS : CHART_CARD_CONTENT_CLASS}>
+          <p className={CHART_CARD_CAPTION_CLASS}>Загрузка звонков…</p>
+        </CardContent>
       </Card>
     )
   }
 
   if (matrixData.points.length === 0) {
     return (
-      <Card className="flex h-full min-h-0 flex-col">
-        <CardHeader>
-          <CardTitle className="text-base">{resolvedTitle}</CardTitle>
+      <Card className="flex h-full min-h-0 flex-col overflow-hidden">
+        <CardHeader className={isFocused ? CHART_CARD_HEADER_COMPACT_CLASS : CHART_CARD_HEADER_CLASS}>
+          <CardTitle className={CHART_CARD_TITLE_CLASS}>{resolvedTitle}</CardTitle>
         </CardHeader>
-        <CardContent className="text-sm text-muted-foreground">Нет данных</CardContent>
+        <CardContent className={isFocused ? CHART_CARD_CONTENT_COMPACT_CLASS : CHART_CARD_CONTENT_CLASS}>
+          <p className={CHART_CARD_CAPTION_CLASS}>Нет данных</p>
+        </CardContent>
       </Card>
     )
   }
 
   return (
-    <Card className="flex h-full min-h-0 flex-col">
-      <CardHeader
-        className={cn(
-          'space-y-2 pb-2',
-          isFocused ? 'space-y-1.5 px-3 pb-1 pt-3 md:px-3 md:pb-1 md:pt-3' : null
-        )}
-      >
+    <Card className="flex h-full min-h-0 flex-col overflow-hidden">
+      <CardHeader className={isFocused ? CHART_CARD_HEADER_COMPACT_CLASS : CHART_CARD_HEADER_CLASS}>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <CardTitle className="text-base">{resolvedTitle}</CardTitle>
+            <CardTitle className={CHART_CARD_TITLE_CLASS}>{resolvedTitle}</CardTitle>
             <InsightHelpDialogButton
               copy={helpDialogCopy}
               ariaLabel="Как рассчитывается оценка неудовлетворенности продуктом"
@@ -359,13 +367,13 @@ export function ProductSituationBubbleMatrix({
           </div>
 
           {matrixData.focusedSinglePoint ? (
-            <p className="text-[11px] text-muted-foreground">
+            <p className={CHART_CARD_CAPTION_CLASS}>
               Зеленая: до {formatBoundaryScore(scoreThresholds.lower)} · Желтая:{' '}
               {formatBoundaryScore(scoreThresholds.lower)}–{formatBoundaryScore(scoreThresholds.upper)} · Красная: от{' '}
               {formatBoundaryScore(scoreThresholds.upper)}
             </p>
           ) : (
-            <div className="flex items-center gap-2 text-[11px]">
+            <div className={cn('flex items-center gap-2', CHART_CARD_CAPTION_CLASS)}>
               <Badge variant="outline" className="gap-1">
                 <span className="inline-block h-2.5 w-2.5 rounded-full bg-emerald-500" />
                 Зеленая: до {formatBoundaryScore(scoreThresholds.lower)}
@@ -385,8 +393,8 @@ export function ProductSituationBubbleMatrix({
 
       <CardContent
         className={cn(
-          'flex-1 min-h-0',
-          isFocused ? 'px-2 pb-2 md:px-2 md:pb-2' : null
+          'min-h-0',
+          isFocused ? CHART_CARD_CONTENT_COMPACT_CLASS : CHART_CARD_CONTENT_CLASS
         )}
       >
         <div
@@ -405,7 +413,12 @@ export function ProductSituationBubbleMatrix({
           >
             {!matrixData.focusedSinglePoint ? (
               <div className="flex items-center justify-center">
-                <span className="-rotate-90 whitespace-nowrap text-[10px] text-muted-foreground md:text-[11px]">
+                <span
+                  className={cn(
+                    '-rotate-90 whitespace-nowrap text-[10px] text-muted-foreground md:text-[11px]',
+                    isMainProductsView ? 'font-semibold' : null
+                  )}
+                >
                   Оценка неудовлетворенности продуктом (чем выше, тем хуже)
                 </span>
               </div>
@@ -461,6 +474,7 @@ export function ProductSituationBubbleMatrix({
                       offset: matrixData.focusedSinglePoint ? 0 : isMobile ? 10 : 8,
                       fill: 'hsl(var(--muted-foreground))',
                       fontSize: isMobile ? 10 : 11,
+                      fontWeight: isMainProductsView ? 600 : 400,
                     }}
                   />
 
@@ -473,7 +487,11 @@ export function ProductSituationBubbleMatrix({
                     tickLine={false}
                     axisLine={false}
                     width={matrixData.focusedSinglePoint ? (isMobile ? 52 : 58) : isMobile ? 56 : 66}
-                    tick={{ fontSize: isMobile ? 10 : 11, fill: 'hsl(var(--muted-foreground))' }}
+                    tick={{
+                      fontSize: isMobile ? 10 : 11,
+                      fill: 'hsl(var(--muted-foreground))',
+                      fontWeight: isMainProductsView ? 600 : 400,
+                    }}
                   />
 
                   <Tooltip
