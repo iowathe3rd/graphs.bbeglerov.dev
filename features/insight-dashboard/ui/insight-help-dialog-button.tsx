@@ -97,31 +97,108 @@ function formatThreshold(value: number): string {
   return rounded.toFixed(1)
 }
 
+interface IndicatorThresholdRow {
+  label: string
+  green?: string
+  red?: string
+}
+
+interface ZoneNormatives {
+  greenHeading?: string
+  redHeading?: string
+  yellowHeading?: string
+  rows: IndicatorThresholdRow[]
+}
+
+function extractZoneNormatives(points: readonly string[]): ZoneNormatives {
+  const order: string[] = []
+  const rowsByLabel = new Map<string, IndicatorThresholdRow>()
+  let greenHeading: string | undefined
+  let redHeading: string | undefined
+  let yellowHeading: string | undefined
+
+  for (const point of points) {
+    const normalized = point.trim()
+
+    if (normalized.startsWith('• Целевые нормативы для Зеленой зоны')) {
+      greenHeading = normalized
+      continue
+    }
+
+    if (normalized.startsWith('• Критические нормативы для Красной зоны')) {
+      redHeading = normalized
+      continue
+    }
+
+    if (normalized.startsWith('• Промежуточные значения для Желтой зоны')) {
+      yellowHeading = normalized
+      continue
+    }
+
+    const indicatorMatch = /^o\s+«(.+)»\s*(≤|≥)\s*([0-9]+(?:[.,][0-9]+)?)%\.?$/u.exec(normalized)
+    if (!indicatorMatch) {
+      continue
+    }
+
+    const label = indicatorMatch[1] ?? ''
+    const operator = indicatorMatch[2] ?? ''
+    const value = `${indicatorMatch[3]}%`
+
+    if (!rowsByLabel.has(label)) {
+      rowsByLabel.set(label, { label })
+      order.push(label)
+    }
+
+    const row = rowsByLabel.get(label)
+    if (!row) {
+      continue
+    }
+
+    if (operator === '≤') {
+      row.green = value
+    } else if (operator === '≥') {
+      row.red = value
+    }
+  }
+
+  return {
+    greenHeading,
+    redHeading,
+    yellowHeading,
+    rows: order.map((label) => rowsByLabel.get(label)).filter((row): row is IndicatorThresholdRow => Boolean(row)),
+  }
+}
+
+function isZoneDetailLine(point: string): boolean {
+  const normalized = point.trim()
+
+  if (normalized.startsWith('• Целевые нормативы для Зеленой зоны')) {
+    return true
+  }
+
+  if (normalized.startsWith('• Критические нормативы для Красной зоны')) {
+    return true
+  }
+
+  if (normalized.startsWith('• Промежуточные значения для Желтой зоны')) {
+    return true
+  }
+
+  return /^o\s+«(.+)»\s*(≤|≥)\s*([0-9]+(?:[.,][0-9]+)?)%\.?$/u.test(normalized)
+}
+
 function renderPoint(
   point: string,
   key: string,
+  sectionPoints: readonly string[],
   zoneThresholds?: {
     lower: number
     upper: number
   }
 ) {
   const normalized = point.trim()
-  const indicatorMatch = /^o\s+«(.+)»\s*(≤|≥)\s*([0-9]+(?:[.,][0-9]+)?%)\.?$/u.exec(normalized)
-
-  if (indicatorMatch) {
-    const label = indicatorMatch[1] ?? ''
-    const operator = indicatorMatch[2] ?? ''
-    const value = indicatorMatch[3] ?? ''
-
-    return (
-      <Badge key={key} variant="outline" className={cn('w-fit gap-1.5', indicatorBadgeClassByLabel(label))}>
-        <span
-          className="inline-block h-2.5 w-2.5 rounded-full"
-          style={{ backgroundColor: indicatorColorByLabel(label) }}
-        />
-        «{label}» {operator} {value}
-      </Badge>
-    )
+  if (isZoneDetailLine(normalized)) {
+    return null
   }
 
   const extras: ReactNode[] = []
@@ -140,29 +217,74 @@ function renderPoint(
   }
 
   if (normalized === 'Состояние продукта классифицируется по трем зонам:') {
+    const normatives = extractZoneNormatives(sectionPoints)
     const lower = zoneThresholds ? formatThreshold(zoneThresholds.lower) : null
     const upper = zoneThresholds ? formatThreshold(zoneThresholds.upper) : null
 
+    const greenRows = normatives.rows
+    const redRows = normatives.rows
+
     extras.push(
-      <div key={`${key}-zones`} className="mt-2 space-y-2">
-        <div className="flex flex-wrap items-center gap-2 md:flex-nowrap">
-          <Badge variant="outline" className={cn('gap-1', zoneBorderClass('green'))}>
-            <span className={cn('inline-block h-2.5 w-2.5 rounded-full', zoneDotClass('green'))} />
-            {lower ? `Зеленая ≤ ${lower}` : 'Зеленая зона'}
-          </Badge>
-          <Badge variant="outline" className={cn('gap-1', zoneBorderClass('yellow'))}>
-            <span className={cn('inline-block h-2.5 w-2.5 rounded-full', zoneDotClass('yellow'))} />
-            {lower && upper ? `Желтая ${lower}–${upper}` : 'Желтая зона'}
-          </Badge>
-          <Badge variant="outline" className={cn('gap-1', zoneBorderClass('red'))}>
-            <span className={cn('inline-block h-2.5 w-2.5 rounded-full', zoneDotClass('red'))} />
-            {upper ? `Красная ≥ ${upper}` : 'Красная зона'}
-          </Badge>
+      <div key={`${key}-zones`} className="mt-3 space-y-3">
+        <div className="rounded-md border border-emerald-300/70 bg-emerald-50/40 p-2.5">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant="outline" className={cn('gap-1', zoneBorderClass('green'))}>
+              <span className={cn('inline-block h-2.5 w-2.5 rounded-full', zoneDotClass('green'))} />
+              {lower ? `Зеленая ≤ ${lower}` : 'Зеленая зона'}
+            </Badge>
+          </div>
+          <p className="mt-2 text-muted-foreground">Зеленая зона: целевое состояние, в пределах нормы.</p>
+          {normatives.greenHeading ? (
+            <p className="mt-2 text-muted-foreground">{normatives.greenHeading}</p>
+          ) : null}
+          <div className="mt-2 flex flex-wrap gap-2">
+            {greenRows.map((row) => (
+              <Badge key={`green-${row.label}`} variant="outline" className={cn('w-fit gap-1.5', indicatorBadgeClassByLabel(row.label))}>
+                <span
+                  className="inline-block h-2.5 w-2.5 rounded-full"
+                  style={{ backgroundColor: indicatorColorByLabel(row.label) }}
+                />
+                «{row.label}» ≤ {row.green ?? '—'}
+              </Badge>
+            ))}
+          </div>
         </div>
-        <div className="space-y-1 text-muted-foreground">
-          <p>Зеленая зона: целевое состояние, в пределах нормы.</p>
-          <p>Желтая зона: зона внимания, требуется контроль динамики.</p>
-          <p>Красная зона: критическая зона, нужен приоритетный план действий.</p>
+
+        <div className="rounded-md border border-amber-300/70 bg-amber-50/40 p-2.5">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant="outline" className={cn('gap-1', zoneBorderClass('yellow'))}>
+              <span className={cn('inline-block h-2.5 w-2.5 rounded-full', zoneDotClass('yellow'))} />
+              {lower && upper ? `Желтая ${lower}–${upper}` : 'Желтая зона'}
+            </Badge>
+          </div>
+          <p className="mt-2 text-muted-foreground">Желтая зона: зона внимания, требуется контроль динамики.</p>
+          {normatives.yellowHeading ? (
+            <p className="mt-2 text-muted-foreground">{normatives.yellowHeading}</p>
+          ) : null}
+        </div>
+
+        <div className="rounded-md border border-red-300/70 bg-red-50/40 p-2.5">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant="outline" className={cn('gap-1', zoneBorderClass('red'))}>
+              <span className={cn('inline-block h-2.5 w-2.5 rounded-full', zoneDotClass('red'))} />
+              {upper ? `Красная ≥ ${upper}` : 'Красная зона'}
+            </Badge>
+          </div>
+          <p className="mt-2 text-muted-foreground">Красная зона: критическая зона, нужен приоритетный план действий.</p>
+          {normatives.redHeading ? (
+            <p className="mt-2 text-muted-foreground">{normatives.redHeading}</p>
+          ) : null}
+          <div className="mt-2 flex flex-wrap gap-2">
+            {redRows.map((row) => (
+              <Badge key={`red-${row.label}`} variant="outline" className={cn('w-fit gap-1.5', indicatorBadgeClassByLabel(row.label))}>
+                <span
+                  className="inline-block h-2.5 w-2.5 rounded-full"
+                  style={{ backgroundColor: indicatorColorByLabel(row.label) }}
+                />
+                «{row.label}» ≥ {row.red ?? '—'}
+              </Badge>
+            ))}
+          </div>
         </div>
       </div>
     )
@@ -222,6 +344,7 @@ export function InsightHelpDialogButton({
                       renderPoint(
                         point,
                         `${section.title}-${index}-${point}`,
+                        section.points,
                         copy.zoneThresholds
                       )
                     )}

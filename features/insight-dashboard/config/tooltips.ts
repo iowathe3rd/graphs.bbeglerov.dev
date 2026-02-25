@@ -62,7 +62,7 @@ function buildUnifiedTooltipCopy(
     zoneThresholds: thresholds,
     sections: [
       {
-        title: 'Документация',
+        title: '',
         points: buildDocTextPoints(),
       },
     ],
