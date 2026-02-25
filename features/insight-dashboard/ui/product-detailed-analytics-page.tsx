@@ -5,8 +5,6 @@ import Link from 'next/link'
 
 import { DashboardMobileFilterSheet } from '@/components/dashboard-mobile-filter-sheet'
 import { DashboardMobileFilterSummary } from '@/components/dashboard-mobile-filter-summary'
-import { DashboardMobileKpiCarousel } from '@/components/dashboard-mobile-kpi-carousel'
-import { DashboardLineCard } from '@/components/dashboard-line-card'
 import {
   DashboardToolbar,
   type DetailedGranularity,
@@ -46,8 +44,6 @@ export function ProductDetailedAnalyticsView(props: ProductDetailedAnalyticsView
     setFilters,
     overlapGranularity,
     setOverlapGranularity,
-    indicatorChartMode,
-    setIndicatorChartMode,
     indicatorLineValueMode,
     setIndicatorLineValueMode,
     isMobileFilterSheetOpen,
@@ -91,17 +87,6 @@ export function ProductDetailedAnalyticsView(props: ProductDetailedAnalyticsView
     metric,
     data: combinedIndicatorSeriesByMetric[metric.id] ?? [],
   }))
-
-  const handleIndicatorChartModeChange = (value: string) => {
-    if (value === 'kpi' || value === 'combined') {
-      setIndicatorChartMode(value)
-      return
-    }
-
-    if (!value) {
-      setIndicatorChartMode('kpi')
-    }
-  }
 
   const handleIndicatorLineValueModeChange = (value: string) => {
     if (value === 'percent' || value === 'absolute') {
@@ -226,74 +211,40 @@ export function ProductDetailedAnalyticsView(props: ProductDetailedAnalyticsView
           <div className="space-y-2">
             <div className="flex flex-wrap items-end justify-between gap-2 px-1">
               <h2 className="text-[13px] font-medium text-muted-foreground">Индикаторы</h2>
-              <div className="flex flex-wrap items-center gap-2">
-                <ToggleGroup
-                  type="single"
-                  value={indicatorChartMode}
-                  onValueChange={handleIndicatorChartModeChange}
-                  className="justify-start gap-1"
+              <ToggleGroup
+                type="single"
+                value={indicatorLineValueMode}
+                onValueChange={handleIndicatorLineValueModeChange}
+                className="justify-start gap-1"
+              >
+                <ToggleGroupItem
+                  value="percent"
+                  variant="outline"
+                  size="sm"
+                  className="h-8 px-2 text-xs"
                 >
-                  <ToggleGroupItem
-                    value="kpi"
-                    variant="outline"
-                    size="sm"
-                    className="h-7 px-1.5 text-[11px]"
-                  >
-                    Индикаторы
-                  </ToggleGroupItem>
-                  <ToggleGroupItem
-                    value="combined"
-                    variant="outline"
-                    size="sm"
-                    className="h-7 px-1.5 text-[11px]"
-                  >
-                    Комбинированные
-                  </ToggleGroupItem>
-                </ToggleGroup>
-
-                {indicatorChartMode === 'combined' ? (
-                  <ToggleGroup
-                    type="single"
-                    value={indicatorLineValueMode}
-                    onValueChange={handleIndicatorLineValueModeChange}
-                    className="justify-start gap-1"
-                  >
-                    <ToggleGroupItem
-                      value="percent"
-                      variant="outline"
-                      size="sm"
-                      className="h-8 px-2 text-xs"
-                    >
-                      %
-                    </ToggleGroupItem>
-                    <ToggleGroupItem
-                      value="absolute"
-                      variant="outline"
-                      size="sm"
-                      className="h-8 px-2 text-xs"
-                    >
-                      шт
-                    </ToggleGroupItem>
-                  </ToggleGroup>
-                ) : null}
-              </div>
+                  %
+                </ToggleGroupItem>
+                <ToggleGroupItem
+                  value="absolute"
+                  variant="outline"
+                  size="sm"
+                  className="h-8 px-2 text-xs"
+                >
+                  шт
+                </ToggleGroupItem>
+              </ToggleGroup>
             </div>
             {loading ? (
               <div className="flex h-[250px] items-center justify-center rounded-xl border border-border/80 bg-card text-xs text-muted-foreground">
                 Загрузка звонков…
               </div>
             ) : (
-              <>
-                {indicatorChartMode === 'kpi' ? (
-                  <DashboardMobileKpiCarousel items={lineCards} granularity={overlapGranularity} />
-                ) : (
-                  <MobileCombinedIndicatorCarousel
-                    items={combinedIndicatorItems}
-                    lineValueMode={indicatorLineValueMode}
-                    granularity={overlapGranularity}
-                  />
-                )}
-              </>
+              <MobileCombinedIndicatorCarousel
+                items={combinedIndicatorItems}
+                lineValueMode={indicatorLineValueMode}
+                granularity={overlapGranularity}
+              />
             )}
           </div>
         </section>
@@ -301,57 +252,29 @@ export function ProductDetailedAnalyticsView(props: ProductDetailedAnalyticsView
         <section className="hidden overflow-x-clip md:flex md:min-h-0 md:flex-1 md:flex-col md:gap-2">
           <div className="flex flex-wrap items-end justify-between gap-2 px-1">
             <h2 className="text-[13px] font-medium text-muted-foreground">Индикаторы</h2>
-            <div className="flex items-center gap-2">
-              <ToggleGroup
-                type="single"
-                value={indicatorChartMode}
-                onValueChange={handleIndicatorChartModeChange}
-                className="justify-start gap-1"
+            <ToggleGroup
+              type="single"
+              value={indicatorLineValueMode}
+              onValueChange={handleIndicatorLineValueModeChange}
+              className="justify-start gap-1"
+            >
+              <ToggleGroupItem
+                value="percent"
+                variant="outline"
+                size="sm"
+                className="h-8 px-2 text-xs"
               >
-                <ToggleGroupItem
-                  value="kpi"
-                  variant="outline"
-                  size="sm"
-                  className="h-7 px-1.5 text-[11px]"
-                >
-                  Индикаторы
-                </ToggleGroupItem>
-                <ToggleGroupItem
-                  value="combined"
-                  variant="outline"
-                  size="sm"
-                  className="h-7 px-1.5 text-[11px]"
-                >
-                  Комбинированные
-                </ToggleGroupItem>
-              </ToggleGroup>
-
-              {indicatorChartMode === 'combined' ? (
-                <ToggleGroup
-                  type="single"
-                  value={indicatorLineValueMode}
-                  onValueChange={handleIndicatorLineValueModeChange}
-                  className="justify-start gap-1"
-                >
-                  <ToggleGroupItem
-                    value="percent"
-                    variant="outline"
-                    size="sm"
-                    className="h-8 px-2 text-xs"
-                  >
-                    %
-                  </ToggleGroupItem>
-                  <ToggleGroupItem
-                    value="absolute"
-                    variant="outline"
-                    size="sm"
-                    className="h-8 px-2 text-xs"
-                  >
-                    шт
-                  </ToggleGroupItem>
-                </ToggleGroup>
-              ) : null}
-            </div>
+                %
+              </ToggleGroupItem>
+              <ToggleGroupItem
+                value="absolute"
+                variant="outline"
+                size="sm"
+                className="h-8 px-2 text-xs"
+              >
+                шт
+              </ToggleGroupItem>
+            </ToggleGroup>
           </div>
           {loading ? (
             <div className="flex md:min-h-0 md:flex-1 items-center justify-center rounded-xl border border-border/80 bg-card text-xs text-muted-foreground">
@@ -359,25 +282,17 @@ export function ProductDetailedAnalyticsView(props: ProductDetailedAnalyticsView
             </div>
           ) : (
             <div className="grid h-full min-h-0 flex-1 grid-cols-[minmax(0,1.2fr)_minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1fr)] grid-rows-2 gap-3">
-              {lineCards.slice(0, 4).map(({ metric, data }, index) => (
+              {lineCards.slice(0, 4).map(({ metric }, index) => (
                 <div
                   key={metric.id}
                   className={cn('min-w-0', indicatorGridPositions[index] ?? '')}
                 >
-                  {indicatorChartMode === 'kpi' ? (
-                    <DashboardLineCard
-                      metric={metric}
-                      data={data}
-                      granularity={overlapGranularity}
-                    />
-                  ) : (
-                    <IndicatorCombinedCard
-                      metric={metric}
-                      data={combinedIndicatorSeriesByMetric[metric.id] ?? []}
-                      lineValueMode={indicatorLineValueMode}
-                      granularity={overlapGranularity}
-                    />
-                  )}
+                  <IndicatorCombinedCard
+                    metric={metric}
+                    data={combinedIndicatorSeriesByMetric[metric.id] ?? []}
+                    lineValueMode={indicatorLineValueMode}
+                    granularity={overlapGranularity}
+                  />
                 </div>
               ))}
 

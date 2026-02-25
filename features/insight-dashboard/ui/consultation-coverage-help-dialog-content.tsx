@@ -11,19 +11,9 @@ export function ConsultationCoverageHelpDialogContent() {
           обращения*, закрепленного в сетке классификации в Сервисе инсайтов.
         </p>
 
-        <h4 className="text-base font-semibold text-foreground">Типы обращения:</h4>
+        <h4 className="text-base font-semibold text-foreground">Тип обращения:</h4>
 
         <div className="space-y-2">
-          <div className="rounded-md border border-red-300/70 bg-red-50/40 p-2.5">
-            <Badge variant="outline" className="border-red-300/80 text-red-700">
-              Претензия
-            </Badge>
-            <p className="mt-2">
-              Обращение с недовольством (жалоба на ошибки, сроки или угроза ухода). В данном
-              дашборде выявляется с помощью ИИ.
-            </p>
-          </div>
-
           <div className="rounded-md border border-amber-300/70 bg-amber-50/40 p-2.5">
             <Badge variant="outline" className="border-amber-300/80 text-amber-700">
               Консультация

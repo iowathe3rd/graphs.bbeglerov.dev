@@ -22,7 +22,6 @@ import {
   buildProductTimelineBubbleModel,
 } from '@/features/insight-dashboard/domain/product-dissatisfaction-score'
 import type {
-  IndicatorChartMode,
   IndicatorLineValueMode,
   InsightDetailedFilters,
   InsightEvent,
@@ -71,7 +70,6 @@ export function useProductDetailedModel(
   const [filters, setFilters] = useState<InsightDetailedFilters>(() => DEFAULT_DETAILED_FILTERS)
   const [overlapGranularity, setOverlapGranularity] = useState<DetailedGranularity>(() => 'week')
   const [overlapSelection, setOverlapSelection] = useState<string[]>(() => [])
-  const [indicatorChartMode, setIndicatorChartMode] = useState<IndicatorChartMode>('kpi')
   const [indicatorLineValueMode, setIndicatorLineValueMode] =
     useState<IndicatorLineValueMode>('percent')
   const [isMobileFilterSheetOpen, setIsMobileFilterSheetOpen] = useState(false)
@@ -237,8 +235,6 @@ export function useProductDetailedModel(
     setOverlapGranularity,
     overlapSelection,
     setOverlapSelection,
-    indicatorChartMode,
-    setIndicatorChartMode,
     indicatorLineValueMode,
     setIndicatorLineValueMode,
     isMobileFilterSheetOpen,
