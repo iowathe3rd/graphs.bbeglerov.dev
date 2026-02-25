@@ -20,7 +20,7 @@ import { buildInsightFilterOptions, ensureOption } from '@/features/insight-dash
 import {
   buildBubbleMatrixModel,
   buildProductTimelineBubbleModel,
-} from '@/features/insight-dashboard/domain/health-index'
+} from '@/features/insight-dashboard/domain/product-dissatisfaction-score'
 import type {
   IndicatorChartMode,
   IndicatorLineValueMode,

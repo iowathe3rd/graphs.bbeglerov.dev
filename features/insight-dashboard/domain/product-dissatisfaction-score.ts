@@ -1,6 +1,6 @@
 import {
-  HEALTH_SCORE_CRITICAL_WEIGHT,
-  HEALTH_SCORE_ZONE_THRESHOLDS,
+  PRODUCT_DISSATISFACTION_SCORE_CRITICAL_WEIGHT,
+  PRODUCT_DISSATISFACTION_SCORE_ZONE_THRESHOLDS,
   PRODUCT_SITUATION_TAGS,
 } from '@/features/insight-dashboard/config/constants'
 import type {
@@ -29,7 +29,7 @@ const METRIC_TO_TAG = {
 
 const POSITIVE_METRICS = new Set(['fcr', 'csat'])
 
-interface BuildHealthIndexMetricsOptions {
+interface BuildProductDissatisfactionScoreMetricsOptions {
   granularity: OverlapGranularity
   topDomainsLimit?: number
   zones?: Partial<ProductSituationZones>
@@ -89,7 +89,7 @@ interface RiskMetrics {
   confidence: number
   riskCore: number
   riskIndex: number
-  healthIndex: number
+  productDissatisfactionScore: number
   tagRates: Record<ProductSituationTag, number>
   consultationNegativeRate: number
   consultationCleanRate: number
@@ -214,7 +214,7 @@ function buildScoreWeights(
   weights[INDICATOR_1_TAG] = safeDivide(baseCount, totalTagCounts[INDICATOR_1_TAG])
   weights[INDICATOR_2_TAG] = 1
   weights[INDICATOR_3_TAG] = safeDivide(baseCount, totalTagCounts[INDICATOR_3_TAG])
-  weights[INDICATOR_4_TAG] = HEALTH_SCORE_CRITICAL_WEIGHT
+  weights[INDICATOR_4_TAG] = PRODUCT_DISSATISFACTION_SCORE_CRITICAL_WEIGHT
 
   return weights
 }
@@ -238,8 +238,8 @@ function computeScoreByTagCounts(
 }
 
 function buildScoreThresholds(): ProductSituationScoreThresholds {
-  const green = round4(HEALTH_SCORE_ZONE_THRESHOLDS.green)
-  const red = round4(HEALTH_SCORE_ZONE_THRESHOLDS.red)
+  const green = round4(PRODUCT_DISSATISFACTION_SCORE_ZONE_THRESHOLDS.green)
+  const red = round4(PRODUCT_DISSATISFACTION_SCORE_ZONE_THRESHOLDS.red)
 
   return {
     green,
@@ -422,7 +422,7 @@ function computeRiskMetrics(
   const severityRate = score
   const riskCore = score
   const riskIndex = score
-  const healthIndex = score
+  const productDissatisfactionScore = score
   const consultationWeightedNegativeRate = round4(
     computeScoreByTagCounts(
       rollup.consultationTagCounts,
@@ -439,7 +439,7 @@ function computeRiskMetrics(
     confidence,
     riskCore,
     riskIndex,
-    healthIndex,
+    productDissatisfactionScore,
     tagRates,
     consultationNegativeRate,
     consultationCleanRate,
@@ -491,7 +491,7 @@ function buildSummary(buckets: ProductSituationBucket[]): ProductSituationExecut
 
   const currentPoint: ProductSituationExecutiveSummaryPoint = {
     label: current.date,
-    healthIndex: current.healthIndex,
+    productDissatisfactionScore: current.productDissatisfactionScore,
     problematicCalls: current.problemCallsUnique,
     problematicRate: current.problemRate,
     totalCalls: current.totalCalls,
@@ -500,7 +500,7 @@ function buildSummary(buckets: ProductSituationBucket[]): ProductSituationExecut
   const previousPoint: ProductSituationExecutiveSummaryPoint | null = previous
     ? {
         label: previous.date,
-        healthIndex: previous.healthIndex,
+        productDissatisfactionScore: previous.productDissatisfactionScore,
         problematicCalls: previous.problemCallsUnique,
         problematicRate: previous.problemRate,
         totalCalls: previous.totalCalls,
@@ -512,7 +512,7 @@ function buildSummary(buckets: ProductSituationBucket[]): ProductSituationExecut
     previous: previousPoint,
     delta: previousPoint
       ? {
-          healthIndex: round4(currentPoint.healthIndex - previousPoint.healthIndex),
+          productDissatisfactionScore: round4(currentPoint.productDissatisfactionScore - previousPoint.productDissatisfactionScore),
           problematicCalls: currentPoint.problematicCalls - previousPoint.problematicCalls,
           problematicRate: round1(
             currentPoint.problematicRate - previousPoint.problematicRate
@@ -583,9 +583,9 @@ function buildDrivers(buckets: ProductSituationBucket[]): ProductSituationDriver
   })
 }
 
-export function buildHealthIndexMetrics(
+export function buildProductDissatisfactionScoreMetrics(
   events: InsightEvent[],
-  options: BuildHealthIndexMetricsOptions
+  options: BuildProductDissatisfactionScoreMetricsOptions
 ): ProductSituationAnalytics {
   const granularity = options.granularity
   const topDomainsLimit = options.topDomainsLimit ?? 8
@@ -659,7 +659,7 @@ export function buildHealthIndexMetrics(
       confidence: riskMetrics.confidence,
       riskCore: riskMetrics.riskCore,
       riskIndex: riskMetrics.riskIndex,
-      healthIndex: riskMetrics.healthIndex,
+      productDissatisfactionScore: riskMetrics.productDissatisfactionScore,
       tagCounts: bucket.rollup.tagCounts,
       tagRates: riskMetrics.tagRates,
       consultationCalls: bucket.rollup.consultationCalls,
@@ -697,7 +697,7 @@ export function buildHealthIndexMetrics(
         confidence: riskMetrics.confidence,
         riskCore: riskMetrics.riskCore,
         riskIndex: riskMetrics.riskIndex,
-        healthIndex: riskMetrics.healthIndex,
+        productDissatisfactionScore: riskMetrics.productDissatisfactionScore,
         zone: zoneByScore(riskMetrics.riskIndex, scoreContext.thresholds),
         topDriverTag: topDriverTag(domain.rollup.tagCounts),
         tagCounts: domain.rollup.tagCounts,
@@ -732,7 +732,7 @@ export function buildBubbleMatrixModel(
   events: InsightEvent[],
   options?: BuildBubbleMatrixPointsOptions
 ): ProductBubbleMatrixModel {
-  const analytics = buildHealthIndexMetrics(events, {
+  const analytics = buildProductDissatisfactionScoreMetrics(events, {
     granularity: 'month',
     topDomainsLimit: Number.MAX_SAFE_INTEGER,
     zones: options?.zones,
@@ -747,7 +747,7 @@ export function buildBubbleMatrixModel(
       totalCalls: domain.totalCalls,
       problemCallsUnique: domain.problemCallsUnique,
       problemRate: domain.problemRate,
-      healthIndex: domain.healthIndex,
+      productDissatisfactionScore: domain.productDissatisfactionScore,
       riskIndex: domain.riskIndex,
       zone: domain.zone,
       topDriverTag: domain.topDriverTag,
@@ -837,9 +837,9 @@ export function buildProductTimelineBubbleModel(
       totalCalls: rollup.totalCalls,
       problemCallsUnique: rollup.problemCallsUnique,
       problemRate: riskMetrics.problemRate,
-      healthIndex: riskMetrics.healthIndex,
+      productDissatisfactionScore: riskMetrics.productDissatisfactionScore,
       riskIndex: riskMetrics.riskIndex,
-      zone: zoneByScore(riskMetrics.healthIndex, scoreContext.thresholds),
+      zone: zoneByScore(riskMetrics.productDissatisfactionScore, scoreContext.thresholds),
       topDriverTag: topDriverTag(rollup.tagCounts),
       ...toIndicatorShares(riskMetrics.tagRates),
     })
@@ -860,9 +860,9 @@ export function buildBubbleMatrixPoints(
 
 export function buildProductSituationAnalytics(
   events: InsightEvent[],
-  options: BuildHealthIndexMetricsOptions
+  options: BuildProductDissatisfactionScoreMetricsOptions
 ): ProductSituationAnalytics {
-  return buildHealthIndexMetrics(events, options)
+  return buildProductDissatisfactionScoreMetrics(events, options)
 }
 
 export function buildProductSituationBubblePoints(

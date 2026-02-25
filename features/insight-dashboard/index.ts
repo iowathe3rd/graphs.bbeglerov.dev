@@ -1,7 +1,7 @@
 export type {
   CallCoverageBucket,
   DetailedAnalyticsModel,
-  HealthIndexBreakpoints,
+  ProductDissatisfactionScoreBreakpoints,
   InsightChannel,
   InsightDataSourceState,
   InsightDataStatus,
@@ -31,10 +31,10 @@ export {
 
 export {
   buildBubbleMatrixPoints,
-  buildHealthIndexMetrics,
+  buildProductDissatisfactionScoreMetrics,
   buildProductSituationAnalytics,
   buildProductSituationBubblePoints,
-} from '@/features/insight-dashboard/domain/health-index'
+} from '@/features/insight-dashboard/domain/product-dissatisfaction-score'
 
 export {
   buildDetailedAnalyticsModel,
@@ -67,7 +67,7 @@ export { ProductDetailedAnalyticsView } from '@/features/insight-dashboard/ui/pr
 export {
   BUBBLE_ZONE_BREAKPOINTS,
   DASHBOARD_METRIC_IDS,
-  HEALTH_INDEX_BREAKPOINTS,
+  PRODUCT_DISSATISFACTION_SCORE_BREAKPOINTS,
   INSIGHT_CHANNEL,
   INSIGHT_STORAGE_KEYS,
   PRODUCT_SITUATION_TAGS,

@@ -110,7 +110,7 @@ export function DashboardLineCard({
   const currentTone = metricSemanticTone(metric, current)
   const trendTone = trendSemanticTone(metric, deltaPercent)
   const trendComparison = trendComparisonLabel(data, granularity)
-  const metricHelpCopy = buildKpiIndicatorHelpDialogCopy()
+  const metricHelpCopy = buildKpiIndicatorHelpDialogCopy(metric.id)
   const chartData =
     data.length === 1
       ? (() => {
@@ -144,7 +144,7 @@ export function DashboardLineCard({
             <CardTitle className="text-sm">{metric.name}</CardTitle>
             <InsightHelpDialogButton
               copy={metricHelpCopy}
-              ariaLabel={`Как читать индикатор ${metric.name}`}
+              ariaLabel={`Как интерпретировать индикатор: ${metric.name}`}
               triggerClassName="h-4 w-4 border-0"
             />
           </div>

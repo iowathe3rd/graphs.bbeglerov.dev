@@ -278,7 +278,7 @@ export function OverlapMultiLineChart({
               {title}
               <InsightHelpDialogButton
                 copy={buildOverlapHelpDialogCopy()}
-                ariaLabel="Как читать температурную карту и Health Index"
+                ariaLabel="Как читать температурную карту и оценку неудовлетворенности продуктом"
                 triggerClassName="h-4 w-4 border-0"
               />
             </span>

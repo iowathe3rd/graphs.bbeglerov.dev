@@ -14,8 +14,8 @@ import {
 
 import { DEFAULT_PRODUCT_OPTIONS } from '@/features/insight-dashboard/config/constants'
 import {
-  buildDetailedProductZonesHelpDialogCopy,
-  buildHealthIndexHelpDialogCopy,
+  buildDetailedProductDissatisfactionHelpDialogCopy,
+  buildMainProductDissatisfactionHelpDialogCopy,
   type InsightHelpDialogVariant,
 } from '@/features/insight-dashboard/config/tooltips'
 import {
@@ -147,7 +147,7 @@ export function ProductSituationBubbleMatrix({
   periodGranularity = 'week',
   tooltipEntityLabel,
   showTrajectory = false,
-  helpDialogVariant = 'health-index',
+  helpDialogVariant = 'product-dissatisfaction-score-main',
 }: ProductSituationBubbleMatrixProps) {
   const isMobile = useIsMobile()
   const isFocused = presentation === 'focused'
@@ -202,8 +202,8 @@ export function ProductSituationBubbleMatrix({
           return aOrder - bOrder
         }
 
-        if (a.healthIndex !== b.healthIndex) {
-          return a.healthIndex - b.healthIndex
+        if (a.productDissatisfactionScore !== b.productDissatisfactionScore) {
+          return a.productDissatisfactionScore - b.productDissatisfactionScore
         }
 
         if (a.problemCallsUnique !== b.problemCallsUnique) {
@@ -244,7 +244,7 @@ export function ProductSituationBubbleMatrix({
 
     const valueRange = Math.max(1, maxProblemCalls - minProblemCalls)
     const maxScoreValue = ordered.reduce(
-      (max, point) => Math.max(max, point.healthIndex),
+      (max, point) => Math.max(max, point.productDissatisfactionScore),
       0
     )
     const zoneUpperBound = Math.max(scoreThresholds.upper, maxScoreValue)
@@ -271,7 +271,7 @@ export function ProductSituationBubbleMatrix({
       return {
         ...point,
         x: rowIndex + 1,
-        y: clamp(point.healthIndex, yPointMin, yPointMax),
+        y: clamp(point.productDissatisfactionScore, yPointMin, yPointMax),
         bubbleRadius,
       }
     })
@@ -315,9 +315,9 @@ export function ProductSituationBubbleMatrix({
     title ?? (xMode === 'periods' ? 'Состояние продукта' : 'Состояние продуктов')
   const resolvedXAxisLabel = xAxisLabel ?? (xMode === 'periods' ? 'Период' : 'Продукты')
   const helpDialogCopy =
-    helpDialogVariant === 'detailed-product-zones'
-      ? buildDetailedProductZonesHelpDialogCopy(scoreThresholds)
-      : buildHealthIndexHelpDialogCopy(scoreThresholds)
+    helpDialogVariant === 'product-dissatisfaction-score-detailed'
+      ? buildDetailedProductDissatisfactionHelpDialogCopy()
+      : buildMainProductDissatisfactionHelpDialogCopy(scoreThresholds)
 
   if (loading) {
     return (
@@ -354,7 +354,7 @@ export function ProductSituationBubbleMatrix({
             <CardTitle className="text-base">{resolvedTitle}</CardTitle>
             <InsightHelpDialogButton
               copy={helpDialogCopy}
-              ariaLabel="Как рассчитывается Health Index"
+              ariaLabel="Как рассчитывается оценка неудовлетворенности продуктом"
             />
           </div>
 
@@ -406,7 +406,7 @@ export function ProductSituationBubbleMatrix({
             {!matrixData.focusedSinglePoint ? (
               <div className="flex items-center justify-center">
                 <span className="-rotate-90 whitespace-nowrap text-[10px] text-muted-foreground md:text-[11px]">
-                  Health Index (чем выше, тем хуже)
+                  Оценка неудовлетворенности продуктом (чем выше, тем хуже)
                 </span>
               </div>
             ) : null}
@@ -491,7 +491,7 @@ export function ProductSituationBubbleMatrix({
                         return null
                       }
 
-                      const visualZone = zoneByScore(point.healthIndex, scoreThresholds)
+                      const visualZone = zoneByScore(point.productDissatisfactionScore, scoreThresholds)
                       const styles = zoneStyles(visualZone)
                       const periodTitle =
                         xMode === 'periods' && point.periodKey
@@ -507,9 +507,9 @@ export function ProductSituationBubbleMatrix({
                           title={tooltipTitle}
                           rows={[
                             {
-                              id: 'health-index',
-                              label: 'Health Index',
-                              value: formatScore(point.healthIndex),
+                              id: 'product-dissatisfaction-score',
+                              label: 'Оценка неудовлетворенности продуктом',
+                              value: formatScore(point.productDissatisfactionScore),
                               color: styles.stroke,
                               strong: true,
                             },
@@ -567,7 +567,7 @@ export function ProductSituationBubbleMatrix({
                         return <g />
                       }
 
-                      const visualZone = zoneByScore(point.healthIndex, scoreThresholds)
+                      const visualZone = zoneByScore(point.productDissatisfactionScore, scoreThresholds)
                       const styles = zoneStyles(visualZone)
                       const radius = point.bubbleRadius
 

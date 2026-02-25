@@ -5,7 +5,9 @@ import { CircleHelp } from 'lucide-react'
 import type { InsightHelpDialogCopy } from '@/features/insight-dashboard/config/tooltips'
 import { ConsultationCoverageHelpDialogContent } from '@/features/insight-dashboard/ui/consultation-coverage-help-dialog-content'
 import { DetailedProductZonesHelpDialogContent } from '@/features/insight-dashboard/ui/detailed-product-zones-help-dialog-content'
-import { InsightHelpDialogContent } from '@/features/insight-dashboard/ui/insight-help-dialog-content'
+import { LineIndicatorHelpDialogContent } from '@/features/insight-dashboard/ui/line-indicator-help-dialog-content'
+import { MainProductDissatisfactionHelpDialogContent } from '@/features/insight-dashboard/ui/main-product-dissatisfaction-help-dialog-content'
+import { OverlapHelpDialogContent } from '@/features/insight-dashboard/ui/overlap-help-dialog-content'
 import {
   Dialog,
   DialogContent,
@@ -23,15 +25,32 @@ interface InsightHelpDialogButtonProps {
   contentClassName?: string
 }
 
+function renderHelpContent(copy: InsightHelpDialogCopy) {
+  switch (copy.variant) {
+    case 'product-dissatisfaction-score-main':
+      return <MainProductDissatisfactionHelpDialogContent zoneThresholds={copy.zoneThresholds} />
+    case 'product-dissatisfaction-score-detailed':
+      return <DetailedProductZonesHelpDialogContent />
+    case 'consultation-coverage':
+      return <ConsultationCoverageHelpDialogContent />
+    case 'overlap':
+      return <OverlapHelpDialogContent />
+    case 'kpi-indicator-line':
+    case 'combined-indicator-line':
+      return <LineIndicatorHelpDialogContent metricId={copy.metricId} />
+    default: {
+      const exhaustiveCheck: never = copy.variant
+      return exhaustiveCheck
+    }
+  }
+}
+
 export function InsightHelpDialogButton({
   copy,
   ariaLabel,
   triggerClassName,
   contentClassName,
 }: InsightHelpDialogButtonProps) {
-  const isConsultationCoverage = copy.variant === 'consultation-coverage'
-  const isDetailedProductZones = copy.variant === 'detailed-product-zones'
-
   return (
     <Dialog>
       <DialogTrigger asChild>
@@ -52,13 +71,7 @@ export function InsightHelpDialogButton({
           {copy.description ? <DialogDescription>{copy.description}</DialogDescription> : null}
         </DialogHeader>
         <div className="no-scrollbar -mx-4 max-h-[50vh] overflow-y-auto px-4">
-          {isConsultationCoverage ? (
-            <ConsultationCoverageHelpDialogContent />
-          ) : isDetailedProductZones ? (
-            <DetailedProductZonesHelpDialogContent />
-          ) : (
-            <InsightHelpDialogContent zoneThresholds={copy.zoneThresholds} />
-          )}
+          {renderHelpContent(copy)}
         </div>
       </DialogContent>
     </Dialog>

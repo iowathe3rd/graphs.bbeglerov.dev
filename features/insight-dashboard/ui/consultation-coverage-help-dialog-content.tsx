@@ -36,7 +36,7 @@ export function ConsultationCoverageHelpDialogContent() {
         </div>
 
         <p>
-          * Логика описания типов обращений доступна в Сервисе инсайтов:{' '}
+          Посмотреть распределение тематик по типам обращений можно здесь:{' '}
           <a
             href="https://genai-insight-service.paas-dataplatform-prod.berekebank.kz/configurator"
             target="_blank"

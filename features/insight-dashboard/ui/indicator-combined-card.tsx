@@ -122,7 +122,7 @@ export function IndicatorCombinedCard({
   const currentRate = currentPoint?.indicatorRatePercent ?? 0
   const currentLineValue = currentPoint?.lineValue ?? 0
   const delta = formatDelta(preparedData, lineValueMode)
-  const metricHelpCopy = buildCombinedIndicatorHelpDialogCopy()
+  const metricHelpCopy = buildCombinedIndicatorHelpDialogCopy(metric.id)
 
   return (
     <Card className={cn('flex h-full min-h-0 flex-col', className)}>
@@ -132,7 +132,7 @@ export function IndicatorCombinedCard({
             <CardTitle className="text-sm">{metric.name}</CardTitle>
             <InsightHelpDialogButton
               copy={metricHelpCopy}
-              ariaLabel={`Как читать комбинированный график ${metric.name}`}
+              ariaLabel={`Как интерпретировать индикатор: ${metric.name}`}
               triggerClassName="h-4 w-4 border-0"
             />
           </div>

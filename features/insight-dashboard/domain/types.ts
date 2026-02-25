@@ -67,7 +67,7 @@ export interface ProductSituationScoreThresholds {
   upper: number
 }
 
-export interface HealthIndexBreakpoints {
+export interface ProductDissatisfactionScoreBreakpoints {
   greenMin: number
   yellowMin: number
 }
@@ -91,7 +91,7 @@ export interface ProductSituationBucket {
   confidence: number
   riskCore: number
   riskIndex: number
-  healthIndex: number
+  productDissatisfactionScore: number
   tagCounts: Record<ProductSituationTag, number>
   tagRates: Record<ProductSituationTag, number>
   consultationCalls: number
@@ -118,7 +118,7 @@ export interface ProductSituationDomainPoint {
   confidence: number
   riskCore: number
   riskIndex: number
-  healthIndex: number
+  productDissatisfactionScore: number
   zone: ProductSituationZone
   topDriverTag: string
   tagCounts: Record<ProductSituationTag, number>
@@ -133,7 +133,7 @@ export interface ProductBubblePoint {
   totalCalls: number
   problemCallsUnique: number
   problemRate: number
-  healthIndex: number
+  productDissatisfactionScore: number
   riskIndex: number
   zone: ProductSituationZone
   topDriverTag: string
@@ -145,7 +145,7 @@ export interface ProductBubblePoint {
 
 export interface ProductSituationExecutiveSummaryPoint {
   label: string
-  healthIndex: number
+  productDissatisfactionScore: number
   problematicCalls: number
   problematicRate: number
   totalCalls: number
@@ -155,7 +155,7 @@ export interface ProductSituationExecutiveSummary {
   current: ProductSituationExecutiveSummaryPoint | null
   previous: ProductSituationExecutiveSummaryPoint | null
   delta: {
-    healthIndex: number
+    productDissatisfactionScore: number
     problematicCalls: number
     problematicRate: number
     totalCalls: number

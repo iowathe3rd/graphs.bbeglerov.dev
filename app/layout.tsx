@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { Roboto, Roboto_Condensed } from 'next/font/google'
+import { Roboto } from 'next/font/google'
 
 import { ThemeProvider } from '@/components/theme-provider'
 
@@ -8,11 +8,6 @@ import './globals.css'
 const roboto = Roboto({
   subsets: ['latin', 'cyrillic'],
   variable: '--font-roboto',
-})
-
-const robotoCondensed = Roboto_Condensed({
-  subsets: ['latin', 'cyrillic'],
-  variable: '--font-roboto-condensed',
 })
 
 export const metadata: Metadata = {
@@ -27,7 +22,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ru" suppressHydrationWarning>
-      <body className={`${roboto.variable} ${robotoCondensed.variable} font-sans antialiased`}>
+      <body className={`${roboto.variable} font-sans antialiased`}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           {children}
         </ThemeProvider>

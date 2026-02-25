@@ -132,7 +132,7 @@ export function ProductDetailedAnalyticsView(props: ProductDetailedAnalyticsView
           <div className="flex min-w-0 items-center gap-3">
             <Link href="/" className="flex min-w-0 items-center gap-3">
               <Image src="/logo.png" alt="Logo" width={40} height={40} />
-              <h1 className="font-display text-[20px] font-semibold tracking-tight">
+              <h1 className="font-sans text-[20px] font-semibold tracking-tight">
                 Insight Service
               </h1>
             </Link>
@@ -208,7 +208,7 @@ export function ProductDetailedAnalyticsView(props: ProductDetailedAnalyticsView
                   periodGranularity={overlapGranularity}
                   tooltipEntityLabel={filters.productGroup}
                   showTrajectory
-                  helpDialogVariant="detailed-product-zones"
+                  helpDialogVariant="product-dissatisfaction-score-detailed"
                 />
               </div>
             )}
@@ -393,7 +393,7 @@ export function ProductDetailedAnalyticsView(props: ProductDetailedAnalyticsView
                   periodGranularity={overlapGranularity}
                   tooltipEntityLabel={filters.productGroup}
                   showTrajectory
-                  helpDialogVariant="detailed-product-zones"
+                  helpDialogVariant="product-dissatisfaction-score-detailed"
                 />
               </div>
 

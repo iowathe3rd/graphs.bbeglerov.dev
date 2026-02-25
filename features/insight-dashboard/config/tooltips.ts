@@ -1,15 +1,19 @@
-import { HEALTH_SCORE_ZONE_THRESHOLDS } from '@/features/insight-dashboard/config/constants'
+import { PRODUCT_DISSATISFACTION_SCORE_ZONE_THRESHOLDS } from '@/features/insight-dashboard/config/constants'
 import type { ProductSituationScoreThresholds } from '@/features/insight-dashboard/domain/types'
 
 export type InsightHelpDialogVariant =
-  | 'health-index'
+  | 'product-dissatisfaction-score-main'
+  | 'product-dissatisfaction-score-detailed'
   | 'consultation-coverage'
-  | 'detailed-product-zones'
+  | 'overlap'
+  | 'kpi-indicator-line'
+  | 'combined-indicator-line'
 
 export interface InsightHelpDialogCopy {
   title: string
   description?: string
-  variant?: InsightHelpDialogVariant
+  variant: InsightHelpDialogVariant
+  metricId?: string
   zoneThresholds?: {
     lower: number
     upper: number
@@ -20,8 +24,13 @@ function resolveThresholds(
   scoreThresholds?: Partial<ProductSituationScoreThresholds>
 ): { lower: number; upper: number } {
   const green =
-    scoreThresholds?.green ?? scoreThresholds?.lower ?? HEALTH_SCORE_ZONE_THRESHOLDS.green
-  const red = scoreThresholds?.red ?? scoreThresholds?.upper ?? HEALTH_SCORE_ZONE_THRESHOLDS.red
+    scoreThresholds?.green ??
+    scoreThresholds?.lower ??
+    PRODUCT_DISSATISFACTION_SCORE_ZONE_THRESHOLDS.green
+  const red =
+    scoreThresholds?.red ??
+    scoreThresholds?.upper ??
+    PRODUCT_DISSATISFACTION_SCORE_ZONE_THRESHOLDS.red
 
   return {
     lower: Math.min(green, red),
@@ -29,63 +38,56 @@ function resolveThresholds(
   }
 }
 
-function buildUnifiedTooltipCopy(
+export function buildMainProductDissatisfactionHelpDialogCopy(
   scoreThresholds?: Partial<ProductSituationScoreThresholds>
 ): InsightHelpDialogCopy {
   return {
     title: 'Дашборд: Температурная карта',
-    variant: 'health-index',
+    variant: 'product-dissatisfaction-score-main',
     zoneThresholds: resolveThresholds(scoreThresholds),
   }
 }
 
-export function buildHealthIndexHelpDialogCopy(
-  scoreThresholds?: Partial<ProductSituationScoreThresholds>
-): InsightHelpDialogCopy {
-  return buildUnifiedTooltipCopy(scoreThresholds)
+export function buildDetailedProductDissatisfactionHelpDialogCopy(): InsightHelpDialogCopy {
+  return {
+    title: 'Состояние продукта по зонам',
+    variant: 'product-dissatisfaction-score-detailed',
+  }
 }
 
-export function buildOverlapHelpDialogCopy(
-  scoreThresholds?: Partial<ProductSituationScoreThresholds>
-): InsightHelpDialogCopy {
-  return buildUnifiedTooltipCopy(scoreThresholds)
-}
-
-export function buildKpiIndicatorHelpDialogCopy(
-  scoreThresholds?: Partial<ProductSituationScoreThresholds>
-): InsightHelpDialogCopy {
-  return buildUnifiedTooltipCopy(scoreThresholds)
-}
-
-export function buildCombinedIndicatorHelpDialogCopy(
-  scoreThresholds?: Partial<ProductSituationScoreThresholds>
-): InsightHelpDialogCopy {
-  return buildUnifiedTooltipCopy(scoreThresholds)
-}
-
-export function buildConsultationCoverageHelpDialogCopy(
-  _scoreThresholds?: Partial<ProductSituationScoreThresholds>
-): InsightHelpDialogCopy {
+export function buildConsultationCoverageHelpDialogCopy(): InsightHelpDialogCopy {
   return {
     title: 'Консультационные обращения',
     variant: 'consultation-coverage',
   }
 }
 
-export function buildDetailedProductZonesHelpDialogCopy(
-  _scoreThresholds?: Partial<ProductSituationScoreThresholds>
-): InsightHelpDialogCopy {
+export function buildOverlapHelpDialogCopy(): InsightHelpDialogCopy {
   return {
-    title: 'Состояние продукта по зонам',
-    variant: 'detailed-product-zones',
+    title: 'График пересечений индикаторов',
+    variant: 'overlap',
+  }
+}
+
+export function buildKpiIndicatorHelpDialogCopy(metricId: string): InsightHelpDialogCopy {
+  return {
+    title: 'Описание индикатора',
+    variant: 'kpi-indicator-line',
+    metricId,
+  }
+}
+
+export function buildCombinedIndicatorHelpDialogCopy(metricId: string): InsightHelpDialogCopy {
+  return {
+    title: 'Описание индикатора',
+    variant: 'combined-indicator-line',
+    metricId,
   }
 }
 
 export const INSIGHT_HELP_DIALOG_COPY = {
-  healthIndex: buildHealthIndexHelpDialogCopy(),
+  productDissatisfactionScoreMain: buildMainProductDissatisfactionHelpDialogCopy(),
+  productDissatisfactionScoreDetailed: buildDetailedProductDissatisfactionHelpDialogCopy(),
   overlap: buildOverlapHelpDialogCopy(),
-  kpiIndicator: buildKpiIndicatorHelpDialogCopy(),
-  combinedIndicator: buildCombinedIndicatorHelpDialogCopy(),
   consultationCoverage: buildConsultationCoverageHelpDialogCopy(),
-  detailedProductZones: buildDetailedProductZonesHelpDialogCopy(),
 } as const

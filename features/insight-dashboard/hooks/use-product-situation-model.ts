@@ -6,7 +6,7 @@ import { DEFAULT_HOME_FILTERS } from '@/features/insight-dashboard/config/consta
 import { createLastDaysRange } from '@/features/insight-dashboard/domain/date-bucketing'
 import { buildInsightFilterOptions, ensureOption } from '@/features/insight-dashboard/domain/filter-options'
 import { filterEventsForProductSituation } from '@/features/insight-dashboard/domain/bubble-matrix'
-import { buildBubbleMatrixModel } from '@/features/insight-dashboard/domain/health-index'
+import { buildBubbleMatrixModel } from '@/features/insight-dashboard/domain/product-dissatisfaction-score'
 import type {
   InsightEvent,
   InsightFilters,

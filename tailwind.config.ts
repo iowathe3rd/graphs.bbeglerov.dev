@@ -15,7 +15,6 @@ const config: Config = {
       fontFamily: {
         sans: ['var(--font-roboto)', 'sans-serif'],
         mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
-        display: ['var(--font-roboto-condensed)', 'var(--font-roboto)', 'sans-serif'],
       },
       colors: {
         background: 'hsl(var(--background))',

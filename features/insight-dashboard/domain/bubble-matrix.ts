@@ -1,5 +1,5 @@
 import { BUBBLE_ZONE_BREAKPOINTS } from '@/features/insight-dashboard/config/constants'
-import { buildBubbleMatrixPoints } from '@/features/insight-dashboard/domain/health-index'
+import { buildBubbleMatrixPoints } from '@/features/insight-dashboard/domain/product-dissatisfaction-score'
 import {
   isDateInRange,
   normalizeDateRange,

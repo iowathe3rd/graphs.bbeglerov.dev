@@ -13,9 +13,9 @@ export const PRODUCT_TAG_WEIGHTS: Record<ProductSituationTag, number> = {
   'Угроза ухода/отказа от продуктов банка': 0.3,
 }
 
-export const HEALTH_SCORE_CRITICAL_WEIGHT = 50
+export const PRODUCT_DISSATISFACTION_SCORE_CRITICAL_WEIGHT = 50
 
-export const HEALTH_SCORE_REFERENCE_SHARES = {
+export const PRODUCT_DISSATISFACTION_SCORE_REFERENCE_SHARES = {
   green: {
     'Технические проблемы/сбои': 0.04,
     'Запрос не решен': 0.08,
@@ -30,8 +30,8 @@ export const HEALTH_SCORE_REFERENCE_SHARES = {
   },
 } as const satisfies Record<'green' | 'red', Record<ProductSituationTag, number>>
 
-// Fixed Health Index thresholds from methodology workbook (sheet "Лист4").
-export const HEALTH_SCORE_ZONE_THRESHOLDS = {
+// Фиксированные пороги оценки неудовлетворенности продуктом из методологии.
+export const PRODUCT_DISSATISFACTION_SCORE_ZONE_THRESHOLDS = {
   green: 2.117172161172161,
   red: 4.734344322344322,
 } as const
@@ -53,7 +53,7 @@ export const BUBBLE_ZONE_BREAKPOINTS = {
   max: 100,
 } as const
 
-export const HEALTH_INDEX_BREAKPOINTS = {
+export const PRODUCT_DISSATISFACTION_SCORE_BREAKPOINTS = {
   greenMin: 85,
   yellowMin: 70,
 } as const

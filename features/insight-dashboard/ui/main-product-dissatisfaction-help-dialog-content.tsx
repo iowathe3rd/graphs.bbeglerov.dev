@@ -3,7 +3,7 @@
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 
-interface InsightHelpDialogContentProps {
+interface MainProductDissatisfactionHelpDialogContentProps {
   zoneThresholds?: {
     lower: number
     upper: number
@@ -67,7 +67,7 @@ function formatThreshold(value: number): string {
   return rounded.toFixed(1)
 }
 
-export function InsightHelpDialogContent({ zoneThresholds }: InsightHelpDialogContentProps) {
+export function MainProductDissatisfactionHelpDialogContent({ zoneThresholds }: MainProductDissatisfactionHelpDialogContentProps) {
   const lower = zoneThresholds ? formatThreshold(zoneThresholds.lower) : null
   const upper = zoneThresholds ? formatThreshold(zoneThresholds.upper) : null
 
@@ -75,16 +75,24 @@ export function InsightHelpDialogContent({ zoneThresholds }: InsightHelpDialogCo
     <section className="rounded-md border border-border/70 p-3">
       <div className="space-y-3 text-sm leading-6 text-muted-foreground">
         <p>
-          Инструмент визуализирует метрику «Оценка неудовлетворенности продукта», рассчитанную на
+          Инструмент визуализирует метрику «Оценка неудовлетворенности продуктом», рассчитанную на
           основе обращений клиентов. Чем выше значение, тем критичнее состояние продукта и тем
           приоритетнее задача по устранению причин негативных индикаторов.
         </p>
 
         <h4 className="text-base font-semibold text-foreground">Методика расчета:</h4>
         <p>
-          «Оценка неудовлетворенности продукта» рассчитывается как сумма произведений: доля каждого
+          «Оценка неудовлетворенности продуктом» рассчитывается как сумма произведений: доля каждого
           индикатора × весовой коэффициент соответствующего индикатора.
         </p>
+        <div className="rounded-md border border-border/70 bg-muted/40 p-2">
+          <p className="mb-2 text-xs font-medium text-foreground">Формула метрики</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant="outline">Доля каждого индикатора</Badge>
+            <span className="text-foreground">×</span>
+            <Badge variant="outline">Весовой коэффициент индикатора</Badge>
+          </div>
+        </div>
         <ul className="list-disc space-y-2 pl-6">
           <li>
             <span className="font-semibold text-foreground">Доля индикатора</span> — это % обращений
