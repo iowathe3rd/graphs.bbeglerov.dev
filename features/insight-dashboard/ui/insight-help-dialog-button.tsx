@@ -1,6 +1,7 @@
 'use client'
 
 import { CircleHelp } from 'lucide-react'
+import type { ReactNode } from 'react'
 
 import type { InsightHelpDialogCopy } from '@/features/insight-dashboard/config/tooltips'
 import { Badge } from '@/components/ui/badge'
@@ -67,48 +68,26 @@ function indicatorColorByLabel(label: string): string {
   return '#64748b'
 }
 
-function renderPoint(point: string, key: string) {
+function formatThreshold(value: number): string {
+  const rounded = Math.round(value * 10) / 10
+  if (Math.abs(rounded - Math.round(rounded)) < 0.001) {
+    return String(Math.round(rounded))
+  }
+
+  return rounded.toFixed(1)
+}
+
+function renderPoint(
+  point: string,
+  key: string,
+  zoneThresholds?: {
+    lower: number
+    upper: number
+  }
+) {
   const normalized = point.trim()
-  const greenMatch = /^Зеленая(?: зона)?:\s*(.+)$/i.exec(normalized)
-  if (greenMatch) {
-    return (
-      <div key={key} className="flex flex-wrap items-center gap-2 rounded-md bg-muted/40 px-2 py-1">
-        <Badge variant="outline" className={cn('gap-1', zoneBorderClass('green'))}>
-          <span className={cn('inline-block h-2.5 w-2.5 rounded-full', zoneDotClass('green'))} />
-          Зеленая зона
-        </Badge>
-        <span className="text-muted-foreground">{greenMatch[1]?.replace(/\.$/, '')}</span>
-      </div>
-    )
-  }
+  const indicatorMatch = /^o\s+«(.+)»\s*(≤|≥)\s*([0-9]+(?:[.,][0-9]+)?%)\.?$/u.exec(normalized)
 
-  const yellowMatch = /^Желтая(?: зона)?:\s*(.+)$/i.exec(normalized)
-  if (yellowMatch) {
-    return (
-      <div key={key} className="flex flex-wrap items-center gap-2 rounded-md bg-muted/40 px-2 py-1">
-        <Badge variant="outline" className={cn('gap-1', zoneBorderClass('yellow'))}>
-          <span className={cn('inline-block h-2.5 w-2.5 rounded-full', zoneDotClass('yellow'))} />
-          Желтая зона
-        </Badge>
-        <span className="text-muted-foreground">{yellowMatch[1]?.replace(/\.$/, '')}</span>
-      </div>
-    )
-  }
-
-  const redMatch = /^Красная(?: зона)?:\s*(.+)$/i.exec(normalized)
-  if (redMatch) {
-    return (
-      <div key={key} className="flex flex-wrap items-center gap-2 rounded-md bg-muted/40 px-2 py-1">
-        <Badge variant="outline" className={cn('gap-1', zoneBorderClass('red'))}>
-          <span className={cn('inline-block h-2.5 w-2.5 rounded-full', zoneDotClass('red'))} />
-          Красная зона
-        </Badge>
-        <span className="text-muted-foreground">{redMatch[1]?.replace(/\.$/, '')}</span>
-      </div>
-    )
-  }
-
-  const indicatorMatch = /^«(.+)»\s*(≤|≥)\s*([0-9]+(?:[.,][0-9]+)?%)\.?$/u.exec(normalized)
   if (indicatorMatch) {
     const label = indicatorMatch[1] ?? ''
     const operator = indicatorMatch[2] ?? ''
@@ -120,7 +99,7 @@ function renderPoint(point: string, key: string) {
           className="inline-block h-2.5 w-2.5 rounded-full"
           style={{ backgroundColor: indicatorColorByLabel(label) }}
         />
-        <span className="text-foreground/95">«{label}»</span>
+        <span className="text-foreground/95">o «{label}»</span>
         <Badge variant="secondary">
           {operator} {value}
         </Badge>
@@ -128,39 +107,67 @@ function renderPoint(point: string, key: string) {
     )
   }
 
+  const extras: ReactNode[] = []
+
   if (
     normalized ===
-      '«Оценка неудовлетворенности продукта» рассчитывается как сумма произведений: доля каждого индикатора × весовой коэффициент соответствующего индикатора.' ||
-    normalized.includes('доля каждого индикатора × весовой коэффициент')
+      '«Оценка неудовлетворенности продукта» рассчитывается как сумма произведений: доля каждого индикатора × весовой коэффициент соответствующего индикатора.'
   ) {
-    return (
-      <div key={key} className="space-y-2">
-        <p>{point}</p>
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge variant="outline">доля индикатора</Badge>
-          <span className="text-muted-foreground">×</span>
-          <Badge variant="outline">вес индикатора</Badge>
-          <span className="text-muted-foreground">= итоговый индекс</span>
+    extras.push(
+      <div key={`${key}-formula`} className="mt-2 flex flex-wrap items-center gap-2">
+        <Badge variant="outline">доля каждого индикатора</Badge>
+        <span className="text-muted-foreground">×</span>
+        <Badge variant="outline">весовой коэффициент</Badge>
+      </div>
+    )
+  }
+
+  if (normalized === 'Состояние продукта классифицируется по трем зонам:') {
+    const lower = zoneThresholds ? formatThreshold(zoneThresholds.lower) : null
+    const upper = zoneThresholds ? formatThreshold(zoneThresholds.upper) : null
+
+    extras.push(
+      <div key={`${key}-zones`} className="mt-2 space-y-2">
+        <div className="flex flex-wrap items-center gap-2 md:flex-nowrap">
+          <Badge variant="outline" className={cn('gap-1', zoneBorderClass('green'))}>
+            <span className={cn('inline-block h-2.5 w-2.5 rounded-full', zoneDotClass('green'))} />
+            {lower ? `Зеленая ≤ ${lower}` : 'Зеленая зона'}
+          </Badge>
+          <Badge variant="outline" className={cn('gap-1', zoneBorderClass('yellow'))}>
+            <span className={cn('inline-block h-2.5 w-2.5 rounded-full', zoneDotClass('yellow'))} />
+            {lower && upper ? `Желтая ${lower}–${upper}` : 'Желтая зона'}
+          </Badge>
+          <Badge variant="outline" className={cn('gap-1', zoneBorderClass('red'))}>
+            <span className={cn('inline-block h-2.5 w-2.5 rounded-full', zoneDotClass('red'))} />
+            {upper ? `Красная ≥ ${upper}` : 'Красная зона'}
+          </Badge>
+        </div>
+        <div className="space-y-1 text-muted-foreground">
+          <p>Зеленая зона: целевое состояние, в пределах нормы.</p>
+          <p>Желтая зона: зона внимания, требуется контроль динамики.</p>
+          <p>Красная зона: критическая зона, нужен приоритетный план действий.</p>
         </div>
       </div>
     )
   }
 
-  if (
-    normalized.includes('Размер пузыря пропорционален числу обращений') ||
-    normalized.includes('Размер шара отражает общее количество всех обращений')
-  ) {
-    return (
-      <div key={key} className="flex items-center gap-2 rounded-md bg-muted/40 px-2 py-1">
+  if (normalized === 'Размер пузыря пропорционален числу обращений.') {
+    extras.push(
+      <div key={`${key}-bubble`} className="mt-2 flex items-center gap-2 rounded-md bg-muted/40 px-2 py-1">
         <span className="relative inline-flex h-6 w-6 items-center justify-center">
           <span className="h-4.5 w-4.5 rounded-full border-2 border-emerald-700 bg-emerald-400/30" />
         </span>
-        <p>{point}</p>
+        <Badge variant="outline">Размер пузыря = объем обращений</Badge>
       </div>
     )
   }
 
-  return <p key={key}>{point}</p>
+  return (
+    <div key={key}>
+      <p>{point}</p>
+      {extras}
+    </div>
+  )
 }
 
 export function InsightHelpDialogButton({
@@ -196,7 +203,11 @@ export function InsightHelpDialogButton({
                   <h4 className="text-sm font-semibold">{section.title}</h4>
                   <div className="mt-1 space-y-2 text-muted-foreground">
                     {section.points.map((point, index) =>
-                      renderPoint(point, `${section.title}-${index}-${point}`)
+                      renderPoint(
+                        point,
+                        `${section.title}-${index}-${point}`,
+                        copy.zoneThresholds
+                      )
                     )}
                   </div>
                 </section>
