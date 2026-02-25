@@ -1,9 +1,12 @@
 import { HEALTH_SCORE_ZONE_THRESHOLDS } from '@/features/insight-dashboard/config/constants'
 import type { ProductSituationScoreThresholds } from '@/features/insight-dashboard/domain/types'
 
+export type InsightHelpDialogVariant = 'health-index' | 'consultation-coverage'
+
 export interface InsightHelpDialogCopy {
   title: string
   description?: string
+  variant?: InsightHelpDialogVariant
   zoneThresholds?: {
     lower: number
     upper: number
@@ -28,6 +31,7 @@ function buildUnifiedTooltipCopy(
 ): InsightHelpDialogCopy {
   return {
     title: 'Дашборд: Температурная карта',
+    variant: 'health-index',
     zoneThresholds: resolveThresholds(scoreThresholds),
   }
 }
@@ -57,9 +61,12 @@ export function buildCombinedIndicatorHelpDialogCopy(
 }
 
 export function buildConsultationCoverageHelpDialogCopy(
-  scoreThresholds?: Partial<ProductSituationScoreThresholds>
+  _scoreThresholds?: Partial<ProductSituationScoreThresholds>
 ): InsightHelpDialogCopy {
-  return buildUnifiedTooltipCopy(scoreThresholds)
+  return {
+    title: 'Консультационные обращения',
+    variant: 'consultation-coverage',
+  }
 }
 
 export const INSIGHT_HELP_DIALOG_COPY = {

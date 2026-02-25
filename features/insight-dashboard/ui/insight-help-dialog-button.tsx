@@ -3,6 +3,7 @@
 import { CircleHelp } from 'lucide-react'
 
 import type { InsightHelpDialogCopy } from '@/features/insight-dashboard/config/tooltips'
+import { ConsultationCoverageHelpDialogContent } from '@/features/insight-dashboard/ui/consultation-coverage-help-dialog-content'
 import { InsightHelpDialogContent } from '@/features/insight-dashboard/ui/insight-help-dialog-content'
 import {
   Dialog,
@@ -27,6 +28,8 @@ export function InsightHelpDialogButton({
   triggerClassName,
   contentClassName,
 }: InsightHelpDialogButtonProps) {
+  const isConsultationCoverage = copy.variant === 'consultation-coverage'
+
   return (
     <Dialog>
       <DialogTrigger asChild>
@@ -47,7 +50,11 @@ export function InsightHelpDialogButton({
           {copy.description ? <DialogDescription>{copy.description}</DialogDescription> : null}
         </DialogHeader>
         <div className="no-scrollbar -mx-4 max-h-[50vh] overflow-y-auto px-4">
-          <InsightHelpDialogContent zoneThresholds={copy.zoneThresholds} />
+          {isConsultationCoverage ? (
+            <ConsultationCoverageHelpDialogContent />
+          ) : (
+            <InsightHelpDialogContent zoneThresholds={copy.zoneThresholds} />
+          )}
         </div>
       </DialogContent>
     </Dialog>
