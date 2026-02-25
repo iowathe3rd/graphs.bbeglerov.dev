@@ -112,6 +112,7 @@ export default function Page() {
               <p className="mb-2 px-1 text-xs text-red-600">{error}</p>
             ) : null}
             <ProductSituationBubbleMatrix
+              title="Температурная карта оценки неудовлетворённости продуктом"
               points={bubblePoints}
               scoreThresholds={bubbleScoreThresholds}
               productOrder={productOptions}
