@@ -68,6 +68,26 @@ function indicatorColorByLabel(label: string): string {
   return '#64748b'
 }
 
+function indicatorBadgeClassByLabel(label: string): string {
+  if (label.includes('Техническая проблема/сбои')) {
+    return 'border-blue-300/80 text-blue-700'
+  }
+
+  if (label.includes('Запрос не решен')) {
+    return 'border-orange-300/80 text-orange-700'
+  }
+
+  if (label.includes('Отрицательный продуктовый фидбэк')) {
+    return 'border-teal-300/80 text-teal-700'
+  }
+
+  if (label.includes('Угроза ухода/отказа')) {
+    return 'border-red-300/80 text-red-700'
+  }
+
+  return 'border-border text-foreground'
+}
+
 function formatThreshold(value: number): string {
   const rounded = Math.round(value * 10) / 10
   if (Math.abs(rounded - Math.round(rounded)) < 0.001) {
@@ -94,16 +114,13 @@ function renderPoint(
     const value = indicatorMatch[3] ?? ''
 
     return (
-      <div key={key} className="flex flex-wrap items-center gap-2 rounded-md border border-border/70 px-2 py-1">
+      <Badge key={key} variant="outline" className={cn('w-fit gap-1.5', indicatorBadgeClassByLabel(label))}>
         <span
           className="inline-block h-2.5 w-2.5 rounded-full"
           style={{ backgroundColor: indicatorColorByLabel(label) }}
         />
-        <span className="text-foreground/95">o «{label}»</span>
-        <Badge variant="secondary">
-          {operator} {value}
-        </Badge>
-      </div>
+        «{label}» {operator} {value}
+      </Badge>
     )
   }
 
@@ -153,11 +170,10 @@ function renderPoint(
 
   if (normalized === 'Размер пузыря пропорционален числу обращений.') {
     extras.push(
-      <div key={`${key}-bubble`} className="mt-2 flex items-center gap-2 rounded-md bg-muted/40 px-2 py-1">
-        <span className="relative inline-flex h-6 w-6 items-center justify-center">
-          <span className="h-4.5 w-4.5 rounded-full border-2 border-emerald-700 bg-emerald-400/30" />
-        </span>
-        <Badge variant="outline">Размер пузыря = объем обращений</Badge>
+      <div key={`${key}-bubble`} className="mt-2 flex items-end gap-2 rounded-md bg-muted/40 px-2 py-1" aria-hidden>
+        <span className="inline-block h-2.5 w-2.5 rounded-full border border-emerald-700/70 bg-emerald-400/30" />
+        <span className="inline-block h-4 w-4 rounded-full border-2 border-emerald-700/80 bg-emerald-400/30" />
+        <span className="inline-block h-6 w-6 rounded-full border-2 border-emerald-700 bg-emerald-400/30" />
       </div>
     )
   }
