@@ -4,6 +4,7 @@ import { CircleHelp } from 'lucide-react'
 
 import type { InsightHelpDialogCopy } from '@/features/insight-dashboard/config/tooltips'
 import { ConsultationCoverageHelpDialogContent } from '@/features/insight-dashboard/ui/consultation-coverage-help-dialog-content'
+import { DetailedProductZonesHelpDialogContent } from '@/features/insight-dashboard/ui/detailed-product-zones-help-dialog-content'
 import { InsightHelpDialogContent } from '@/features/insight-dashboard/ui/insight-help-dialog-content'
 import {
   Dialog,
@@ -29,6 +30,7 @@ export function InsightHelpDialogButton({
   contentClassName,
 }: InsightHelpDialogButtonProps) {
   const isConsultationCoverage = copy.variant === 'consultation-coverage'
+  const isDetailedProductZones = copy.variant === 'detailed-product-zones'
 
   return (
     <Dialog>
@@ -52,6 +54,8 @@ export function InsightHelpDialogButton({
         <div className="no-scrollbar -mx-4 max-h-[50vh] overflow-y-auto px-4">
           {isConsultationCoverage ? (
             <ConsultationCoverageHelpDialogContent />
+          ) : isDetailedProductZones ? (
+            <DetailedProductZonesHelpDialogContent />
           ) : (
             <InsightHelpDialogContent zoneThresholds={copy.zoneThresholds} />
           )}

@@ -14,7 +14,9 @@ import {
 
 import { DEFAULT_PRODUCT_OPTIONS } from '@/features/insight-dashboard/config/constants'
 import {
+  buildDetailedProductZonesHelpDialogCopy,
   buildHealthIndexHelpDialogCopy,
+  type InsightHelpDialogVariant,
 } from '@/features/insight-dashboard/config/tooltips'
 import {
   formatBucketLabel,
@@ -45,6 +47,7 @@ interface ProductSituationBubbleMatrixProps {
   periodGranularity?: OverlapGranularity
   tooltipEntityLabel?: string
   showTrajectory?: boolean
+  helpDialogVariant?: InsightHelpDialogVariant
 }
 
 interface MatrixPoint extends ProductBubblePoint {
@@ -144,6 +147,7 @@ export function ProductSituationBubbleMatrix({
   periodGranularity = 'week',
   tooltipEntityLabel,
   showTrajectory = false,
+  helpDialogVariant = 'health-index',
 }: ProductSituationBubbleMatrixProps) {
   const isMobile = useIsMobile()
   const isFocused = presentation === 'focused'
@@ -310,6 +314,10 @@ export function ProductSituationBubbleMatrix({
   const resolvedTitle =
     title ?? (xMode === 'periods' ? 'Состояние продукта' : 'Состояние продуктов')
   const resolvedXAxisLabel = xAxisLabel ?? (xMode === 'periods' ? 'Период' : 'Продукты')
+  const helpDialogCopy =
+    helpDialogVariant === 'detailed-product-zones'
+      ? buildDetailedProductZonesHelpDialogCopy(scoreThresholds)
+      : buildHealthIndexHelpDialogCopy(scoreThresholds)
 
   if (loading) {
     return (
@@ -345,7 +353,7 @@ export function ProductSituationBubbleMatrix({
           <div className="flex items-center gap-2">
             <CardTitle className="text-base">{resolvedTitle}</CardTitle>
             <InsightHelpDialogButton
-              copy={buildHealthIndexHelpDialogCopy(scoreThresholds)}
+              copy={helpDialogCopy}
               ariaLabel="Как рассчитывается Health Index"
             />
           </div>

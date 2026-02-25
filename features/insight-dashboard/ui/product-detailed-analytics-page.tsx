@@ -208,6 +208,7 @@ export function ProductDetailedAnalyticsView(props: ProductDetailedAnalyticsView
                   periodGranularity={overlapGranularity}
                   tooltipEntityLabel={filters.productGroup}
                   showTrajectory
+                  helpDialogVariant="detailed-product-zones"
                 />
               </div>
             )}
@@ -392,6 +393,7 @@ export function ProductDetailedAnalyticsView(props: ProductDetailedAnalyticsView
                   periodGranularity={overlapGranularity}
                   tooltipEntityLabel={filters.productGroup}
                   showTrajectory
+                  helpDialogVariant="detailed-product-zones"
                 />
               </div>
 
