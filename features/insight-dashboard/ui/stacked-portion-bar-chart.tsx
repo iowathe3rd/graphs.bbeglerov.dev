@@ -211,7 +211,7 @@ export function StackedPortionBarChart<TData extends object = Record<string, unk
               dataKey="__totalValue"
               radius={[6, 6, 0, 0]}
               barSize={compact ? (isMobile ? 14 : 18) : isMobile ? 18 : 24}
-              fill="hsl(var(--muted) / 0.55)"
+              fill="hsl(var(--muted-foreground) / 0.55)"
               shape={(props: any) => {
                 const point = props?.payload as PreparedDatum<TData> | undefined
                 const x = Number(props?.x)
@@ -240,7 +240,7 @@ export function StackedPortionBarChart<TData extends object = Record<string, unk
                       height={totalHeight}
                       rx={6}
                       ry={6}
-                      fill="hsl(var(--muted) / 0.55)"
+                      fill="hsl(var(--muted-foreground) / 0.55)"
                     />
                     {partHeight > 0 ? (
                       <rect

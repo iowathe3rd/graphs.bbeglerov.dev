@@ -8,7 +8,16 @@ export function ConsultationCoverageHelpDialogContent() {
       <div className="space-y-3 text-sm leading-6 text-muted-foreground">
         <p>
           В этом разделе указано количество и доля консультаций по продукту на основе типа
-          обращения*, закрепленного в сетке классификации в Сервисе инсайтов.
+          обращения, закрепленного в{' '}
+          <a
+            href="https://genai-insight-service.paas-dataplatform-prod.berekebank.kz/configurator"
+            target="_blank"
+            rel="noreferrer noopener"
+            className="font-medium text-primary underline underline-offset-2"
+          >
+            <i>Сервисе инсайтов → Сетка классификации → Category RB</i>
+          </a>
+          .
         </p>
 
         <h4 className="text-base font-semibold text-foreground">Тип обращения:</h4>
@@ -24,18 +33,6 @@ export function ConsultationCoverageHelpDialogContent() {
             </p>
           </div>
         </div>
-
-        <p>
-          Посмотреть распределение тематик по типам обращений можно здесь:{' '}
-          <a
-            href="https://genai-insight-service.paas-dataplatform-prod.berekebank.kz/configurator"
-            target="_blank"
-            rel="noreferrer noopener"
-            className="font-medium text-primary underline underline-offset-2"
-          >
-            <i>Сервис инсайтов → Сетка классификации → Category RB</i>
-          </a>
-        </p>
       </div>
     </section>
   )

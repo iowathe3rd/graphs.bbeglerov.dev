@@ -13,6 +13,7 @@ import {
 
 import { BerekeChartTooltip } from '@/components/charts/bereke-chart-tooltip'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { buildCombinedIndicatorHelpDialogCopy } from '@/features/insight-dashboard/config/tooltips'
 import { formatBucketLabel } from '@/features/insight-dashboard/domain/date-bucketing'
 import {
   CHART_CARD_CAPTION_CLASS,
@@ -20,6 +21,7 @@ import {
   CHART_CARD_HEADER_CLASS,
   CHART_CARD_TITLE_CLASS,
 } from '@/features/insight-dashboard/ui/chart-card-tokens'
+import { InsightHelpDialogButton } from '@/features/insight-dashboard/ui/insight-help-dialog-button'
 import type {
   CombinedIndicatorBucket,
   IndicatorLineValueMode,
@@ -106,11 +108,20 @@ export function IndicatorCombinedCard({
   className,
   granularity = 'day',
 }: IndicatorCombinedCardProps) {
+  const metricHelpCopy = buildCombinedIndicatorHelpDialogCopy(metric.id)
+
   if (!data.length) {
     return (
       <Card className={cn('h-full', className)}>
         <CardHeader className={CHART_CARD_HEADER_CLASS}>
-          <CardTitle className={CHART_CARD_TITLE_CLASS}>{metric.name}</CardTitle>
+          <div className="flex items-center gap-1.5">
+            <CardTitle className={CHART_CARD_TITLE_CLASS}>{metric.name}</CardTitle>
+            <InsightHelpDialogButton
+              copy={metricHelpCopy}
+              ariaLabel={`Как интерпретировать индикатор: ${metric.name}`}
+              triggerClassName="h-4 w-4 border-0"
+            />
+          </div>
         </CardHeader>
         <CardContent className={CHART_CARD_CONTENT_CLASS}>
           <p className={CHART_CARD_CAPTION_CLASS}>Нет данных</p>
@@ -135,6 +146,11 @@ export function IndicatorCombinedCard({
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-1.5">
             <CardTitle className={CHART_CARD_TITLE_CLASS}>{metric.name}</CardTitle>
+            <InsightHelpDialogButton
+              copy={metricHelpCopy}
+              ariaLabel={`Как интерпретировать индикатор: ${metric.name}`}
+              triggerClassName="h-4 w-4 border-0"
+            />
           </div>
           <span className={cn('text-sm font-semibold', colorByRate(currentRate))}>
             {lineValueMode === 'percent' ? formatPercent(currentLineValue) : formatCount(currentLineValue)}

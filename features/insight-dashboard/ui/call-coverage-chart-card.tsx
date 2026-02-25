@@ -49,7 +49,7 @@ export function CallCoverageChartCard({
           />
         </div>
         <p className={CHART_CARD_CAPTION_CLASS}>
-          Серый столбец — все обращения, оранжевый — консультационные обращения.
+          Серый — все обращения, оранжевый — консультационные обращения.
         </p>
       </CardHeader>
 
