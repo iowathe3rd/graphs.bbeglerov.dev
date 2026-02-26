@@ -3,7 +3,6 @@ import { Roboto } from 'next/font/google'
 
 import { ThemeProvider } from '@/components/theme-provider'
 
-import 'katex/dist/katex.min.css'
 import './globals.css'
 
 const roboto = Roboto({

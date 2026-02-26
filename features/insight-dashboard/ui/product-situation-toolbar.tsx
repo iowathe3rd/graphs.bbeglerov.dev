@@ -6,6 +6,7 @@ import {
   DEFAULT_PRODUCT_OPTIONS,
   DEFAULT_SECTOR_OPTIONS,
 } from '@/features/insight-dashboard/config/constants'
+import { normalizeDateRangeByGranularity } from '@/features/insight-dashboard/domain/date-bucketing'
 import { Button } from '@/components/ui/button'
 import { DateRangePicker } from '@/components/ui/date-range-picker'
 import {
@@ -131,20 +132,47 @@ export function ProductSituationToolbar({
             date={filters.dateRange}
             placeholder="Все"
             className="h-8 md:h-7 max-w-64"
+            granularity={granularity}
             onDateChange={(date) =>
               onFiltersChange({
                 ...filters,
-                dateRange: {
-                  from: date?.from,
-                  to: date?.to,
-                },
+                dateRange: normalizeDateRangeByGranularity(
+                  {
+                    from: date?.from,
+                    to: date?.to,
+                  },
+                  granularity
+                ),
               })
             }
           />
         </div>
 
         {isHome ? (
-          <div className="flex items-end md:justify-end">
+          <div className="flex flex-wrap items-end gap-2 md:justify-end">
+            <ToggleGroup
+              type="single"
+              value={granularity}
+              onValueChange={(value) => {
+                if (!onGranularityChange) {
+                  return
+                }
+
+                if (isExecutiveGranularity(value)) {
+                  onGranularityChange(value)
+                } else if (!value) {
+                  onGranularityChange('week')
+                }
+              }}
+              className="justify-start gap-1"
+            >
+              <ToggleGroupItem value="week" variant="outline" size="sm" className="h-8 px-2 text-xs md:h-7">
+                Неделя
+              </ToggleGroupItem>
+              <ToggleGroupItem value="month" variant="outline" size="sm" className="h-8 px-2 text-xs md:h-7">
+                Месяц
+              </ToggleGroupItem>
+            </ToggleGroup>
             <Button
               variant="outline"
               className="h-8 w-auto px-2.5 text-[12px] md:h-7"

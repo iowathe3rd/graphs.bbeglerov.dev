@@ -3,7 +3,10 @@
 import { useEffect, useMemo, useState } from 'react'
 
 import { DEFAULT_HOME_FILTERS } from '@/features/insight-dashboard/config/constants'
-import { createLastDaysRange } from '@/features/insight-dashboard/domain/date-bucketing'
+import {
+  createLastDaysRange,
+  normalizeDateRangeByGranularity,
+} from '@/features/insight-dashboard/domain/date-bucketing'
 import { buildInsightFilterOptions, ensureOption } from '@/features/insight-dashboard/domain/filter-options'
 import { filterEventsForProductSituation } from '@/features/insight-dashboard/domain/bubble-matrix'
 import { buildBubbleMatrixModel } from '@/features/insight-dashboard/domain/product-dissatisfaction-score'
@@ -26,6 +29,8 @@ interface UseProductSituationModelParams {
 interface ProductSituationModel {
   filters: InsightFilters
   setFilters: React.Dispatch<React.SetStateAction<InsightFilters>>
+  granularity: ProductSituationGranularity
+  setGranularity: (granularity: ProductSituationGranularity) => void
   resetFilters: () => void
   sectorOptions: string[]
   productOptions: string[]
@@ -37,11 +42,16 @@ interface ProductSituationModel {
   error: string | null
 }
 
-function createDefaultFilters(windowDays: number): InsightFilters {
+type ProductSituationGranularity = 'week' | 'month'
+
+function createDefaultFilters(
+  windowDays: number,
+  granularity: ProductSituationGranularity
+): InsightFilters {
   return {
     sector: DEFAULT_HOME_FILTERS.sector,
     productGroup: 'all',
-    dateRange: createLastDaysRange(windowDays),
+    dateRange: normalizeDateRangeByGranularity(createLastDaysRange(windowDays), granularity),
   }
 }
 
@@ -49,9 +59,13 @@ export function useProductSituationModel(
   params: UseProductSituationModelParams = {}
 ): ProductSituationModel {
   const defaultWindowDays = params.defaultWindowDays ?? 30
+  const defaultGranularity: ProductSituationGranularity = 'week'
+
+  const [granularityState, setGranularityState] =
+    useState<ProductSituationGranularity>(defaultGranularity)
 
   const [filters, setFilters] = useState<InsightFilters>(() =>
-    createDefaultFilters(defaultWindowDays)
+    createDefaultFilters(defaultWindowDays, defaultGranularity)
   )
 
   const events = params.events ?? []
@@ -94,13 +108,24 @@ export function useProductSituationModel(
   const bubblePoints = bubbleMatrixModel.points
   const bubbleScoreThresholds = bubbleMatrixModel.scoreThresholds
 
+  const setGranularity = (granularity: ProductSituationGranularity) => {
+    setGranularityState(granularity)
+    setFilters((previous) => ({
+      ...previous,
+      dateRange: normalizeDateRangeByGranularity(previous.dateRange, granularity),
+    }))
+  }
+
   const resetFilters = () => {
-    setFilters(createDefaultFilters(defaultWindowDays))
+    setGranularityState(defaultGranularity)
+    setFilters(createDefaultFilters(defaultWindowDays, defaultGranularity))
   }
 
   return {
     filters,
     setFilters,
+    granularity: granularityState,
+    setGranularity,
     resetFilters,
     sectorOptions,
     productOptions,

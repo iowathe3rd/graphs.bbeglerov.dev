@@ -1,10 +1,10 @@
 'use client'
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
 import { buildConsultationCoverageHelpDialogCopy } from '@/features/insight-dashboard/config/tooltips'
 import type { CallCoverageBucket } from '@/features/insight-dashboard/domain/types'
 import {
-  CHART_CARD_CAPTION_CLASS,
   CHART_CARD_CONTENT_CLASS,
   CHART_CARD_CONTENT_COMPACT_CLASS,
   CHART_CARD_HEADER_CLASS,
@@ -48,9 +48,22 @@ export function CallCoverageChartCard({
             triggerClassName="h-4 w-4 border-0"
           />
         </div>
-        <p className={CHART_CARD_CAPTION_CLASS}>
-          Серый — все обращения, оранжевый — консультационные обращения.
-        </p>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <Badge
+            variant="outline"
+            className="h-5 gap-1 border-slate-300/80 px-1.5 text-[10px] leading-none text-slate-700"
+          >
+            <span className="inline-block h-2.5 w-2.5 rounded-full bg-slate-500" />
+            Все обращения
+          </Badge>
+          <Badge
+            variant="outline"
+            className="h-5 gap-1 border-orange-300/80 px-1.5 text-[10px] leading-none text-orange-700"
+          >
+            <span className="inline-block h-2.5 w-2.5 rounded-full bg-orange-500" />
+            Консультационные обращения
+          </Badge>
+        </div>
       </CardHeader>
 
       <CardContent className={compact ? CHART_CARD_CONTENT_COMPACT_CLASS : CHART_CARD_CONTENT_CLASS}>

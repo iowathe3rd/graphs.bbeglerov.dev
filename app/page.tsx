@@ -25,6 +25,8 @@ export default function Page() {
   const {
     filters,
     setFilters,
+    granularity,
+    setGranularity,
     resetFilters,
     sectorOptions,
     productOptions,
@@ -57,6 +59,7 @@ export default function Page() {
     if (to) {
       params.set('to', to)
     }
+    params.set('granularity', granularity)
 
     router.push(`/product-analytics?${params.toString()}`)
   }
@@ -102,8 +105,10 @@ export default function Page() {
           <ProductSituationToolbar
             variant="home"
             filters={filters}
+            granularity={granularity}
             sectorOptions={sectorOptions}
             onFiltersChange={setFilters}
+            onGranularityChange={setGranularity}
             onReset={resetFilters}
           />
 

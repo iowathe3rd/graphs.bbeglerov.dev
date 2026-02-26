@@ -1,7 +1,6 @@
 'use client'
 
 import { Badge } from '@/components/ui/badge'
-import { BlockMath } from 'react-katex'
 import { cn } from '@/lib/utils'
 
 interface MainProductDissatisfactionHelpDialogContentProps {
@@ -88,18 +87,19 @@ export function MainProductDissatisfactionHelpDialogContent({ zoneThresholds }: 
         </p>
         <div className="rounded-md border border-border/70 bg-muted/40 p-2">
           <p className="mb-2 text-xs font-medium text-foreground">Формула метрики</p>
-          <div className="space-y-1.5 overflow-x-auto rounded-md border border-border/60 bg-background/70 p-2">
-            <BlockMath
-              math={String.raw`\text{Оценка неудовлетворенности продуктом}=
-(\text{Доля тех. проблем}\times\text{Вес})+
-(\text{Доля «Запрос не решен»}\times\text{Вес})+
-(\text{Доля негативного фидбэка}\times\text{Вес})+
-(\text{Доля риска ухода}\times\text{Вес})`}
-            />
-            <BlockMath
-              math={String.raw`\text{Доля индикатора}=
-\frac{\text{Количество обращений с этим индикатором}}{\text{Все обращения по продукту}}\times100\%`}
-            />
+          <div className="overflow-x-auto">
+            <div className="inline-flex min-w-max items-center gap-1.5 whitespace-nowrap">
+              <span className="text-[11px] font-semibold text-foreground">
+                Оценка неудовлетворенности продуктов =
+              </span>
+              <Badge variant="outline" className="h-6 px-2 text-[11px]">
+                Доля каждого индикатора
+              </Badge>
+              <span className="text-sm text-foreground">×</span>
+              <Badge variant="outline" className="h-6 px-2 text-[11px]">
+                Весовой коэффициент индикатора
+              </Badge>
+            </div>
           </div>
         </div>
         <ul className="list-disc space-y-2 pl-6">
