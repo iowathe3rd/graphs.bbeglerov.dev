@@ -4,17 +4,15 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 
-import {
-  ProductSituationBubbleMatrix,
-  ProductSituationToolbar,
-  type ProductBubblePoint,
-  useInsightEvents,
-  useProductSituationModel,
-} from '@/features/insight-dashboard'
+import { ProductSituationBubbleMatrix } from '@/features/insight-dashboard/components/product-situation-bubble-matrix'
+import { ProductSituationToolbar } from '@/features/insight-dashboard/components/product-situation-toolbar'
 import {
   normalizeDateRange,
   toDateKey,
-} from '@/features/insight-dashboard/domain/date-bucketing'
+} from '@/features/insight-dashboard/logic/date-bucketing'
+import { useInsightEvents } from '@/features/insight-dashboard/logic/hooks/use-insight-events'
+import { useProductSituationModel } from '@/features/insight-dashboard/logic/hooks/use-product-situation-model'
+import type { ProductBubblePoint } from '@/features/insight-dashboard/logic/types'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -103,7 +101,6 @@ export default function Page() {
       <main className="mx-auto h-[calc(100dvh-64px)] w-full max-w-[1600px] overflow-hidden px-4 py-3 md:px-6">
         <div className="flex h-full min-h-0 flex-col gap-3">
           <ProductSituationToolbar
-            variant="home"
             filters={filters}
             granularity={granularity}
             sectorOptions={sectorOptions}

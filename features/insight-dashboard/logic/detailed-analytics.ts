@@ -1,0 +1,450 @@
+import {
+  DASHBOARD_METRIC_IDS,
+  DEFAULT_DETAILED_FILTERS,
+} from '@/features/insight-dashboard/config/constants'
+import {
+  bucketMetricSeries,
+  isDateInRange,
+  normalizeDateRange,
+  normalizeDateRangeByGranularity,
+  parseDateKey,
+  toBucketDateKey,
+  toDateKey,
+} from '@/features/insight-dashboard/logic/date-bucketing'
+import type {
+  CallCoverageBucket,
+  CombinedIndicatorBucket,
+  DetailedAnalyticsModel,
+  InsightDetailedFilters,
+  InsightEvent,
+} from '@/features/insight-dashboard/logic/types'
+import {
+  METRICS,
+  type MetricDataPoint,
+  type PeriodGranularity,
+} from '@/features/insight-dashboard/logic/metrics-catalog'
+
+export const DETAILED_GRANULARITY_VALUES: readonly PeriodGranularity[] = ['week', 'month']
+
+interface PersistedDashboardPreferences {
+  filters: {
+    sector: string
+    productGroup: string
+    dateRange: {
+      from?: string
+      to?: string
+    }
+  }
+  granularity: PeriodGranularity
+}
+
+export interface ParsedDashboardQueryOverrides {
+  sector: InsightDetailedFilters['sector'] | null
+  productGroup: InsightDetailedFilters['productGroup'] | null
+  granularity: PeriodGranularity | null
+  dateRange: InsightDetailedFilters['dateRange'] | null
+}
+
+interface BucketCallsAggregate {
+  totalCaseIds: Set<string>
+  consultationCaseIds: Set<string>
+  metricCaseIds: Record<string, Set<string>>
+}
+
+function coerceDetailedGranularity(
+  raw: string | null | undefined
+): PeriodGranularity | null {
+  if (raw === 'day' || raw === 'week') {
+    return 'week'
+  }
+
+  if (raw === 'month') {
+    return 'month'
+  }
+
+  return null
+}
+
+function round1(value: number): number {
+  return Math.round(value * 10) / 10
+}
+
+function toUtcDate(dateKey: string): Date {
+  return new Date(`${dateKey}T00:00:00.000Z`)
+}
+
+function toDateKeyUtc(date: Date): string {
+  return date.toISOString().slice(0, 10)
+}
+
+function buildDateRange(fromKey: string, toKey: string): string[] {
+  const fromDate = toUtcDate(fromKey)
+  const toDate = toUtcDate(toKey)
+
+  if (Number.isNaN(fromDate.getTime()) || Number.isNaN(toDate.getTime())) {
+    return []
+  }
+
+  const result: string[] = []
+  const cursor = new Date(fromDate)
+
+  while (cursor <= toDate) {
+    result.push(toDateKeyUtc(cursor))
+    cursor.setUTCDate(cursor.getUTCDate() + 1)
+  }
+
+  return result
+}
+
+function resolveSeriesDays(
+  events: InsightEvent[],
+  normalizedRange: InsightDetailedFilters['dateRange']
+): string[] {
+  const fromKey = toDateKey(normalizedRange.from)
+  const toKey = toDateKey(normalizedRange.to)
+
+  if (fromKey && toKey) {
+    return buildDateRange(fromKey, toKey)
+  }
+
+  const uniqueDays = Array.from(new Set(events.map((event) => event.date))).sort()
+
+  if (uniqueDays.length === 0) {
+    return []
+  }
+
+  return buildDateRange(uniqueDays[0] as string, uniqueDays[uniqueDays.length - 1] as string)
+}
+
+function createEmptyBucketAggregate(): BucketCallsAggregate {
+  return {
+    totalCaseIds: new Set<string>(),
+    consultationCaseIds: new Set<string>(),
+    metricCaseIds: Object.fromEntries(
+      DASHBOARD_METRIC_IDS.map((metricId) => [metricId, new Set<string>()])
+    ) as Record<string, Set<string>>,
+  }
+}
+
+function aggregateCallsByBucket(
+  events: InsightEvent[],
+  granularity: PeriodGranularity
+): Map<string, BucketCallsAggregate> {
+  const buckets = new Map<string, BucketCallsAggregate>()
+
+  for (const event of events) {
+    const bucketKey = toBucketDateKey(event.date, granularity)
+
+    if (!buckets.has(bucketKey)) {
+      buckets.set(bucketKey, createEmptyBucketAggregate())
+    }
+
+    const bucket = buckets.get(bucketKey)
+    if (!bucket) {
+      continue
+    }
+
+    bucket.totalCaseIds.add(event.caseId)
+
+    if (event.dialogueType === 'Консультация') {
+      bucket.consultationCaseIds.add(event.caseId)
+    }
+
+    if (event.metric in bucket.metricCaseIds) {
+      bucket.metricCaseIds[event.metric]?.add(event.caseId)
+    }
+  }
+
+  return buckets
+}
+
+function buildCallCoverageSeriesFromBuckets(
+  buckets: Map<string, BucketCallsAggregate>
+): CallCoverageBucket[] {
+  return Array.from(buckets.entries())
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([bucketKey, aggregate]) => {
+      const n1TotalCalls = aggregate.totalCaseIds.size
+      const n2Raw = aggregate.consultationCaseIds.size
+      const n2ConsultationCalls = Math.min(n2Raw, n1TotalCalls)
+      const consultationPercent =
+        n1TotalCalls > 0 ? round1((n2ConsultationCalls / n1TotalCalls) * 100) : 0
+
+      return {
+        bucketKey,
+        bucketLabel: bucketKey,
+        n1TotalCalls,
+        n2ConsultationCalls,
+        consultationPercent,
+      }
+    })
+}
+
+function buildCombinedIndicatorSeriesFromBuckets(
+  buckets: Map<string, BucketCallsAggregate>
+): Record<string, CombinedIndicatorBucket[]> {
+  const sortedBucketKeys = Array.from(buckets.keys()).sort((a, b) => a.localeCompare(b))
+
+  return Object.fromEntries(
+    DASHBOARD_METRIC_IDS.map((metricId) => {
+      const series = sortedBucketKeys.map((bucketKey) => {
+        const aggregate = buckets.get(bucketKey)
+        const totalCallsN1 = aggregate?.totalCaseIds.size ?? 0
+        const indicatorCallsRaw = aggregate?.metricCaseIds[metricId]?.size ?? 0
+        const indicatorCalls = Math.min(indicatorCallsRaw, totalCallsN1)
+        const indicatorRatePercent =
+          totalCallsN1 > 0 ? round1((indicatorCalls / totalCallsN1) * 100) : 0
+
+        return {
+          bucketKey,
+          bucketLabel: bucketKey,
+          totalCallsN1,
+          indicatorCalls,
+          indicatorRatePercent,
+        } satisfies CombinedIndicatorBucket
+      })
+
+      return [metricId, series]
+    })
+  ) as Record<string, CombinedIndicatorBucket[]>
+}
+
+function buildMetricSeriesFromEvents(
+  events: InsightEvent[],
+  dayKeys: string[]
+): Record<string, MetricDataPoint[]> {
+  const dayCases = new Map<string, Set<string>>()
+  const metricDayCases = new Map<string, Map<string, Set<string>>>()
+
+  for (const metricId of DASHBOARD_METRIC_IDS) {
+    metricDayCases.set(metricId, new Map<string, Set<string>>())
+  }
+
+  for (const event of events) {
+    const day = event.date
+
+    if (!dayCases.has(day)) {
+      dayCases.set(day, new Set<string>())
+    }
+    dayCases.get(day)?.add(event.caseId)
+
+    if (!metricDayCases.has(event.metric)) {
+      continue
+    }
+
+    const dayMap = metricDayCases.get(event.metric)
+    if (!dayMap?.has(day)) {
+      dayMap?.set(day, new Set<string>())
+    }
+    dayMap?.get(day)?.add(event.caseId)
+  }
+
+  return Object.fromEntries(
+    DASHBOARD_METRIC_IDS.map((metricId) => {
+      const dayMap = metricDayCases.get(metricId) ?? new Map<string, Set<string>>()
+      const series = dayKeys.map((date) => {
+        const totalCases = dayCases.get(date)?.size ?? 0
+        const metricCases = dayMap.get(date)?.size ?? 0
+        const value = totalCases > 0 ? round1((metricCases / totalCases) * 100) : 0
+
+        return {
+          date,
+          value,
+        }
+      })
+
+      return [metricId, series]
+    })
+  ) as Record<string, MetricDataPoint[]>
+}
+
+export function parseDashboardPreferences(raw: string | null): {
+  filters: InsightDetailedFilters
+  granularity: PeriodGranularity
+} | null {
+  if (!raw) {
+    return null
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as PersistedDashboardPreferences
+    const sector =
+      typeof parsed?.filters?.sector === 'string' && parsed.filters.sector.trim().length > 0
+        ? parsed.filters.sector
+        : DEFAULT_DETAILED_FILTERS.sector
+    const productGroup =
+      typeof parsed?.filters?.productGroup === 'string' &&
+      parsed.filters.productGroup.trim().length > 0
+        ? parsed.filters.productGroup
+        : DEFAULT_DETAILED_FILTERS.productGroup
+    const granularity = coerceDetailedGranularity(parsed?.granularity) ?? 'week'
+
+    return {
+      filters: {
+        sector,
+        channel: 'Колл-центр',
+        productGroup,
+        dateRange: {
+          from: parseDateKey(parsed?.filters?.dateRange?.from),
+          to: parseDateKey(parsed?.filters?.dateRange?.to),
+        },
+      },
+      granularity,
+    }
+  } catch {
+    return null
+  }
+}
+
+export function parseDashboardQueryParams(
+  searchParams: URLSearchParams | null
+): ParsedDashboardQueryOverrides | null {
+  if (!searchParams) {
+    return null
+  }
+
+  const sectorRaw = searchParams.get('sector')
+  const productGroupRaw = searchParams.get('productGroup')
+  const fromRaw = searchParams.get('from') ?? undefined
+  const toRaw = searchParams.get('to') ?? undefined
+  const granularityRaw = searchParams.get('granularity')
+
+  const sector =
+    typeof sectorRaw === 'string' && sectorRaw.trim().length > 0
+      ? (sectorRaw as InsightDetailedFilters['sector'])
+      : null
+  const productGroup =
+    typeof productGroupRaw === 'string' && productGroupRaw.trim().length > 0
+      ? (productGroupRaw as InsightDetailedFilters['productGroup'])
+      : null
+  const granularity = granularityRaw ? coerceDetailedGranularity(granularityRaw) : null
+  const from = parseDateKey(fromRaw)
+  const to = parseDateKey(toRaw)
+
+  const hasDateRange = Boolean(from || to)
+  const hasOverrides = Boolean(sector || productGroup || granularity || hasDateRange)
+
+  if (!hasOverrides) {
+    return null
+  }
+
+  return {
+    sector,
+    productGroup,
+    granularity,
+    dateRange: hasDateRange ? { from, to } : null,
+  }
+}
+
+export function serializeDashboardPreferences(
+  filters: InsightDetailedFilters,
+  granularity: PeriodGranularity
+): string {
+  return JSON.stringify({
+    filters: {
+      sector: filters.sector,
+      productGroup: filters.productGroup,
+      dateRange: {
+        from: toDateKey(filters.dateRange.from),
+        to: toDateKey(filters.dateRange.to),
+      },
+    },
+    granularity,
+  } satisfies PersistedDashboardPreferences)
+}
+
+export function countActiveMobileFilters(
+  filters: InsightDetailedFilters,
+  granularity: PeriodGranularity
+): number {
+  let count = 0
+
+  if (filters.sector !== DEFAULT_DETAILED_FILTERS.sector) {
+    count += 1
+  }
+
+  if (filters.productGroup !== DEFAULT_DETAILED_FILTERS.productGroup) {
+    count += 1
+  }
+
+  if (filters.dateRange.from || filters.dateRange.to) {
+    count += 1
+  }
+
+  if (granularity !== 'week') {
+    count += 1
+  }
+
+  return count
+}
+
+export function filterEventsForDetailedAnalytics(
+  events: InsightEvent[],
+  filters: InsightDetailedFilters
+): InsightEvent[] {
+  const normalizedRange = normalizeDateRange(filters.dateRange)
+
+  return events.filter((event) => {
+    if (!isDateInRange(event.date, normalizedRange.from, normalizedRange.to)) {
+      return false
+    }
+
+    if (event.channel !== filters.channel) {
+      return false
+    }
+
+    if (event.sector !== filters.sector) {
+      return false
+    }
+
+    return event.productGroup === filters.productGroup
+  })
+}
+
+export function buildDetailedAnalyticsModel(params: {
+  events: InsightEvent[]
+  filters: InsightDetailedFilters
+  granularity: PeriodGranularity
+}): DetailedAnalyticsModel {
+  const effectiveGranularity = coerceDetailedGranularity(params.granularity) ?? 'week'
+  const normalizedRange = normalizeDateRangeByGranularity(
+    params.filters.dateRange,
+    effectiveGranularity
+  )
+  const effectiveFilters: InsightDetailedFilters = {
+    ...params.filters,
+    dateRange: normalizedRange,
+  }
+
+  const filteredEvents = filterEventsForDetailedAnalytics(params.events, effectiveFilters)
+  const dayKeys = resolveSeriesDays(filteredEvents, normalizedRange)
+  const metricsData = buildMetricSeriesFromEvents(filteredEvents, dayKeys)
+  const chartMetricsData = Object.fromEntries(
+    Object.entries(metricsData).map(([metricId, series]) => [
+      metricId,
+      bucketMetricSeries(series, effectiveGranularity),
+    ])
+  ) as Record<string, MetricDataPoint[]>
+
+  const lineCards = DASHBOARD_METRIC_IDS.map((id) => ({
+    metric: METRICS[id],
+    data: (chartMetricsData[id] ?? []).slice(-42),
+  }))
+
+  const callsByBucket = aggregateCallsByBucket(filteredEvents, effectiveGranularity)
+  const callCoverageSeries = buildCallCoverageSeriesFromBuckets(callsByBucket)
+  const combinedIndicatorSeriesByMetric = Object.fromEntries(
+    Object.entries(buildCombinedIndicatorSeriesFromBuckets(callsByBucket)).map(
+      ([metricId, series]) => [metricId, series.slice(-42)]
+    )
+  ) as Record<string, CombinedIndicatorBucket[]>
+
+  return {
+    filteredEvents,
+    metricsData,
+    chartMetricsData,
+    lineCards,
+    callCoverageSeries,
+    combinedIndicatorSeriesByMetric,
+  }
+}

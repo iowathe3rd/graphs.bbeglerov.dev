@@ -1,12 +1,10 @@
 import { PRODUCT_DISSATISFACTION_SCORE_ZONE_THRESHOLDS } from '@/features/insight-dashboard/config/constants'
-import type { ProductSituationScoreThresholds } from '@/features/insight-dashboard/domain/types'
+import type { ProductSituationScoreThresholds } from '@/features/insight-dashboard/logic/types'
 
 export type InsightHelpDialogVariant =
   | 'product-dissatisfaction-score-main'
   | 'product-dissatisfaction-score-detailed'
   | 'consultation-coverage'
-  | 'overlap'
-  | 'kpi-indicator-line'
   | 'combined-indicator-line'
 
 export interface InsightHelpDialogCopy {
@@ -62,21 +60,6 @@ export function buildConsultationCoverageHelpDialogCopy(): InsightHelpDialogCopy
   }
 }
 
-export function buildOverlapHelpDialogCopy(): InsightHelpDialogCopy {
-  return {
-    title: 'График пересечений индикаторов',
-    variant: 'overlap',
-  }
-}
-
-export function buildKpiIndicatorHelpDialogCopy(metricId: string): InsightHelpDialogCopy {
-  return {
-    title: 'Описание индикатора',
-    variant: 'kpi-indicator-line',
-    metricId,
-  }
-}
-
 export function buildCombinedIndicatorHelpDialogCopy(metricId: string): InsightHelpDialogCopy {
   return {
     title: 'Описание индикатора',
@@ -88,6 +71,5 @@ export function buildCombinedIndicatorHelpDialogCopy(metricId: string): InsightH
 export const INSIGHT_HELP_DIALOG_COPY = {
   productDissatisfactionScoreMain: buildMainProductDissatisfactionHelpDialogCopy(),
   productDissatisfactionScoreDetailed: buildDetailedProductDissatisfactionHelpDialogCopy(),
-  overlap: buildOverlapHelpDialogCopy(),
   consultationCoverage: buildConsultationCoverageHelpDialogCopy(),
 } as const

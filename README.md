@@ -1,102 +1,85 @@
 # Insight Service Dashboard
 
-Internal Next.js dashboard with reusable UI + analytics feature module for product health monitoring.
+Next.js дашборд для мониторинга продуктового состояния на базе обращений клиентов.
+Основная метрика визуализации: **«Оценка неудовлетворенности продуктом»**.
 
-## Runtime routes
-1. `/` — executive screen with one bubble matrix (`Состояние продуктов`).
-2. `/product-analytics` — detailed product analytics (line indicators + overlap map).
+## Маршруты
+1. `/` — главная страница с температурной картой продуктов.
+2. `/product-analytics` — детальная аналитика по выбранному продукту.
 
-`/showcase/*` and legacy demo pages are removed from runtime.
+## Технологии
+1. Next.js 16 (`app` router, client components для интерактивных экранов).
+2. React + TypeScript.
+3. Tailwind CSS + shadcn/ui.
+4. Recharts (bubble/line/bar визуализации).
 
-## Quick start
+## Архитектура (2 слоя)
+Фича расположена в:
+`/Users/bbeglerov/Developer/Playground/graphs.bbeglerov.dev/features/insight-dashboard`
+
+```text
+features/insight-dashboard
+├── logic/        # вычисления, агрегации, типы, хуки состояния
+├── components/   # UI-слой фичи (карточки, тулбары, диалоги, виджеты)
+├── config/       # константы, тексты tooltip/dialog, справочники
+└── index.ts      # публичный API фичи
+```
+
+### Logic layer
+1. `logic/product-dissatisfaction-score.ts` — расчет метрики, зон, bubble-моделей (главная + timeline на детальной).
+2. `logic/detailed-analytics.ts` — агрегаты для детальной страницы (индикаторы, покрытие консультаций, сериализация фильтров).
+3. `logic/date-bucketing.ts` — нормализация диапазонов, ISO-недели, форматирование бакетов.
+4. `logic/bubble-matrix.ts` — фильтрация событий для температурной карты.
+5. `logic/filter-options.ts` — построение и валидация опций фильтров.
+6. `logic/hooks/*` — orchestration hooks (`useInsightEvents`, `useProductSituationModel`, `useProductDetailedModel`).
+7. `logic/types.ts` + `logic/metrics-catalog.ts` — доменные контракты и каталог индикаторов.
+
+### Components layer
+1. `components/product-situation-bubble-matrix.tsx` — основной bubble-график (main/focused режимы).
+2. `components/product-detailed-analytics-page.tsx` — компоновка детальной страницы.
+3. `components/indicator-combined-card.tsx` — комбинированная карточка индикатора (`%`/`шт`).
+4. `components/call-coverage-chart-card.tsx` — график консультационных обращений.
+5. `components/filters/*` — desktop/mobile фильтры детальной страницы.
+6. `components/*help-dialog-content.tsx` + `insight-help-dialog-button.tsx` — help-dialog контент и триггеры.
+7. `components/product-situation-bubble-matrix/*` — подкомпоненты bubble chart (layout/legend/tooltip).
+
+## Источник данных
+По умолчанию используется клиентский адаптер:
+1. `public/export.xlsx` (первичный источник).
+2. `public/calls.csv` (fallback, если `export.xlsx` недоступен).
+
+Парсинг:
+1. `logic/calls-xlsx.ts`
+2. `logic/calls-csv.ts`
+
+Хуки модели не привязаны к конкретному transport: можно передавать `events/loading/error` из любого источника (REST, GraphQL, Query, SWR).
+
+## Быстрый старт
 ```bash
 pnpm install
 pnpm dev
 ```
 
-Validation:
+Проверки:
 ```bash
 pnpm lint
 pnpm build
 ```
 
-## Internal component library architecture
-Main reusable module:
-`/Users/bbeglerov/Developer/Playground/graphs.bbeglerov.dev/features/insight-dashboard`
+## Публичный API
+Экспортируется через:
+`/Users/bbeglerov/Developer/Playground/graphs.bbeglerov.dev/features/insight-dashboard/index.ts`
 
-Structure:
-1. `domain/*` — pure calculations and aggregations (no React).
-2. `hooks/*` — state orchestration and view-model assembly.
-3. `ui/*` — presentation components.
-4. `config/*` — constants, zones, tooltip copy.
-5. `index.ts` — public entrypoint.
+Основные группы:
+1. Типы (`InsightEvent`, `InsightFilters`, `ProductBubblePoint`, `ProductSituationScoreThresholds`, ...).
+2. Logic-функции (`buildProductDissatisfactionScoreMetrics`, `buildBubbleMatrixPoints`, `buildDetailedAnalyticsModel`, ...).
+3. Hooks (`useInsightEvents`, `useProductSituationModel`, `useProductDetailedModel`).
+4. Компоненты (`ProductSituationToolbar`, `ProductSituationBubbleMatrix`, `ProductDetailedAnalyticsView`, ...).
+5. Конфиги (`PRODUCT_DISSATISFACTION_SCORE_BREAKPOINTS`, `INSIGHT_HELP_DIALOG_COPY`, ...).
 
-## Public API (`features/insight-dashboard/index.ts`)
-Types:
-1. `InsightEvent`, `InsightEventInput`
-2. `InsightFilters`, `InsightDetailedFilters`, `InsightGranularity`
-3. `ProductBubblePoint`, `HealthIndexBreakpoints`
-
-Domain functions:
-1. `buildHealthIndexMetrics(events, options)`
-2. `buildBubbleMatrixPoints(events, options)`
-3. `buildDetailedAnalyticsModel({ events, filters, granularity })`
-
-Hooks:
-1. `useProductSituationModel({ events, loading?, error?, defaultWindowDays?, sectorOptions?, productOptions? })`
-2. `useProductDetailedModel({ events, loading?, error?, query?, channel?, sectorOptions?, productOptions? })`
-3. `useInsightEvents()` — optional file adapter for local demo/runtime only
-
-UI components:
-1. `<ProductSituationToolbar />`
-2. `<ProductSituationBubbleMatrix />`
-3. `<ProductDetailedAnalyticsView />`
-
-## Data integration contract
-The library accepts raw events as `InsightEvent[]`.
-
-Minimal required input fields (for external mapping):
-1. `id`
-2. `caseId`
-3. `date`
-4. `sector`
-5. `productGroup`
-6. `channel`
-7. `dialogueType`
-8. `metric`
-9. `tag`
-
-Default adapter in this repository:
-`/Users/bbeglerov/Developer/Playground/graphs.bbeglerov.dev/public/export.xlsx`.
-
-Excel parsing/mapping layer:
-`/Users/bbeglerov/Developer/Playground/graphs.bbeglerov.dev/features/insight-dashboard/domain/calls-xlsx.ts`.
-
-Core hooks are API-agnostic and do not fetch by themselves.
-They only consume ready data (`events/loading/error`) from any source:
-SWR, TanStack Query, REST, GraphQL, server actions, etc.
-
-Filter options are also source-agnostic:
-1. By default they are derived from incoming events.
-2. You can override them explicitly via `sectorOptions` / `productOptions`.
-
-The old synthetic generator (`generateEventStream`) is not used by `/` and `/product-analytics`.
-
-Fallback compatibility:
-if `export.xlsx` is unavailable or empty, adapter falls back to:
-`/Users/bbeglerov/Developer/Playground/graphs.bbeglerov.dev/public/calls.csv`.
-
-## Drilldown contract
-Bubble click navigates with:
-`/product-analytics?productGroup=<...>&sector=<...>&from=<YYYY-MM-DD>&to=<YYYY-MM-DD>&source=bubble`
-
-Detailed page initialization priority:
-`query params > localStorage > defaults`
-
-## Health model source of truth
-Current formula and zone definitions are documented in:
-`/Users/bbeglerov/Developer/Playground/graphs.bbeglerov.dev/docs/health-index-model.md`
-
-## Integration guide
-Step-by-step external integration guide:
-`/Users/bbeglerov/Developer/Playground/graphs.bbeglerov.dev/docs/component-library-integration.md`
+## Документация
+1. Архитектура и потоки: `docs/project-architecture.md`.
+2. Каталог компонентов/папок: `docs/components-and-folders.md`.
+3. Интеграционный гайд: `docs/component-library-integration.md`.
+4. Модель расчета метрики: `docs/health-index-model.md`.
+5. Интеграция в legacy React (AI runbook): `docs/legacy-react-vite-ai-integration.md`.

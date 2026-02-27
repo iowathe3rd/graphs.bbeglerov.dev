@@ -1,28 +1,36 @@
-# Integration guide: insight-dashboard internal library
+# Integration guide: insight-dashboard library
 
-## 1) What you reuse
-Import from:
+## 1) Что можно переиспользовать
+Импорт:
 `@/features/insight-dashboard`
 
-Available layers:
-1. Headless hooks (`useProductSituationModel`, `useProductDetailedModel`)
-2. Pure calculators (`buildHealthIndexMetrics`, `buildBubbleMatrixPoints`, `buildDetailedAnalyticsModel`)
-3. UI blocks (`ProductSituationToolbar`, `ProductSituationBubbleMatrix`, `ProductDetailedAnalyticsView`)
+Доступные слои:
+1. Hooks-модели:
+   - `useProductSituationModel`
+   - `useProductDetailedModel`
+2. Pure calculators:
+   - `buildProductDissatisfactionScoreMetrics`
+   - `buildBubbleMatrixPoints`
+   - `buildDetailedAnalyticsModel`
+3. UI-блоки:
+   - `ProductSituationToolbar`
+   - `ProductSituationBubbleMatrix`
+   - `ProductDetailedAnalyticsView`
 
-Core hooks are source-agnostic:
-1. They expect `events` and optional `loading/error`.
-2. They do not fetch from CSV/REST/GraphQL by themselves.
-3. They can derive filter options from events or receive explicit options (`sectorOptions`, `productOptions`).
+Хуки source-agnostic:
+1. Принимают `events` и опционально `loading/error`.
+2. Не привязаны к CSV/REST/GraphQL.
+3. Могут строить filter options сами или принимать `sectorOptions`/`productOptions` извне.
 
-Optional source adapter in this repo:
-1. `useInsightEvents()` loads `/public/export.xlsx`.
-2. `parseCallsWorkbook()` maps XLSX rows to `InsightEvent[]`.
-3. If `export.xlsx` is unavailable, adapter falls back to `/public/calls.csv`.
+Опциональный data-adapter внутри репозитория:
+1. `useInsightEvents()` читает `/public/export.xlsx`.
+2. `parseCallsWorkbook()` маппит XLSX в `InsightEvent[]`.
+3. При ошибке автоматически использует fallback `/public/calls.csv`.
 
-## 2) External data mapping
-Library expects `InsightEvent[]`.
+## 2) Контракт входных данных
+Фича ожидает `InsightEvent[]`.
 
-Minimum mapping contract (`InsightEventInput`):
+Минимальный контракт (`InsightEventInput`):
 1. `id`
 2. `caseId`
 3. `date` (`YYYY-MM-DD`)
@@ -30,10 +38,11 @@ Minimum mapping contract (`InsightEventInput`):
 5. `productGroup`
 6. `channel`
 7. `dialogueType` (`Консультация` | `Претензия`)
-8. `metric`
+8. `metric` (`sla` | `aht` | `queueLoad` | `abandonment`)
 9. `tag`
 
-## 3) Executive page integration example
+## 3) Пример интеграции главной страницы
+
 ```tsx
 'use client'
 
@@ -44,11 +53,21 @@ import {
   useProductSituationModel,
   type ProductBubblePoint,
 } from '@/features/insight-dashboard'
-import { normalizeDateRange, toDateKey } from '@/features/insight-dashboard/domain/date-bucketing'
+import { normalizeDateRange, toDateKey } from '@/features/insight-dashboard/logic/date-bucketing'
 
 export function ExecutiveScreen({ events }: { events: any[] }) {
   const router = useRouter()
-  const { filters, setFilters, resetFilters, sectorOptions, productOptions, bubblePoints } = useProductSituationModel({
+  const {
+    filters,
+    setFilters,
+    granularity,
+    setGranularity,
+    resetFilters,
+    sectorOptions,
+    productOptions,
+    bubblePoints,
+    bubbleScoreThresholds,
+  } = useProductSituationModel({
     events,
     loading: false,
     error: null,
@@ -60,6 +79,7 @@ export function ExecutiveScreen({ events }: { events: any[] }) {
       productGroup: point.productGroup,
       sector: filters.sector,
       source: 'bubble',
+      granularity,
     })
 
     const from = toDateKey(range.from)
@@ -73,14 +93,16 @@ export function ExecutiveScreen({ events }: { events: any[] }) {
   return (
     <>
       <ProductSituationToolbar
-        variant="home"
         filters={filters}
+        granularity={granularity}
         sectorOptions={sectorOptions}
         onFiltersChange={setFilters}
+        onGranularityChange={setGranularity}
         onReset={resetFilters}
       />
       <ProductSituationBubbleMatrix
         points={bubblePoints}
+        scoreThresholds={bubbleScoreThresholds}
         productOrder={productOptions}
         onPointClick={onPointClick}
       />
@@ -89,16 +111,24 @@ export function ExecutiveScreen({ events }: { events: any[] }) {
 }
 ```
 
-## 4) Detailed page integration example
+## 4) Пример интеграции детальной страницы
+
 ```tsx
 import { ProductDetailedAnalyticsView } from '@/features/insight-dashboard'
 
 export default function ProductAnalyticsPage() {
-  return <ProductDetailedAnalyticsView events={events} loading={isLoading} error={errorMessage} />
+  return (
+    <ProductDetailedAnalyticsView
+      events={events}
+      loading={isLoading}
+      error={errorMessage}
+    />
+  )
 }
 ```
 
-## 5) Data source examples (SWR / TanStack / GraphQL)
+## 5) Использование с внешним data-fetching
+
 ```tsx
 // SWR
 const { data, isLoading, error } = useSWR('/api/calls', fetcher)
@@ -117,23 +147,16 @@ const detailed = useProductDetailedModel({
 })
 ```
 
-## 6) Query contract for drilldown
-Use these query params when opening detailed analytics:
+## 6) Контракт drilldown между страницами
+Для перехода из bubble в детальную используйте query-параметры:
 1. `productGroup`
 2. `sector`
 3. `from` (`YYYY-MM-DD`)
 4. `to` (`YYYY-MM-DD`)
-5. `source` (optional marker, e.g. `bubble`)
+5. `granularity` (`week` | `month`)
+6. `source` (необязательный marker, например `bubble`)
 
-Detailed screen applies state with priority:
+Инициализация детальной страницы:
 1. query params
 2. localStorage (`insight-service:dashboard:v1`)
 3. defaults
-
-## 7) UI copy policy
-For end users keep business wording:
-1. `Индекс здоровья`
-2. `Проблемные обращения`
-3. `Все обращения`
-
-Do not show debug terms (`weighted`, `volume weight`, `risk core`) in UI labels.

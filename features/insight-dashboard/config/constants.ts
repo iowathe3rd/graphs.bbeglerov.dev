@@ -1,4 +1,4 @@
-import type { InsightDetailedFilters, ProductSituationTag } from '@/features/insight-dashboard/domain/types'
+import type { InsightDetailedFilters, ProductSituationTag } from '@/features/insight-dashboard/logic/types'
 
 export const INSIGHT_CHANNEL = 'Колл-центр' as const
 

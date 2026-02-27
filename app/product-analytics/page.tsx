@@ -1,6 +1,7 @@
 'use client'
 
-import { ProductDetailedAnalyticsView, useInsightEvents } from '@/features/insight-dashboard'
+import { ProductDetailedAnalyticsView } from '@/features/insight-dashboard/components/product-detailed-analytics-page'
+import { useInsightEvents } from '@/features/insight-dashboard/logic/hooks/use-insight-events'
 
 export default function ProductAnalyticsPage() {
   const eventsState = useInsightEvents()

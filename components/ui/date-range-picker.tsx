@@ -1,6 +1,5 @@
 'use client'
 
-import { format } from 'date-fns'
 import { ru } from 'date-fns/locale'
 import { CalendarIcon } from 'lucide-react'
 import type { DateRange } from 'react-day-picker'
@@ -14,62 +13,49 @@ import {
   formatBucketLabel,
   normalizeDateRangeByGranularity,
   toDateKey,
-} from '@/features/insight-dashboard/domain/date-bucketing'
+} from '@/features/insight-dashboard/logic/date-bucketing'
+import type { PeriodGranularity } from '@/features/insight-dashboard/logic/metrics-catalog'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { cn } from '@/lib/utils'
-
-type DateRangePickerGranularity = 'day' | 'week' | 'month'
 
 interface DateRangePickerProps {
   date: DateRange | undefined
   onDateChange: (date: DateRange | undefined) => void
   className?: string
   placeholder?: string
-  granularity?: DateRangePickerGranularity
+  granularity?: PeriodGranularity
 }
 
 function formatRangeLabel(
   date: DateRange | undefined,
-  granularity: DateRangePickerGranularity
+  granularity: PeriodGranularity
 ) {
   if (!date?.from) {
     return null
   }
 
-  if (granularity === 'week' || granularity === 'month') {
-    const normalized = normalizeDateRangeByGranularity(
-      {
-        from: date.from,
-        to: date.to,
-      },
-      granularity
-    )
-    const fromKey = toDateKey(normalized.from)
-    const toKey = toDateKey(normalized.to)
+  const normalized = normalizeDateRangeByGranularity(
+    {
+      from: date.from,
+      to: date.to,
+    },
+    granularity
+  )
+  const fromKey = toDateKey(normalized.from)
+  const toKey = toDateKey(normalized.to)
 
-    if (!fromKey || !toKey) {
-      return null
-    }
-
-    const fromLabel = formatBucketLabel(fromKey, granularity)
-    const toLabel = formatBucketLabel(toKey, granularity)
-
-    if (fromLabel === toLabel) {
-      return fromLabel
-    }
-
-    return `${fromLabel} - ${toLabel}`
+  if (!fromKey || !toKey) {
+    return null
   }
 
-  if (date.to) {
-    return `${format(date.from, 'dd MMM', { locale: ru })} - ${format(
-      date.to,
-      'dd MMM',
-      { locale: ru }
-    )}`
+  const fromLabel = formatBucketLabel(fromKey, granularity)
+  const toLabel = formatBucketLabel(toKey, granularity)
+
+  if (fromLabel === toLabel) {
+    return fromLabel
   }
 
-  return format(date.from, 'dd MMM', { locale: ru })
+  return `${fromLabel} - ${toLabel}`
 }
 
 export function DateRangePicker({
@@ -77,7 +63,7 @@ export function DateRangePicker({
   onDateChange,
   className,
   placeholder = 'Выберите период',
-  granularity = 'day',
+  granularity = 'week',
 }: DateRangePickerProps) {
   const isMobile = useIsMobile()
   const [hoveredDay, setHoveredDay] = useState<Date | undefined>(undefined)
@@ -97,7 +83,7 @@ export function DateRangePicker({
     }
   }, [date?.from, date?.to, granularity])
   const previewRange = useMemo<DateRange | undefined>(() => {
-    if (!hoveredDay || granularity === 'day') {
+    if (!hoveredDay) {
       return undefined
     }
 
@@ -142,16 +128,7 @@ export function DateRangePicker({
             weekStartsOn={1}
             defaultMonth={committedRange?.from ?? date?.from}
             selected={displayedRange}
-            onSelect={(nextRange) => {
-              if (granularity === 'day') {
-                onDateChange(nextRange)
-              }
-            }}
             onDayClick={(day) => {
-              if (granularity === 'day') {
-                return
-              }
-
               const nextRange = buildPeriodRangeFromAnchor(day, granularity)
               onDateChange({
                 from: nextRange.from,
@@ -159,10 +136,6 @@ export function DateRangePicker({
               })
             }}
             onDayMouseEnter={(day) => {
-              if (granularity === 'day') {
-                return
-              }
-
               setHoveredDay(day)
             }}
             numberOfMonths={isMobile ? 1 : 2}
